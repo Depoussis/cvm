@@ -1,0 +1,39 @@
+# Configuração do ambiente de desenvolvimento. Sem segredos: autenticação por Entra ID / Managed Identity.
+# Os nomes dos recursos Azure vêm do deployment Bicep "fundacao-dev" (ver docs/deployment.md).
+env: dev
+
+azure:
+  subscription_id: a51d7d8f-69ec-4d14-83d5-150aeade439a
+  resource_group: rg-findata-dev
+  location: northeurope
+  storage_account: stfindatadev73r4pl
+  key_vault: kv-findata-dev-73r4pl
+  data_factory: adf-findata-dev-73r4pl
+  access_connector_id: /subscriptions/a51d7d8f-69ec-4d14-83d5-150aeade439a/resourceGroups/rg-findata-dev/providers/Microsoft.Databricks/accessConnectors/ac-findata-dev
+
+databricks:
+  host: https://adb-7405612954969039.19.azuredatabricks.net
+  sql_warehouse_name: Serverless Starter Warehouse
+
+unity_catalog:
+  catalog: findata_dev
+  storage_credential: sc_findata_dev
+  # Localização gerida do catálogo (o metastore regional não tem raiz de armazenamento).
+  catalog_location: abfss://control@stfindatadev73r4pl.dfs.core.windows.net/_catalog
+  # schema -> contêiner/pasta ADLS onde ficam as tabelas geridas desse schema.
+  # Localizações geridas e volumes não podem sobrepor-se, por isso cada uma tem a sua pasta.
+  schemas:
+    bronze: { container: bronze, path: tables, comment: "Dados como recebidos das fontes, com metadados de ingestão" }
+    silver: { container: silver, path: tables, comment: "Dados limpos, tipados, deduplicados e historizados (SCD1/SCD2)" }
+    gold: { container: gold, path: tables, comment: "Modelo dimensional e indicadores para consumo analítico" }
+    control: { container: control, path: tables, comment: "Controlo de execução, watermarks, qualidade e registo de ficheiros" }
+    ops: { container: control, path: ops, comment: "Volumes operacionais: ficheiros originais, checkpoints e quarentena" }
+  # volumes externos: nome -> (schema, contêiner)
+  volumes:
+    raw: { schema: ops, container: raw, comment: "Ficheiros e payloads originais, imutáveis" }
+    checkpoints: { schema: ops, container: checkpoints, comment: "Checkpoints de streaming e Auto Loader" }
+    quarantine: { schema: ops, container: quarantine, comment: "Payloads inválidos e ficheiros corrompidos" }
+  # Grupos de conta (criados na consola de conta do Databricks). Grupos inexistentes são ignorados com aviso.
+  groups:
+    engineers: grp_findata_engineers
+    analysts: grp_findata_analysts

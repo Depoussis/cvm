@@ -1,0 +1,4 @@
+databricks-sdk==0.153.0
+azure-identity
+requests
+pyyaml
