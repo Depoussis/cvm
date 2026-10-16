@@ -111,4 +111,7 @@ de armazenamento próprios. Em dev só existe `findata_dev`; test e prod são cr
 ## Limitações conhecidas da fundação
 - Sem private endpoints nem firewall de rede no ADLS e no Key Vault em dev (acesso controlado por Entra ID/RBAC).
 - Log Analytics com quota de 1 GB/dia: ao atingir, os logs param até ao dia seguinte.
+- Validação das external locations (16/10/2026): READ, LIST, WRITE, DELETE e PATH_EXISTS passam nos 7 contêineres.
+  O teste opcional de *file events* falha (o Access Connector não tem permissões de Event Grid/filas); não é usado,
+  porque a ingestão lê ficheiros por lista explícita, não por Auto Loader em modo notificação.
 - Os testes de `src/audit/control.py` com Spark correm no Databricks (fase 4); localmente só há testes sem Spark.

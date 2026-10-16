@@ -9,7 +9,7 @@ ENV="${1:-dev}"
 RG="rg-findata-${ENV}"
 AZ="${AZ_CLI:-az}"
 command -v "$AZ" >/dev/null 2>&1 || AZ="C:/Users/felip/.azcli/Scripts/az.bat"
-RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
+RAIZ="$(cd "$(dirname "$0")/.." && (pwd -W 2>/dev/null || pwd))"  # pwd -W: caminho Windows no Git Bash
 
 saida() { "$AZ" deployment group show -g "$RG" -n "fundacao-${ENV}" --query "properties.outputs.$1.value" -o tsv | tr -d '\r'; }
 

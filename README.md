@@ -11,7 +11,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 
 | Fase | Conteúdo | Estado |
 |---|---|---|
-| 1. Fundação | Infraestrutura, ADLS, RBAC, Unity Catalog, repositório, tabelas de controlo | em curso |
+| 1. Fundação | Infraestrutura, ADLS, RBAC, Unity Catalog, repositório, tabelas de controlo | concluída (16/10/2026) |
 | 2. Banco Central | SGS e PTAX: histórico e incremental, bronze/silver/gold | — |
 | 3. CVM | Catálogo, ficheiros históricos, ZIP, fundos e companhias abertas | — |
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | — |
