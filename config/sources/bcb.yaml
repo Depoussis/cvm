@@ -5,7 +5,7 @@ http:
   tentativas: 5            # retries com backoff exponencial em 429, 5xx e erros de rede
   backoff_base_s: 2
   pausa_entre_pedidos_s: 1 # o BCB tem firewall (WAF) que devolve 403 a rajadas de pedidos
-  user_agent: "findata-study-platform/0.1 (projeto de estudo; dados públicos)"
+  user_agent: "findata-study-platform/0.1 (projeto de estudo; dados publicos)"  # só ASCII: a Cloudflare da B3 responde 403 a cabeçalhos com acentos
 
 bcb_sgs:
   # GET .../bcdata.sgs.{codigo}/dados?formato=json&dataInicial=dd/MM/aaaa&dataFinal=dd/MM/aaaa

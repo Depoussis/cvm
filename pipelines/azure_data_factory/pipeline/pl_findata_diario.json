@@ -1,7 +1,7 @@
 {
   "name": "pl_findata_diario",
   "properties": {
-    "description": "Carga diária: BCB e CVM em paralelo (bronze → silver → gold → reapresentações, dentro de cada job) e depois a verificação de frescura. Qualquer falha falha o pipeline e dispara o alerta alr-findata-${env}-adf-pipeline-falhou.",
+    "description": "Carga diária: BCB, CVM e B3 em paralelo (bronze → silver → gold → reapresentações, dentro de cada job) e depois a verificação de frescura. Qualquer falha falha o pipeline e dispara o alerta alr-findata-${env}-adf-pipeline-falhou.",
     "folder": {
       "name": "findata"
     },
@@ -57,8 +57,30 @@
         }
       },
       {
+        "name": "B3",
+        "type": "ExecutePipeline",
+        "typeProperties": {
+          "pipeline": {
+            "referenceName": "pl_databricks_job",
+            "type": "PipelineReference"
+          },
+          "waitOnCompletion": true,
+          "parameters": {
+            "job_id": "${job_id_b3}",
+            "run_mode": {
+              "value": "@pipeline().parameters.run_mode",
+              "type": "Expression"
+            },
+            "run_id_origem": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          }
+        }
+      },
+      {
         "name": "Frescura",
-        "description": "Só corre se as duas cargas tiverem sucesso, para o estado final do pipeline refletir qualquer falha.",
+        "description": "Só corre se as três cargas tiverem sucesso, para o estado final do pipeline refletir qualquer falha.",
         "type": "ExecutePipeline",
         "dependsOn": [
           {
@@ -69,6 +91,12 @@
           },
           {
             "activity": "CVM",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "B3",
             "dependencyConditions": [
               "Succeeded"
             ]

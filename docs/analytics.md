@@ -57,7 +57,7 @@ As consultas correm no SQL Warehouse serverless 2X-Small (≈ 3,20 €/h só enq
 
 ## Painel público em Streamlit
 
-As mesmas cinco páginas, com visual próprio (clean, claro/escuro) e mais interação: período e moedas na PTAX,
+As mesmas cinco páginas (mais a página Bolsa), com visual próprio (clean, claro/escuro) e mais interação: período e moedas na PTAX,
 filtro de segmento e top 5/10/15 nos rankings de FII, pesquisa de fundo por nome, ticker ou CNPJ. Código em `app/`
 (`streamlit_app.py`, `paginas/`, `painel/`), tema em `.streamlit/config.toml`.
 
@@ -74,6 +74,14 @@ git add app/dados && git commit -m "Painel: snapshot" && git push   # o Streamli
 
 Diferenças face ao AI/BI: a cota diária dos FI (17,7 M linhas) não vai no snapshot; a análise mostra a
 rentabilidade acumulada a partir das rentabilidades mensais, comparada com a Selic acumulada.
+
+Só no Streamlit existe a página **Bolsa** (B3, ver [pipelines_b3.md](pipelines_b3.md)), alimentada por
+`gold.vw_b3_desempenho` e pelo histórico diário ajustado dos papéis com volume médio ≥ R$ 1 mi/dia. Tem:
+- indicadores do Ibovespa (via BOVA11) e altas/baixas do dia;
+- rankings por classe (ações, FII, ETF), setor e liquidez mínima: dia, volume, 12 meses, ano e P/VP dos FII;
+- evolução do preço em base 100 de até 6 papéis;
+- retorno mediano por setor;
+- tabela pesquisável de todos os papéis.
 
 **Publicar (uma vez):** share.streamlit.io → *Create app* → *Deploy a public app from GitHub* → repositório
 `Depoussis/cvm`, branch `main`, ficheiro `app/streamlit_app.py` → *Advanced settings*: Python 3.11 → *Deploy*.

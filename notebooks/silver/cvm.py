@@ -5,6 +5,7 @@
 # MAGIC   CNPJ, converte para os tipos do dicionário da CVM e rejeita para quarentena o que não converte sem perda.
 # MAGIC - `cvm_fundo`, `cvm_fundo_gestor`, `cvm_fundo_classe`, `cvm_companhia` (SCD2): a partir do snapshot mais recente
 # MAGIC   ainda não consolidado. Chaves que desaparecem do snapshot têm a versão atual fechada.
+# MAGIC - `cvm_valor_mobiliario` (SCD1): ticker na B3 → companhia, do FCA mais recente.
 # MAGIC - Dados pessoais da bronze não são selecionados.
 
 # COMMAND ----------
@@ -328,6 +329,62 @@ if p.escolhida("fii_inf_mensal"):
     except Exception as ex:
         control.falhar(spark, e, ex, c)
         erros["fii_ativo_passivo"] = repr(ex)
+
+# COMMAND ----------
+
+# MAGIC %md ## Companhias abertas: tickers na B3 (FCA, SCD1)
+
+# COMMAND ----------
+
+if p.escolhida("cia_aberta_fca") or p.escolhida("cvm_valor_mobiliario"):
+    bronze_vm = f"{k}.bronze.cvm_cia_aberta_fca_valor_mobiliario"
+    destino = f"{k}.silver.cvm_valor_mobiliario"
+    e = control.Execucao(k, p.run_id, "silver_cvm", FONTE, "cvm_valor_mobiliario", "silver", p.run_mode)
+    control.iniciar(spark, e)
+    c = control.Contagens()
+    try:
+        # Poucas linhas (~1 mil por ano): reconstrói-se sempre a partir de toda a bronze, para o formulário mais
+        # recente de cada ticker ganhar mesmo que um ano antigo seja recarregado depois.
+        c.read = spark.table(bronze_vm).count()
+        colunas = ["cnpj_cia", "nome_empresarial", "valor_mobiliario", "classe_preferencial", "segmento_listagem",
+                   "data_inicio_negociacao", "data_fim_negociacao", "data_referencia", "versao"]
+        spark.sql(f"""
+            SELECT ticker, {', '.join(colunas)}, {expr_hash(colunas)} AS record_hash,
+                   '{p.run_id}' AS _pipeline_run_id
+            FROM (
+              SELECT upper({txt('codigo_negociacao')}) AS ticker, {cnpj('cnpj_companhia')} AS cnpj_cia,
+                     {txt('nome_empresarial')} AS nome_empresarial, {txt('valor_mobiliario')} AS valor_mobiliario,
+                     {txt('classe_acao_preferencial')} AS classe_preferencial, {txt('segmento')} AS segmento_listagem,
+                     {dt('data_inicio_negociacao')} AS data_inicio_negociacao,
+                     {dt('data_fim_negociacao')} AS data_fim_negociacao, {dt('data_referencia')} AS data_referencia,
+                     CAST(try_cast({txt('versao')} AS DOUBLE) AS INT) AS versao, _ingestion_timestamp, _record_hash
+              FROM {bronze_vm}
+              WHERE _corrupt_record IS NULL AND {txt('codigo_negociacao')} IS NOT NULL
+                AND {txt('sigla_entidade_administradora')} = 'B3' AND {dt('data_referencia')} IS NOT NULL
+                AND length({cnpj('cnpj_companhia')}) = 14
+            )
+            QUALIFY row_number() OVER (PARTITION BY ticker ORDER BY data_referencia DESC, versao DESC NULLS LAST,
+                                       _ingestion_timestamp DESC, _record_hash) = 1
+        """).createOrReplaceTempView("_vm_src")
+        n_validos = spark.table("_vm_src").count()
+        c.inserted, c.updated = executar_merge(spark, merge_scd1(destino, "_vm_src", ["ticker"], colunas))
+        c.unchanged = n_validos - c.inserted - c.updated
+        resultados = dq.avaliar(spark, [
+            dq.Regra("chave_unica", "Um registo por ticker", "CRITICAL", destino,
+                     f"SELECT ticker, count(*) n FROM {destino} GROUP BY 1 HAVING n > 1",
+                     f"SELECT count(*) FROM {destino}"),
+            dq.Regra("ticker_formato_b3", "Ticker com 4 letras e 1-2 dígitos (ex.: PETR4, TAEE11)", "INFO", destino,
+                     f"SELECT ticker, cnpj_cia FROM {destino} WHERE NOT ticker rlike '^[A-Z0-9]{{4}}[0-9]{{1,2}}[A-Z]?$'",
+                     f"SELECT count(*) FROM {destino}"),
+        ])
+        dq.gravar(spark, k, p.run_id, resultados)
+        control.concluir(spark, e, c)
+        print(f"cvm_valor_mobiliario: bronze={c.read} tickers={n_validos} novos={c.inserted} alterados={c.updated}")
+        if any(not r.passou and r.regra.severidade == "CRITICAL" for r in resultados):
+            raise RuntimeError("regra crítica falhou em cvm_valor_mobiliario")
+    except Exception as ex:
+        control.falhar(spark, e, ex, c)
+        erros["cvm_valor_mobiliario"] = repr(ex)
 
 # COMMAND ----------
 

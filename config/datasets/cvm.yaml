@@ -13,7 +13,7 @@
 ckan:
   url_package_show: "https://dados.cvm.gov.br/api/3/action/package_show"
   # pacotes cujo catálogo de recursos é guardado em bronze.cvm_catalogo_recursos
-  pacotes: [fi-doc-inf_diario, fi-cad, cia_aberta-cad, fii-doc-inf_mensal]
+  pacotes: [fi-doc-inf_diario, fi-cad, cia_aberta-cad, cia_aberta-doc-fca, fii-doc-inf_mensal]
 
 csv:
   separador: ";"
@@ -89,6 +89,26 @@ datasets:
                FAX, EMAIL, TP_RESP, RESP, DT_INI_RESP, LOGRADOURO_RESP, COMPL_RESP, BAIRRO_RESP, MUN_RESP, UF_RESP,
                PAIS_RESP, CEP_RESP, DDD_TEL_RESP, TEL_RESP, DDD_FAX_RESP, FAX_RESP, EMAIL_RESP, CNPJ_AUDITOR,
                AUDITOR]
+
+  cia_aberta_fca:
+    pacote_ckan: cia_aberta-doc-fca
+    descricao: "Formulário cadastral das companhias abertas: valores mobiliários (ticker na B3, espécie, segmento)"
+    # Um ZIP por ano com 9 CSV; só o de valores mobiliários é carregado (liga o ticker da B3 ao CNPJ da companhia).
+    url: "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FCA/DADOS/fca_cia_aberta_{aaaa}.zip"
+    periodicidade: anual
+    primeiro_ano_disponivel: 2010
+    inicio_backfill: 2021
+    revisao_anos: 2
+    ficheiros:
+      valor_mobiliario:
+        padrao_nome: "fca_cia_aberta_valor_mobiliario_*.csv"
+        tabela_bronze: cvm_cia_aberta_fca_valor_mobiliario
+        versoes:
+          v1:   # igual de 2021 a 2026 (ISO-8859-1)
+            [CNPJ_Companhia, Data_Referencia, Versao, ID_Documento, Nome_Empresarial, Valor_Mobiliario,
+             Sigla_Classe_Acao_Preferencial, Classe_Acao_Preferencial, Codigo_Negociacao, Composicao_BDR_Unit,
+             Mercado, Sigla_Entidade_Administradora, Entidade_Administradora, Data_Inicio_Negociacao,
+             Data_Fim_Negociacao, Segmento, Data_Inicio_Listagem, Data_Fim_Listagem]
 
   fii_inf_mensal:
     pacote_ckan: fii-doc-inf_mensal

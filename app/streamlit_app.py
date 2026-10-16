@@ -1,4 +1,4 @@
-"""Painel Findata em Streamlit: mercado (BCB), fundos (CVM), FII, análise de fundo e operação.
+"""Painel Findata em Streamlit: mercado (BCB), bolsa (B3), fundos (CVM), FII, análise de fundo e operação.
 
 Local:  streamlit run app/streamlit_app.py   (na raiz do repositório, para usar .streamlit/config.toml)
 Os dados vêm do snapshot em app/dados/ (scripts/exportar_painel.py); a app não acede ao Databricks.
@@ -21,6 +21,7 @@ st.logo(str(Path(__file__).parent / "logo.svg"), size="large")
 
 pagina = st.navigation([
     st.Page("paginas/mercado.py", title="Mercado", icon=":material/trending_up:", default=True),
+    st.Page("paginas/acoes.py", title="Bolsa", icon=":material/candlestick_chart:"),
     st.Page("paginas/fundos.py", title="Fundos", icon=":material/account_balance:"),
     st.Page("paginas/fii.py", title="Fundos imobiliários", icon=":material/apartment:"),
     st.Page("paginas/analise.py", title="Análise de fundo", icon=":material/query_stats:"),
@@ -31,7 +32,7 @@ with st.sidebar:
     m = dados.meta()
     quando = formato.data_hora(pd.Timestamp(m["exportado_em"])) if m.get("exportado_em") else "—"
     html(f'<div class="snapshot">Atualizado em <b>{escape(quando)}</b><br>'
-         "Fontes: Banco Central (SGS, PTAX) e CVM (informes diário e mensal).</div>")
+         "Fontes: Banco Central (SGS, PTAX), B3 (COTAHIST) e CVM (informes e cadastros).</div>")
     st.divider()
     st.caption("Projeto de estudo: plataforma medallion em Azure Databricks. Tema claro/escuro: menu ⋮ → Settings.")
 

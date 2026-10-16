@@ -1,0 +1,24 @@
+# Cotações históricas da B3 (COTAHIST), ficheiros públicos em https://www.b3.com.br (Market Data → Séries
+# históricas). Confirmado com pedidos reais em 16/10/2026: ZIP com um TXT de largura fixa (245 posições, ISO-8859-1),
+# anual (~85 MB; o do ano corrente é atualizado a cada pregão) e diário (~0,7 MB, publicado ~20:50 de Brasília;
+# fins de semana e feriados respondem 404). Layout em src/ingestion/b3/cotahist.py.
+
+cotahist:
+  url_anual: "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A{aaaa}.ZIP"
+  url_diario: "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D{ddmmaaaa}.ZIP"
+  primeiro_ano_disponivel: 1986
+  inicio_backfill: 2021          # 2021-2026: ~6 ficheiros anuais
+  revisao_dias: 10               # incremental: diários dos últimos 10 dias corridos (apanha falhas e feriados)
+  tabela_bronze: b3_cotahist
+  # A bronze guarda só o mercado à vista (TPMERC 010): opções, termo e fracionário (~55 % das linhas) ficam apenas
+  # no ficheiro original do volume raw.
+  mercados_bronze: ["010"]
+
+  # Códigos BDI que passam para a silver e a classe de ativo atribuída a cada um
+  classes_silver:
+    "02": Ação              # lote padrão (ações e units)
+    "12": FII               # fundos imobiliários
+    "14": ETF e fundos      # certificados de investimento, ETF (ex.: BOVA11), Fiagro e FIP listados
+
+# Benchmark do mercado no painel: o Ibovespa não está no COTAHIST (só papéis); usa-se o ETF que o replica.
+referencia_ibovespa: BOVA11

@@ -25,6 +25,7 @@ databricks:
     timeout_tarefa_s: 3600
     cron: "0 0 20 ? * MON-FRI"    # 20:00 de Brasília, depois da PTAX de fechamento e das séries diárias
     cron_cvm: "0 0 8 ? * *"       # 08:00 de Brasília, todos os dias (a CVM atualiza os ficheiros de madrugada)
+    cron_b3: "0 30 21 ? * MON-FRI"  # 21:30 de Brasília (a B3 publica o COTAHIST do dia por volta das 20:50)
     cron_frescura: "0 0 22 ? * MON-FRI"  # só usado se o agendamento for pelo Databricks (por omissão: ADF)
     cron_auditoria: "0 0 6 ? * SUN"  # domingo 06:00: testes de integração e reconciliação
     timezone: America/Sao_Paulo

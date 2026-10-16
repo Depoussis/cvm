@@ -7,7 +7,7 @@
 # MAGIC    extraídos, a codificação é detetada e o cabeçalho é validado contra o contrato. Cabeçalho desconhecido →
 # MAGIC    quarentena e falha. Conteúdo com o mesmo sha256 de uma versão já processada → `DUPLICATE`.
 # MAGIC
-# MAGIC Entidades (parâmetro `entidades`): `catalogo`, `fi_inf_diario`, `fi_registro`, `cia_aberta_cad`, `fii_inf_mensal`.
+# MAGIC Entidades (parâmetro `entidades`): `catalogo`, `fi_inf_diario`, `fi_registro`, `cia_aberta_cad`, `cia_aberta_fca`, `fii_inf_mensal`.
 
 # COMMAND ----------
 

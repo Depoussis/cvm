@@ -70,6 +70,6 @@ with c2, ui.card("seg_tab"):
             "posicoes_cotistas": st.column_config.NumberColumn("Cotistas", format="localized"),
         })
 
-ui.rodape("Fonte: CVM, informe mensal estruturado de FII. Ticker derivado do ISIN das cotas. Sem cotação de bolsa, "
-          "IFIX nem liquidez de pregão (dados da B3, fora das fontes oficiais gratuitas). Valores extremos costumam ser "
-          "amortizações ou erros de informe.")
+ui.rodape("Fonte: CVM, informe mensal estruturado de FII. Ticker derivado do ISIN das cotas. Cotação, liquidez "
+          "de pregão e P/VP estão na página Bolsa (classe FII). Valores extremos costumam ser amortizações ou erros de "
+          "informe.")

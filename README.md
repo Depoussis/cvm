@@ -1,8 +1,8 @@
 # Brazilian Financial Data Platform
 
 Plataforma de engenharia de dados financeiros em Azure (arquitetura medalhão) com fontes públicas brasileiras:
-Banco Central do Brasil (SGS e PTAX) e Comissão de Valores Mobiliários (dados.cvm.gov.br).
-Projeto de estudo, sem vínculo com o BCB ou a CVM.
+Banco Central do Brasil (SGS e PTAX), Comissão de Valores Mobiliários (dados.cvm.gov.br) e B3 (séries históricas
+de cotações, COTAHIST). Projeto de estudo, sem vínculo com o BCB, a CVM ou a B3.
 
 **Stack:** ADLS Gen2 · Azure Databricks (PySpark, Delta Lake, Unity Catalog) · Azure Data Factory ·
 Key Vault · Log Analytics · Bicep · Python 3.11.
@@ -14,6 +14,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 | 1. Fundação | Infraestrutura, ADLS, RBAC, Unity Catalog, repositório, tabelas de controlo | concluída (16/10/2026) |
 | 2. Banco Central | SGS e PTAX: histórico e incremental, bronze/silver/gold | concluída (16/10/2026), ver [docs/pipelines_bcb.md](docs/pipelines_bcb.md) |
 | 3. CVM | Catálogo, ficheiros históricos, ZIP, fundos e companhias abertas | concluída (16/10/2026), ver [docs/pipelines_cvm.md](docs/pipelines_cvm.md) |
+| 3b. B3 | Cotações da bolsa (ações, FII, ETF), ticker → companhia pelo FCA da CVM, ajuste a desdobramentos | concluída (16/10/2026), ver [docs/pipelines_b3.md](docs/pipelines_b3.md) |
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | concluída (16/10/2026), ver [docs/auditoria.md](docs/auditoria.md) |
 | 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | concluída (16/10/2026), ver [docs/orquestracao.md](docs/orquestracao.md) |
 | 6. Qualidade e analytics | Testes de dados, modelo dimensional, indicadores, Power BI | concluída (16/10/2026), ver [docs/analytics.md](docs/analytics.md) |
@@ -25,7 +26,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 infrastructure/bicep/     main.bicep, módulos e parâmetros por ambiente
 config/environments/      configuração por ambiente (sem segredos)
 src/common/               configuração, HTTP com retries, raw, janelas, utilitários SQL
-src/ingestion/            clientes das APIs (bcb_sgs, bcb_ptax) e ficheiros CVM (contrato, ZIP, codificação)
+src/ingestion/            clientes das APIs (bcb_sgs, bcb_ptax), ficheiros CVM (contrato, ZIP, codificação) e B3 (layout COTAHIST)
 src/bronze|silver|scd/    escrita bronze, MERGE SCD1/SCD2
 src/quality/              regras de qualidade
 src/audit/                execuções, watermarks e registo de ficheiros nas tabelas de controlo

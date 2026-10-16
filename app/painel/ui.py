@@ -23,6 +23,8 @@ ICONES = {
     "calendario": '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     "camadas": '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
     "check": '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/>',
+    "bolsa": '<path d="M7 3v18M17 3v18"/><rect x="4.5" y="7" width="5" height="8" rx="1"/><rect x="14.5" y="5" width="5" height="10" rx="1"/>',
+    "subida": '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
 }
 
 # Pares (claro, escuro) usados em light-dark(); o Streamlit define color-scheme no .stApp conforme o tema.
@@ -184,7 +186,7 @@ def ranking(df: pd.DataFrame, valor: str, fmt, titulo: str, sub: str | None = No
     with card(chave or valor):
         titulo_card(titulo, sub)
         if df.empty:
-            st.caption("Sem fundos que cumpram os critérios.")
+            st.caption("Nenhum item cumpre os critérios.")
             return
         maximo = float(df[valor].abs().max()) or 1.0
         itens = []

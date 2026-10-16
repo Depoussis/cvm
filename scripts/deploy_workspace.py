@@ -1,4 +1,4 @@
-"""Publica o código no workspace Databricks e cria/atualiza os jobs (Banco Central e CVM).
+"""Publica o código no workspace Databricks e cria/atualiza os jobs (Banco Central, CVM e B3).
 
 Uso:
   python scripts/deploy_workspace.py --env dev                 # sobe src/, config/, notebooks/, sql/ e atualiza o job
@@ -40,6 +40,9 @@ JOBS = {
         ("bronze_cvm", "bronze/cvm", [], 2), ("silver_cvm", "silver/cvm", ["bronze_cvm"], 0),
         ("gold_cvm", "gold/cvm", ["silver_cvm"], 0),
         ("reapresentacoes", "audit/reapresentacoes", ["gold_cvm"], 0, {"fonte": "cvm"})]),
+    "b3": ("B3 (cotações históricas COTAHIST): bronze -> silver -> gold. Ver docs/pipelines_b3.md.", "cron_b3", [
+        ("bronze_b3", "bronze/b3", [], 2), ("silver_b3", "silver/b3", ["bronze_b3"], 0),
+        ("gold_b3", "gold/b3", ["silver_b3"], 0)]),
     "frescura": ("Verifica a frescura dos dados contra config/sla.yaml (corre no fim do pipeline diário do ADF).",
                  "cron_frescura", [("frescura", "audit/frescura", [], 0)]),
     "auditoria": ("Auditoria semanal: testes de integração e reconciliação com as fontes. Ver docs/auditoria.md.",

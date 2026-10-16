@@ -67,6 +67,14 @@ def extras(k: str) -> dict[str, str]:
             FROM {g}.vw_fii_ranking""",
         "selic_mes": f"""SELECT data_referencia AS mes, CAST(valor AS DOUBLE) AS selic_mes_pct
                          FROM {g}.fct_serie_valor WHERE serie_codigo = 4390""",
+        # B3: desempenho de todos os papéis com negócios recentes e o histórico diário só dos líquidos
+        # (volume médio >= R$ 1 mi/dia nos últimos 30 dias, ~500 papéis) para o gráfico de evolução
+        "b3_desempenho": f"SELECT * FROM {g}.vw_b3_desempenho",
+        "b3_cotacoes": f"""
+            SELECT ticker, data_pregao AS data, CAST(preco_fechamento AS DOUBLE) AS fechamento,
+                   CAST(preco_ajustado AS FLOAT) AS preco_ajustado
+            FROM {g}.fct_cotacao_diaria
+            WHERE ticker IN (SELECT ticker FROM {g}.vw_b3_desempenho WHERE volume_medio_diario >= 1000000)""",
     }
 
 
