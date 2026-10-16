@@ -32,7 +32,15 @@ Project settings → **Service connections** → **New** → **Azure Resource Ma
 Isto cria uma aplicação no Entra ID com o papel **Contributor no resource group**. Chega para o ADF e para o
 workspace Databricks (quem tem Contributor no workspace entra como administrador na primeira chamada).
 
+Verificar depois de criar (16/10/2026, a primeira tentativa ficou no resource group errado `NetworkWatcherRG`):
+```bash
+az role assignment list --assignee <client id> --all -o table   # tem de mostrar Contributor em rg-findata-dev
+```
+
 ### 2. Permissões no Unity Catalog
+A identidade só aparece no Databricks depois do primeiro acesso; para dar permissões antes disso, registá-la no
+workspace (Settings → Identity and access → Service principals → Add, com o client id) ou pelo SDK
+(`w.service_principals.create(application_id=...)`).
 Na service connection → **Manage App registration** → copiar o **Application (client) ID** e correr, como dono do
 catálogo:
 ```bash
