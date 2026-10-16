@@ -1,4 +1,5 @@
--- Proventos por ticker (reconstruído pelo notebook gold/b3_proventos).
+-- Proventos por ticker (reconstruído pelo notebook gold/b3_proventos). Ações: dividendos/JCP da B3. FII: rendimento
+-- por cota estimado pelo informe mensal da CVM (DY x cota patrimonial; tipo 'RENDIMENTO FII (CVM)').
 -- A B3 publica o provento por emissor e espécie (ON, PN, UNT...); o ticker é o papel da mesma raiz cuja
 -- especificação começa por essa espécie. Data ex = primeiro pregão do ticker depois da data com.
 

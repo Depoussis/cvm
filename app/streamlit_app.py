@@ -24,6 +24,7 @@ pagina = st.navigation({
     "": [
         st.Page("paginas/mercado.py", title="Mercado", icon=":material/trending_up:", default=True),
         st.Page("paginas/acoes.py", title="Bolsa", icon=":material/candlestick_chart:"),
+        st.Page("paginas/simulador.py", title="Simulador", icon=":material/calculate:"),
         st.Page("paginas/modelo.py", title="Modelo", icon=":material/model_training:"),
     ],
     "Fundos": [

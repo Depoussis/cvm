@@ -266,3 +266,26 @@ encontrados e corrigidos durante os testes, estão no fim.
 O teste unitário TU-17 também tinha uma expectativa errada. A carteira do 2.º mês (1,8 %) rendia menos do que o
 universo (2,33 %), por isso a percentagem de meses acima do universo é 50 % e não 100 %. Foi corrigido o teste,
 não o código.
+
+---
+
+# Parte 3: simulador de investimento
+
+Ver [simulador.md](simulador.md). Testes de 16/10/2026.
+
+| ID | Tipo | Caso | Resultado |
+|---|---|---|---|
+| TU-19 | unitário | `test_compra_ao_preco_da_epoca_quantidade_inteira_e_sobra`: compra num dia sem pregão usa o seguinte; 1 005 a 10,00 → 100 ações e 5 de sobra | aprovado |
+| TU-20 | unitário | `test_desdobramento_duplica_as_acoes_sem_mudar_o_patrimonio`: fator 0,5 → 100 → 200 ações; descrições de grupamento e bonificação (10 % e 30 %) | aprovado |
+| TU-21 | unitário | `test_proventos_pela_posicao_na_data_com_com_ir_do_jcp`: dividendo com 100 ações; JCP depois do desdobramento com 200 ações e 15 % de IR; sem IR = 200 | aprovado |
+| TU-22 | unitário | `test_compra_depois_da_data_com_nao_recebe_e_reinvestimento_compra_no_pregao_seguinte`: provento anterior à compra ignorado; reinvestido ao fecho do pregão seguinte | aprovado |
+| TU-23 | unitário | `test_valorizacao_mais_proventos_igual_ao_ganho_total`: com e sem reinvestimento | aprovado |
+| TD-20 | dados | Rendimentos de FII estimados pela CVM contra a B3 (KNCR11, HGLG11) | diferença < 1 %; datas com iguais |
+| TD-21 | dados | `fct_provento` com FII | 15 415 rendimentos de 422 FII; DY 12m KNCR11 11,8 %, MXRF11 10,8 %, HGLG11 7,8 % |
+| TF-21 | pipeline | `gold_b3_proventos` com os rendimentos de FII (run `864337872529095`) | SUCCESS |
+| TP-10 | painel | PETR4 desde 02/05/2023 | 439 ações a R$ 22,74; +152 % de valorização, R$ 6 540 de proventos, +217,8 % no total |
+| TP-11 | painel | CMIG4 (evento) | bonificação de 30 % em 30/04/2024 listada; quantidade 1 051,70; 19 pagamentos com a quantidade de cada data |
+| TP-12 | painel | KNCR11 (FII) | 105 cotas; +10,8 % de valorização + 46,5 % em rendimentos = +57,3 % (Selic +51,1 %) |
+| TP-13 | painel | Descrição dos eventos | o texto longo cortava as colunas Antes/Depois; encurtado para "Bonificação de 30 %", "Desdobramento 1:2" |
+
+Total da suite unitária: **70 testes aprovados**.

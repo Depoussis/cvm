@@ -34,3 +34,64 @@ def test_busca_por_nome_sem_acentos_ticker_e_cnpj():
     assert list(dados.buscar(cat, "kncr11").index) == [0]
     assert list(dados.buscar(cat, "16.706.958").index) == [0]
     assert len(dados.buscar(cat, "")) == 2
+
+
+# ---------------------------------------------------------------- simulador de investimento
+from painel import simulador  # noqa: E402
+
+
+def _precos(fechos, fatores=None):
+    d = pd.bdate_range("2023-05-02", periods=len(fechos))
+    return pd.DataFrame({"data": d, "fechamento": fechos, "fator_evento": fatores or [1.0] * len(fechos)})
+
+
+def test_compra_ao_preco_da_epoca_quantidade_inteira_e_sobra():
+    r = simulador.simular(_precos([10.0, 11.0, 12.0]), pd.DataFrame(columns=["data_com", "tipo", "valor_por_acao"]),
+                          1005, pd.Timestamp("2023-05-01"))   # feriado/fim de semana → primeiro pregão seguinte
+    assert r.data_compra == pd.Timestamp("2023-05-02") and r.preco_compra == 10.0
+    assert r.acoes_compradas == 100 and r.investido == 1000 and r.sobra == 5
+    assert r.valor_hoje == 1200 and r.valorizacao == 200 and r.retorno_total == pytest.approx(0.2)
+    # valorização + proventos = ganho total, com e sem reinvestimento (verificado nos outros testes)
+
+
+def test_desdobramento_duplica_as_acoes_sem_mudar_o_patrimonio():
+    # 1:2 no 3.º pregão: o preço cai para metade e o fator é 0,5
+    r = simulador.simular(_precos([10.0, 10.0, 5.0, 5.5], [1, 1, 0.5, 1]),
+                          pd.DataFrame(columns=["data_com", "tipo", "valor_por_acao"]), 1000, pd.Timestamp("2023-05-02"))
+    assert r.acoes_hoje == 200 and r.valor_hoje == 1100
+    assert r.eventos["acoes_antes"].tolist() == [100] and r.eventos["acoes_depois"].tolist() == [200]
+    assert r.eventos["descricao"].iat[0].startswith("Desdobramento 1:2")
+    assert simulador.descrever_evento(10).startswith("Grupamento 10:1")
+    assert simulador.descrever_evento(1 / 1.1) == "Bonificação de 10 %"
+    assert simulador.descrever_evento(1 / 1.3) == "Bonificação de 30 %"
+
+
+def test_proventos_pela_posicao_na_data_com_com_ir_do_jcp():
+    precos = _precos([10.0, 10.0, 10.0, 5.0], [1, 1, 1, 0.5])
+    prov = pd.DataFrame({"data_com": pd.to_datetime(["2023-05-03", "2023-05-05"]),
+                         "tipo": ["DIVIDENDO", "JRS CAP PROPRIO"], "valor_por_acao": [1.0, 0.5]})
+    r = simulador.simular(precos, prov, 1000, pd.Timestamp("2023-05-02"), ir_jcp=True)
+    # 100 ações x 1,00 de dividendo; depois do desdobramento (05/05) 200 ações x 0,50 de JCP, menos 15 %
+    assert r.proventos["acoes"].tolist() == [100, 200]
+    assert r.proventos_recebidos == pytest.approx(100 + 100 * 0.85)
+    assert r.total_hoje == pytest.approx(200 * 5 + 185)
+    sem_ir = simulador.simular(precos, prov, 1000, pd.Timestamp("2023-05-02"), ir_jcp=False)
+    assert sem_ir.proventos_recebidos == pytest.approx(200)
+
+
+def test_compra_depois_da_data_com_nao_recebe_e_reinvestimento_compra_no_pregao_seguinte():
+    precos = _precos([10.0, 10.0, 20.0, 20.0])
+    prov = pd.DataFrame({"data_com": pd.to_datetime(["2023-05-02", "2023-05-03"]), "tipo": ["DIVIDENDO"] * 2,
+                         "valor_por_acao": [5.0, 2.0]})
+    r = simulador.simular(precos, prov, 1000, pd.Timestamp("2023-05-03"), reinvestir=True)
+    assert len(r.proventos) == 1                         # o de 02/05 era antes da compra
+    assert r.acoes_hoje == pytest.approx(100 + 200 / 20)  # 200 reinvestidos a 20,00 no pregão seguinte
+    assert r.proventos_em_caixa == 0 and r.proventos_recebidos == 200
+
+
+def test_valorizacao_mais_proventos_igual_ao_ganho_total():
+    precos = _precos([10.0, 10.0, 20.0, 18.0])
+    prov = pd.DataFrame({"data_com": pd.to_datetime(["2023-05-03"]), "tipo": ["DIVIDENDO"], "valor_por_acao": [5.0]})
+    for reinv in (False, True):
+        r = simulador.simular(precos, prov, 1000, pd.Timestamp("2023-05-02"), reinvestir=reinv)
+        assert r.valorizacao + r.proventos_recebidos == pytest.approx(r.total_hoje - r.investido)

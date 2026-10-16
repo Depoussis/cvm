@@ -13,7 +13,7 @@ import pandas as pd
 import streamlit as st
 
 PASTA = Path(__file__).resolve().parents[1] / "dados"
-COLUNAS_DATA = {"mes", "data", "dia", "ultimo_mes"}
+COLUNAS_DATA = {"mes", "data", "dia", "ultimo_mes", "data_com"}
 
 
 @st.cache_data(show_spinner=False)

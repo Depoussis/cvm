@@ -1,7 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Gold · B3 proventos
-# MAGIC - `fct_provento`: proventos da silver ligados ao ticker (raiz do emissor + espécie), com data ex, yield do evento
+# MAGIC - `fct_provento`: proventos das ações (B3, ligados ao ticker pela raiz do emissor + espécie) e rendimentos dos FII
+# MAGIC   (DY x cota patrimonial do informe mensal da CVM, data com = último pregão do mês), com data ex, yield do evento
 # MAGIC   (valor / fecho na data com) e valor ajustado a desdobramentos posteriores (mesmos fatores da
 # MAGIC   `fct_cotacao_diaria`). Reconstrução completa (dezenas de milhares de linhas).
 # MAGIC - Compara os desdobramentos/grupamentos detetados pela heurística da gold com os oficiais da B3 (regra INFO).
@@ -40,10 +41,24 @@ WITH papel AS (
   SELECT ticker, substr(ticker, 1, 4) AS emissor, split(especificacao, ' ')[0] AS tipo_acao
   FROM {k}.gold.dim_ativo_b3 WHERE classe_ativo = 'Ação'
 ),
-p AS (
-  SELECT pa.ticker, s.* FROM {k}.silver.b3_provento s
+acoes AS (
+  SELECT pa.ticker, s.emissor, s.tipo_acao, s.tipo_provento, s.data_com, s.data_aprovacao, s.valor_por_acao
+  FROM {k}.silver.b3_provento s
   JOIN papel pa ON pa.emissor = s.emissor AND pa.tipo_acao = s.tipo_acao
 ),
+-- FII: rendimento por cota = DY do mês x cota patrimonial (informe mensal da CVM). Conferido com os valores exatos da
+-- B3 nos meses em que existem (diferença < 1 %). Data com = último pregão do mês de referência.
+fii AS (
+  SELECT a.ticker, substr(a.ticker, 1, 4) AS emissor, 'CI' AS tipo_acao, 'RENDIMENTO FII (CVM)' AS tipo_provento,
+         (SELECT max(c.data_pregao) FROM {k}.gold.fct_cotacao_diaria c
+          WHERE c.ticker = a.ticker AND trunc(c.data_pregao, 'MM') = m.data_referencia) AS data_com,
+         CAST(NULL AS DATE) AS data_aprovacao,
+         CAST(m.dividend_yield_mes * CAST(m.valor_patrimonial_cota AS DOUBLE) AS DECIMAL(24, 11)) AS valor_por_acao
+  FROM {k}.silver.cvm_fii_mensal m
+  JOIN {k}.gold.dim_ativo_b3 a ON a.cnpj_emissor = m.cnpj_classe AND a.classe_ativo = 'FII'
+  WHERE m.dividend_yield_mes > 0 AND m.dividend_yield_mes < 0.5 AND m.valor_patrimonial_cota > 0
+),
+p AS (SELECT * FROM acoes UNION ALL SELECT * FROM fii WHERE data_com IS NOT NULL),
 c AS (SELECT ticker, data_pregao, preco_fechamento, fator_evento FROM {k}.gold.fct_cotacao_diaria)
 SELECT p.ticker, p.emissor, p.tipo_acao, p.tipo_provento, p.data_com,
        (SELECT min(c.data_pregao) FROM c WHERE c.ticker = p.ticker AND c.data_pregao > p.data_com),

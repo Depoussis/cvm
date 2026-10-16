@@ -18,6 +18,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 | 3c. Streaming | Auto Loader na bronze e Change Data Feed na gold da B3 (`availableNow`, checkpoints, escrita idempotente) | concluída (16/10/2026), ver [docs/streaming.md](docs/streaming.md), [casos de teste](docs/testes.md) e [conceitos](docs/conceitos.md) |
 | 3d. Fundamentos e proventos | DFP/ITR da CVM (receita, lucro, PL, dívida por trimestre); dividendos, JCP e eventos oficiais da B3 | concluída (16/10/2026), ver [docs/fundamentos.md](docs/fundamentos.md) |
 | 6b. Modelo preditivo | Ranking de ações para o mês seguinte: features point-in-time, walk-forward, backtest, MLflow | experimental (16/10/2026), ver [docs/modelo_preditivo.md](docs/modelo_preditivo.md) |
+| 6c. Simulador | Compra numa data ao preço da época: valorização, proventos, eventos (desdobramentos, bonificações) vs Selic e Ibovespa | concluída (16/10/2026), ver [docs/simulador.md](docs/simulador.md) |
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | concluída (16/10/2026), ver [docs/auditoria.md](docs/auditoria.md) |
 | 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | concluída (16/10/2026), ver [docs/orquestracao.md](docs/orquestracao.md) |
 | 6. Qualidade e analytics | Testes de dados, modelo dimensional, indicadores, Power BI | concluída (16/10/2026), ver [docs/analytics.md](docs/analytics.md) |

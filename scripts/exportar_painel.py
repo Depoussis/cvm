@@ -67,14 +67,19 @@ def extras(k: str) -> dict[str, str]:
             FROM {g}.vw_fii_ranking""",
         "selic_mes": f"""SELECT data_referencia AS mes, CAST(valor AS DOUBLE) AS selic_mes_pct
                          FROM {g}.fct_serie_valor WHERE serie_codigo = 4390""",
-        # B3: desempenho de todos os papéis com negócios recentes e o histórico diário só dos líquidos
-        # (volume médio >= R$ 1 mi/dia nos últimos 30 dias, ~500 papéis) para o gráfico de evolução
+        # B3: desempenho de todos os papéis com negócios recentes e o histórico diário dos que têm volume médio
+        # >= R$ 300 mil/dia (gráfico de evolução e simulador; o fator de evento muda a quantidade de ações)
         "b3_desempenho": f"SELECT * FROM {g}.vw_b3_desempenho",
         "b3_cotacoes": f"""
             SELECT ticker, data_pregao AS data, CAST(preco_fechamento AS DOUBLE) AS fechamento,
-                   CAST(preco_ajustado AS FLOAT) AS preco_ajustado
+                   CAST(preco_ajustado AS FLOAT) AS preco_ajustado, CAST(fator_evento AS FLOAT) AS fator_evento
             FROM {g}.fct_cotacao_diaria
-            WHERE ticker IN (SELECT ticker FROM {g}.vw_b3_desempenho WHERE volume_medio_diario >= 1000000)""",
+            WHERE ticker IN (SELECT ticker FROM {g}.vw_b3_desempenho WHERE volume_medio_diario >= 300000)""",
+        "b3_proventos": f"""
+            SELECT ticker, data_com, tipo_provento AS tipo, CAST(valor_por_acao AS DOUBLE) AS valor_por_acao
+            FROM {g}.fct_provento
+            WHERE data_com >= DATE'2021-01-01'
+              AND ticker IN (SELECT ticker FROM {g}.vw_b3_desempenho WHERE volume_medio_diario >= 300000)""",
         # dividendos por ano (ações líquidas) e saídas do modelo de ranking (tabelas pequenas)
         "b3_dividendos": f"""
             SELECT ticker, ano, eventos, valor_ajustado_ano, jcp_ajustado_ano, dy_ano FROM {g}.vw_b3_dividendos_anuais
