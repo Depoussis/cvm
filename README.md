@@ -34,6 +34,7 @@ notebooks/                setup, bronze, silver e gold (formato fonte do Databri
 scripts/                  deploy de RBAC, Unity Catalog, SQL, workspace/jobs Databricks e ADF
 pipelines/azure_data_factory/  linked service, pipelines e gatilhos do ADF (JSON)
 tests/unit/               testes sem Spark (pytest); integração com Spark em notebooks/tests/integracao.py
+app/                      painel público em Streamlit (lê o snapshot app/dados/*.parquet)
 docs/                     arquitetura, custos, deployment
 ```
 
@@ -49,6 +50,7 @@ python scripts/apply_sql.py --env dev --dir sql/control --dir sql/schemas --dir 
 python scripts/deploy_workspace.py --env dev --run backfill
 python scripts/deploy_adf.py --env dev          # ADF: linked service, pipelines, gatilhos (parados)
 python scripts/deploy_dashboard.py --env dev    # painel AI/BI no Databricks
+python scripts/exportar_painel.py --env dev     # snapshot do painel Streamlit (app/)
 python -m pytest -q
 ```
 

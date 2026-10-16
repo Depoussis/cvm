@@ -1,0 +1,40 @@
+# Tema do painel Streamlit (app/streamlit_app.py): clean, um único acento índigo, claro e escuro.
+[theme]
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap"
+headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap"
+baseRadius = "0.6rem"
+showWidgetBorder = true
+
+[theme.light]
+primaryColor = "#4F46E5"
+backgroundColor = "#F6F7F9"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#111827"
+borderColor = "#E6E8EE"
+dataframeHeaderBackgroundColor = "#F9FAFB"
+
+[theme.light.sidebar]
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F6F7F9"
+
+[theme.dark]
+primaryColor = "#8B83FF"
+backgroundColor = "#0F1117"
+secondaryBackgroundColor = "#171A23"
+textColor = "#E8EAF0"
+borderColor = "#262A36"
+dataframeHeaderBackgroundColor = "#1B1E28"
+
+[theme.dark.sidebar]
+backgroundColor = "#13151C"
+secondaryBackgroundColor = "#171A23"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = false
+toolbarMode = "viewer"

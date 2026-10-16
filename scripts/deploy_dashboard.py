@@ -152,8 +152,10 @@ def datasets(k: str) -> dict[str, str]:
         "qualidade": f"""
             SELECT ultima, table_name AS tabela, rule_name AS regra, severity AS severidade, registos_falhados
             FROM {g}.vw_qualidade_resumo WHERE result = 'FAILED' AND dia >= date_sub(current_date(), 14)""",
+        # ultima: última execução de reconciliação de cada fonte (todas as entidades/períodos dela).
+        # Sem comentários "--" no SQL: as consultas são achatadas numa linha e o comentário engoliria o resto.
         "reconciliacao": f"""
-            WITH ultima AS (  -- última execução de reconciliação de cada fonte (todas as entidades/períodos dela)
+            WITH ultima AS (
               SELECT source_system, max_by(pipeline_run_id, executed_at) AS run FROM {c}.reconciliation_results
               GROUP BY source_system
             )

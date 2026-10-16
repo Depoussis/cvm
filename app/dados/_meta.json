@@ -1,0 +1,33 @@
+{
+ "exportado_em": "2026-10-16T14:46:10+00:00",
+ "ambiente": "dev",
+ "catalogo": "findata_dev",
+ "linhas": {
+  "fii_kpi": 1,
+  "rk_cotistas": 10,
+  "rk_liquidez": 10,
+  "rk_pl": 10,
+  "rk_dy_mes": 10,
+  "rk_dy_12m": 10,
+  "rk_rent_12m": 10,
+  "fii_segmentos": 10,
+  "kpi_mercado": 1,
+  "selic": 644,
+  "ptax": 8871,
+  "cambio_mensal": 65,
+  "ibc": 139,
+  "kpi_fundos": 1,
+  "industria": 33,
+  "vs_selic": 128,
+  "top_pl": 20,
+  "execucoes": 13,
+  "qualidade": 11,
+  "reconciliacao": 3,
+  "frescura": 19,
+  "fundos_mensal": 414600,
+  "fundos_cadastro": 25145,
+  "fii_mensal": 62903,
+  "fii_ranking": 702,
+  "selic_mes": 322
+ }
+}

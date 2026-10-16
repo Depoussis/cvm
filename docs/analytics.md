@@ -55,6 +55,30 @@ da Selic; ações, 35,9 %.
 
 As consultas correm no SQL Warehouse serverless 2X-Small (≈ 3,20 €/h só enquanto ligado; auto-stop 1 min).
 
+## Painel público em Streamlit
+
+As mesmas cinco páginas, com visual próprio (clean, claro/escuro) e mais interação: período e moedas na PTAX,
+filtro de segmento e top 5/10/15 nos rankings de FII, pesquisa de fundo por nome, ticker ou CNPJ. Código em `app/`
+(`streamlit_app.py`, `paginas/`, `painel/`), tema em `.streamlit/config.toml`.
+
+**Dados:** a app não liga ao Databricks. `scripts/exportar_painel.py` corre as consultas do painel AI/BI (as mesmas
+de `deploy_dashboard.py`) mais o histórico mensal por fundo e grava `app/dados/*.parquet` (≈ 13 MB, zstd).
+Vantagens: sem segredos no Streamlit Cloud, sem warehouse ligado a cada visita, páginas rápidas. Custo: os dados
+são um snapshot, atualizado quando se exporta e faz push.
+
+```bash
+python scripts/exportar_painel.py --env dev     # ~30 s de warehouse
+streamlit run app/streamlit_app.py              # local, na raiz do repositório
+git add app/dados && git commit -m "Painel: snapshot" && git push   # o Streamlit Cloud republica sozinho
+```
+
+Diferenças face ao AI/BI: a cota diária dos FI (17,7 M linhas) não vai no snapshot; a análise mostra a
+rentabilidade acumulada a partir das rentabilidades mensais, comparada com a Selic acumulada.
+
+**Publicar (uma vez):** share.streamlit.io → *Create app* → *Deploy a public app from GitHub* → repositório
+`Depoussis/cvm`, branch `main`, ficheiro `app/streamlit_app.py` → *Advanced settings*: Python 3.11 → *Deploy*.
+As dependências vêm de `app/requirements.txt`.
+
 ## Power BI
 
 O ficheiro `.pbix` cria-se no Power BI Desktop; a ligação usa o conector nativo, sem copiar dados:
