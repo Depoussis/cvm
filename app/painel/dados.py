@@ -16,18 +16,32 @@ PASTA = Path(__file__).resolve().parents[1] / "dados"
 COLUNAS_DATA = {"mes", "data", "dia", "ultimo_mes", "data_com"}
 
 
+def _versao(caminho: Path) -> float:
+    """Data de modificação do ficheiro: entra na chave da cache para um snapshot novo (git pull no Streamlit Cloud)
+    ser lido sem reiniciar a app."""
+    return caminho.stat().st_mtime if caminho.exists() else 0.0
+
+
 @st.cache_data(show_spinner=False)
-def tabela(nome: str) -> pd.DataFrame:
+def _ler_tabela(nome: str, versao: float) -> pd.DataFrame:
     df = pd.read_parquet(PASTA / f"{nome}.parquet")
     for c in COLUNAS_DATA & set(df.columns):
         df[c] = pd.to_datetime(df[c])
     return df
 
 
+def tabela(nome: str) -> pd.DataFrame:
+    return _ler_tabela(nome, _versao(PASTA / f"{nome}.parquet"))
+
+
 @st.cache_data(show_spinner=False)
-def meta() -> dict:
+def _ler_meta(versao: float) -> dict:
     caminho = PASTA / "_meta.json"
     return json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else {}
+
+
+def meta() -> dict:
+    return _ler_meta(_versao(PASTA / "_meta.json"))
 
 
 def linha(nome: str) -> pd.Series:
@@ -36,8 +50,12 @@ def linha(nome: str) -> pd.Series:
     return df.iloc[0] if len(df) else pd.Series(dtype=object)
 
 
-@st.cache_data(show_spinner=False)
 def catalogo_fundos() -> pd.DataFrame:
+    return _catalogo_fundos(_versao(PASTA / "_meta.json"))
+
+
+@st.cache_data(show_spinner=False)
+def _catalogo_fundos(versao: float) -> pd.DataFrame:
     """Fundos selecionáveis na análise: FI (informe diário) e FII (informe mensal), com rótulo e PL atual."""
     fi = tabela("fundos_cadastro").assign(tipo="FI", ticker=pd.NA)
     fi = fi[["tipo", "cnpj", "nome", "administrador", "classificacao", "pl_atual", "ticker"]]

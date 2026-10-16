@@ -70,6 +70,8 @@ são um snapshot, atualizado quando se exporta e faz push.
 python scripts/exportar_painel.py --env dev     # ~30 s de warehouse
 streamlit run app/streamlit_app.py              # local, na raiz do repositório
 git add app/dados && git commit -m "Painel: snapshot" && git push   # o Streamlit Cloud republica sozinho
+# a cache de dados usa a data de modificação de cada parquet: um snapshot novo é lido sem reiniciar a app;
+# alterações em app/painel/*.py (módulos importados) exigem "Manage app → Reboot app" no Streamlit Cloud
 ```
 
 Diferenças face ao AI/BI: a cota diária dos FI (17,7 M linhas) não vai no snapshot; a análise mostra a
