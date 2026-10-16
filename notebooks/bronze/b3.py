@@ -6,8 +6,9 @@
 # MAGIC   `reprocess`: anuais entre `data_inicio` e `data_fim` (descarrega de novo mesmo sem alteração).
 # MAGIC - `HEAD` compara ETag/Last-Modified com a última versão registada; só descarrega o que mudou. Dia sem pregão = 404.
 # MAGIC - O ZIP original vai para o volume `ops.raw`, o TXT é extraído ao lado; cabeçalho e trailer são validados
-# MAGIC   (total de registos). Ficheiro truncado → quarentena e falha.
-# MAGIC - A bronze guarda os registos do mercado à vista (`mercados_bronze`), campos como texto.
+# MAGIC   (total de registos). Ficheiro truncado → quarentena e falha. Ficheiro válido → registo `RECEIVED`.
+# MAGIC - **Auto Loader** (stream `availableNow`) carrega os TXT novos na bronze: só o mercado à vista
+# MAGIC   (`mercados_bronze`), campos como texto. Ver docs/streaming.md.
 
 # COMMAND ----------
 
@@ -48,13 +49,11 @@ tabela = f"{p.catalogo}.bronze.{cfg['tabela_bronze']}"  # criada por sql/schemas
 
 # COMMAND ----------
 
-def ler_linhas(caminho_txt: str):
-    """Uma coluna `linha` por registo. Sem aspas nem separador: cada linha de 245 posições fica inteira."""
-    return (spark.read.option("encoding", "ISO-8859-1").option("sep", "\u0001").option("quote", "\u0000")
-            .option("header", False).schema("linha STRING").csv(caminho_txt))
+# MAGIC %md ## 1. Download: ZIP para o raw, TXT extraído e validado, registo `RECEIVED`
 
+# COMMAND ----------
 
-def processar(url: str, periodo: str, c: control.Contagens, ja: set[str], forcar: bool) -> str:
+def aterrar(url: str, periodo: str, c: control.Contagens, ja: set[str], forcar: bool) -> str:
     h = cliente.head(url)
     if h.status == 404:
         return "NAO_PUBLICADO"
@@ -74,17 +73,15 @@ def processar(url: str, periodo: str, c: control.Contagens, ja: set[str], forcar
 
     pasta = caminho.rsplit("/", 1)[0] + "/extraidos"
     os.makedirs(pasta, exist_ok=True)
+    # extrai para um nome fora do padrão *.TXT, para o Auto Loader nunca ver um ficheiro a meio
     temporario = f"{pasta}/.parcial"
     with open(temporario, "wb") as destino:
         nome_txt = cotahist.extrair_txt(r.conteudo, destino)
-    caminho_txt = f"{pasta}/{nome_txt}"
-    os.replace(temporario, caminho_txt)
-
-    linhas = ler_linhas(caminho_txt).withColumn("tipreg", F.substring("linha", 1, 2))
-    envelope = {x.tipreg: x.linha for x in linhas.where("tipreg IN ('00', '99')").collect()}
-    detalhes = linhas.where("tipreg = '01'").count()
-    problemas = cotahist.validar_envelope(envelope.get("00", ""), envelope.get("99", ""), detalhes)
+    with open(temporario, "rb") as f:
+        cabecalho, trailer, detalhes = cotahist.ler_envelope(f)
+    problemas = cotahist.validar_envelope(cabecalho, trailer, detalhes)
     if problemas:
+        os.remove(temporario)
         q = f"/Volumes/{p.catalogo}/ops/quarantine/{FONTE}/{ENTIDADE}/ingestion_date={hoje}/{p.run_id}"
         raw_store.gravar(f"{q}/{nome_remoto}", r.conteudo)
         raw_store.gravar(f"{q}/{nome_remoto}.motivo.json",
@@ -92,26 +89,89 @@ def processar(url: str, periodo: str, c: control.Contagens, ja: set[str], forcar
         writer.registar_ficheiros(spark, p.catalogo, [writer.linha_registo(
             origem, p.run_id, "QUARANTINED", "; ".join(problemas), periodo)])
         raise ValueError(f"{nome_remoto}: {problemas}")
-
-    mercados = ", ".join(f"'{m}'" for m in cfg["mercados_bronze"])
-    df = (linhas.where(f"tipreg = '01' AND substring(linha, 25, 3) IN ({mercados})")
-          .selectExpr(*cotahist.expressoes_spark("linha"), "sha2(linha, 256) AS _record_hash")
-          .withColumn("_source_file_name", F.lit(nome_txt))
-          .withColumn("_reference_period", F.lit(periodo))
-          .withColumn("_source_system", F.lit(FONTE))
-          .withColumn("_source_entity", F.lit(ENTIDADE))
-          .withColumn("_source_url", F.lit(url))
-          .withColumn("_source_file_path", F.lit(caminho))
-          .withColumn("_file_hash", F.lit(hash_))
-          .withColumn("_ingestion_timestamp", F.current_timestamp())
-          .withColumn("_pipeline_run_id", F.lit(p.run_id)))
-    df.select(*spark.table(tabela).columns).write.mode("append").saveAsTable(tabela)
-    n = spark.table(tabela).where(F.col("_file_hash") == hash_).where(F.col("_pipeline_run_id") == p.run_id).count()
+    # o registo vem antes de o TXT aparecer: o Auto Loader só carrega ficheiros com registo RECEIVED
+    writer.registar_ficheiros(spark, p.catalogo, [writer.linha_registo(
+        origem, p.run_id, "RECEIVED", f"{detalhes} cotações; aguarda o Auto Loader", periodo)])
+    os.replace(temporario, f"{pasta}/{nome_txt}")
     c.read += detalhes
-    c.inserted += n
-    print(f"  {nome_txt}: {detalhes} cotações no ficheiro, {n} do mercado à vista na bronze")
-    writer.registar_ficheiros(spark, p.catalogo, [writer.linha_registo(origem, p.run_id, "PROCESSED", None, periodo)])
-    return "PROCESSED"
+    print(f"  {nome_txt}: {detalhes} cotações, envelope OK")
+    return "RECEIVED"
+
+# COMMAND ----------
+
+# MAGIC %md ## 2. Auto Loader: TXT novos no raw → bronze
+# MAGIC Stream `availableNow` com checkpoint: cada TXT é lido uma única vez, mesmo entre execuções. Cada lote junta
+# MAGIC os ficheiros ao seu registo `RECEIVED` (pela pasta da execução e nome), escreve na bronze de forma idempotente
+# MAGIC (`txnAppId`/`txnVersion`: um lote repetido depois de uma falha não duplica linhas) e marca-os `PROCESSED`.
+# MAGIC TXT sem registo `RECEIVED` (ex.: carregados antes desta versão) são ignorados.
+
+# COMMAND ----------
+
+RAIZ = f"/Volumes/{p.catalogo}/ops/raw/{FONTE}/{ENTIDADE}/"
+CHECKPOINT = f"/Volumes/{p.catalogo}/ops/checkpoints/bronze_b3_cotahist"
+MERCADOS = ", ".join(f"'{m}'" for m in cfg["mercados_bronze"])
+COLUNAS_BRONZE = spark.table(tabela).columns
+
+
+def checkpoint_existe() -> bool:
+    try:
+        return len(dbutils.fs.ls(CHECKPOINT)) > 0
+    except Exception:
+        return False
+
+
+def carregar_lote(lote, lote_id: int) -> None:
+    s = lote.sparkSession
+    registos = s.sql(f"""
+        SELECT file_id, source_url, stored_path, file_hash_sha256, reference_period,
+               {cotahist.chave_ficheiro_sql('stored_path')} AS chave
+        FROM {p.catalogo}.control.source_file_registry
+        WHERE source_system = '{FONTE}' AND entity_name = '{ENTIDADE}' AND processing_status = 'RECEIVED'""")
+    dados = (lote.withColumn("chave", F.expr(cotahist.chave_ficheiro_sql("ficheiro")))
+             .join(F.broadcast(registos), "chave"))
+    ficheiros = [r.file_id for r in dados.select("file_id").distinct().collect()]
+    lidos = lote.select("ficheiro").distinct().count()
+    if not ficheiros:
+        print(f"lote {lote_id}: {lidos} ficheiros sem registo RECEIVED, ignorados")
+        return
+    linhas = (dados.where(f"substring(linha, 1, 2) = '01' AND substring(linha, 25, 3) IN ({MERCADOS})")
+              .selectExpr(*cotahist.expressoes_spark("linha"), "sha2(linha, 256) AS _record_hash",
+                          "regexp_extract(ficheiro, '[^/]+$', 0) AS _source_file_name",
+                          "reference_period AS _reference_period", f"'{FONTE}' AS _source_system",
+                          f"'{ENTIDADE}' AS _source_entity", "source_url AS _source_url",
+                          "stored_path AS _source_file_path", "file_hash_sha256 AS _file_hash",
+                          "current_timestamp() AS _ingestion_timestamp", f"'{p.run_id}' AS _pipeline_run_id"))
+    (linhas.select(*COLUNAS_BRONZE).write.mode("append")
+     .option("txnAppId", "bronze_b3_cotahist").option("txnVersion", lote_id).saveAsTable(tabela))
+    ids = ", ".join(f"'{f}'" for f in ficheiros)
+    n = s.sql(f"SELECT count(*) FROM {tabela} WHERE _pipeline_run_id = '{p.run_id}' AND _file_hash IN "
+              f"(SELECT file_hash_sha256 FROM {p.catalogo}.control.source_file_registry WHERE file_id IN ({ids}))"
+              ).first()[0]
+    s.sql(f"""UPDATE {p.catalogo}.control.source_file_registry
+              SET processing_status = 'PROCESSED', status_detail = 'carregado pelo Auto Loader (lote {lote_id})',
+                  pipeline_run_id = '{p.run_id}', updated_at = current_timestamp()
+              WHERE file_id IN ({ids})""")
+    # (no serverless o foreachBatch corre noutro processo: variáveis do notebook alteradas aqui não voltam;
+    #  as contagens da execução leem-se depois no registo e na bronze)
+    print(f"lote {lote_id}: {len(ficheiros)} de {lidos} ficheiros carregados, {n} linhas do mercado à vista")
+
+
+def auto_loader() -> None:
+    """Corre o stream até esgotar os ficheiros novos."""
+    # Ambiente com a bronze já carregada pelo método anterior: na primeira execução ignora os TXT existentes
+    # (já estão na bronze). Num ambiente novo (bronze vazia), lê tudo o que houver.
+    existentes = "true" if checkpoint_existe() or spark.table(tabela).limit(1).count() == 0 else "false"
+    q = (spark.readStream.format("cloudFiles")
+         .option("cloudFiles.format", "csv").option("cloudFiles.includeExistingFiles", existentes)
+         .option("pathGlobFilter", "*.TXT")
+         .option("encoding", "ISO-8859-1").option("sep", "\u0001").option("quote", "\u0000")
+         .option("header", "false").schema("linha STRING")
+         .load(RAIZ)
+         .select("linha", F.col("_metadata.file_path").alias("ficheiro"))
+         .writeStream.foreachBatch(carregar_lote)
+         .option("checkpointLocation", CHECKPOINT).trigger(availableNow=True)
+         .queryName("bronze_b3_cotahist").start())
+    q.awaitTermination()
 
 # COMMAND ----------
 
@@ -124,12 +184,28 @@ if p.escolhida(ENTIDADE):
     c = control.Contagens()
     estados = {}
     try:
+        auto_loader()  # recupera ficheiros RECEIVED de uma execução anterior que falhou (e inicia o checkpoint)
         ja = writer.hashes_processados(spark, p.catalogo, FONTE, ENTIDADE)
         for url, periodo in lista:
-            estado = processar(url, periodo, c, ja, forcar=p.run_mode == "reprocess")
+            estado = aterrar(url, periodo, c, ja, forcar=p.run_mode == "reprocess")
             estados[estado] = estados.get(estado, 0) + 1
             print(f"{periodo}: {estado}")
+        auto_loader()
+        carregados = spark.sql(f"""
+            SELECT count(*) AS ficheiros,
+                   (SELECT count(*) FROM {tabela} WHERE _pipeline_run_id = '{p.run_id}') AS linhas
+            FROM {p.catalogo}.control.source_file_registry
+            WHERE source_system = '{FONTE}' AND entity_name = '{ENTIDADE}' AND pipeline_run_id = '{p.run_id}'
+              AND processing_status = 'PROCESSED' AND status_detail LIKE 'carregado pelo Auto Loader%'""").first()
+        c.inserted = carregados.linhas
         e.parameters["estados_ficheiros"] = estados
+        e.parameters["auto_loader"] = {"ficheiros": carregados.ficheiros, "linhas_bronze": carregados.linhas}
+        print(f"Auto Loader: {e.parameters['auto_loader']}")
+        pendentes = spark.sql(f"""SELECT count(*) FROM {p.catalogo}.control.source_file_registry
+                                  WHERE source_system = '{FONTE}' AND entity_name = '{ENTIDADE}'
+                                    AND processing_status = 'RECEIVED'""").first()[0]
+        if pendentes:
+            raise RuntimeError(f"{pendentes} ficheiros continuam RECEIVED depois do Auto Loader")
         control.concluir(spark, e, c)  # o watermark (último pregão) é confirmado pela silver
     except Exception as ex:
         control.falhar(spark, e, ex, c)

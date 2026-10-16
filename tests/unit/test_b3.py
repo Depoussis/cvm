@@ -76,3 +76,28 @@ def test_extrair_txt_em_blocos_e_rejeita_zip_inesperado():
         z.writestr("b.TXT", "y")
     with pytest.raises(ValueError):
         cotahist.extrair_txt(buf.getvalue(), io.BytesIO())
+
+
+def test_ler_envelope_em_fluxo():
+    corpo = ("00COTAHIST.2026BOVESPA 20261015".ljust(245) + "\r\n" + PETR4 + "\r\n" + PETR4 + "\r\n"
+             + "99COTAHIST.2026BOVESPA 2026101500000000002".ljust(245) + "\r\n").encode("latin-1")
+    cab, trailer, n = cotahist.ler_envelope(io.BytesIO(corpo))
+    assert n == 2 and cab.startswith("00COTAHIST") and trailer.startswith("99")
+    assert cotahist.validar_envelope(cab, trailer, n) == []
+
+
+def test_chave_liga_txt_do_auto_loader_ao_zip_registado():
+    zip_ = "/Volumes/c/ops/raw/b3/cotahist/ingestion_date=2026-10-16/job-1/COTAHIST_A2021.ZIP"
+    txt = "dbfs:/Volumes/c/ops/raw/b3/cotahist/ingestion_date=2026-10-16/job-1/extraidos/COTAHIST_A2021.TXT"
+    assert cotahist.chave_ficheiro(zip_) == cotahist.chave_ficheiro(txt)
+    assert cotahist.chave_ficheiro(zip_).endswith("/JOB-1/COTAHIST_A2021")
+    assert "upper(regexp_replace(" in cotahist.chave_ficheiro_sql("p")
+
+
+def test_calculo_gold_reutilizado_pela_carga_incremental_e_pela_verificacao():
+    from src.gold.cotacoes import calculo, sql_diferencas
+    sql = calculo("SELECT * FROM s", "data_pregao >= d0")
+    assert "FROM (SELECT * FROM s) s" in sql and sql.rstrip().endswith("WHERE data_pregao >= d0")
+    assert "NOT LIKE 'IBO%'" in sql
+    dif = sql_diferencas("g.fct", "x.silver")
+    assert "FULL OUTER JOIN g.fct" in dif and "FROM x.silver" in dif

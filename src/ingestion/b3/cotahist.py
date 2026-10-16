@@ -117,3 +117,33 @@ def validar_envelope(cabecalho: str, trailer: str, detalhes: int) -> list[str]:
     elif int(total) not in (detalhes, detalhes + 2):
         problemas.append(f"trailer indica {int(total)} registos, o ficheiro tem {detalhes} cotações")
     return problemas
+
+
+def ler_envelope(linhas: BinaryIO) -> tuple[str, str, int]:
+    """Lê o TXT em fluxo e devolve (cabeçalho, trailer, número de registos 01), sem o carregar em memória."""
+    cabecalho, trailer, detalhes = "", "", 0
+    for bruta in linhas:
+        tipo = bruta[:2]
+        if tipo == b"01":
+            detalhes += 1
+        elif tipo == b"00":
+            cabecalho = bruta.decode("latin-1").rstrip("\r\n")
+        elif tipo == b"99":
+            trailer = bruta.decode("latin-1").rstrip("\r\n")
+    return cabecalho, trailer, detalhes
+
+
+# ---------------------------------------------------------------- Auto Loader
+# O download guarda o ZIP em .../<run_id>/NOME.ZIP e o TXT em .../<run_id>/extraidos/NOME.TXT. A chave comum
+# (pasta da execução + nome sem extensão) liga cada TXT lido pelo Auto Loader ao seu registo em source_file_registry.
+
+def chave_ficheiro(caminho: str) -> str:
+    """'.../job-1/COTAHIST_A2021.ZIP' e 'dbfs:/.../job-1/extraidos/COTAHIST_A2021.TXT' → '.../job-1/COTAHIST_A2021'."""
+    c = caminho.removeprefix("dbfs:").replace("/extraidos/", "/")
+    return c.rsplit(".", 1)[0].upper() if "." in c.rsplit("/", 1)[-1] else c.upper()
+
+
+def chave_ficheiro_sql(coluna: str) -> str:
+    """A mesma chave em Spark SQL (tem de dar o mesmo resultado que chave_ficheiro)."""
+    return (f"upper(regexp_replace(replace(regexp_replace({coluna}, '^dbfs:', ''), '/extraidos/', '/'), "
+            f"'[.][^./]+$', ''))")

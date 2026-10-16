@@ -3,7 +3,8 @@
 # MAGIC # Testes de integração (Spark + Delta + Unity Catalog)
 # MAGIC Exercita, em tabelas temporárias no schema `ops`, a mesma lógica usada pelos pipelines:
 # MAGIC SCD1 (contagens e CDF de reapresentações), SCD2 (alteração, ausência e reaparecimento), watermark que nunca
-# MAGIC recua e registo de execuções. Remove tudo o que cria, também em caso de falha. Falha se alguma verificação falhar.
+# MAGIC recua e registo de execuções; compara a gold da B3 (incremental por CDF) com uma reconstrução completa.
+# MAGIC Remove tudo o que cria, também em caso de falha. Falha se alguma verificação falhar.
 
 # COMMAND ----------
 
@@ -123,6 +124,15 @@ finally:
         spark.sql(f"DROP TABLE IF EXISTS {t}")
     spark.sql(f"DELETE FROM {k}.control.pipeline_execution WHERE pipeline_run_id = '{RUN}'")
     spark.sql(f"DELETE FROM {k}.control.ingestion_watermark WHERE source_system = '{FONTE_TESTE}'")
+
+# COMMAND ----------
+
+# Gold da B3 carregada de forma incremental pelo Change Data Feed: tem de coincidir com uma reconstrução completa
+# (só leitura; ignorado enquanto a tabela não existir).
+if spark.catalog.tableExists(f"{k}.gold.fct_cotacao_diaria"):
+    from src.gold.cotacoes import sql_diferencas
+    dif = spark.sql(sql_diferencas(f"{k}.gold.fct_cotacao_diaria", f"{k}.silver.b3_cotacao_diaria"))
+    verificar("gold B3 incremental (CDF) igual à reconstrução completa", dif.count(), 0)
 
 # COMMAND ----------
 

@@ -15,6 +15,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 | 2. Banco Central | SGS e PTAX: histórico e incremental, bronze/silver/gold | concluída (16/10/2026), ver [docs/pipelines_bcb.md](docs/pipelines_bcb.md) |
 | 3. CVM | Catálogo, ficheiros históricos, ZIP, fundos e companhias abertas | concluída (16/10/2026), ver [docs/pipelines_cvm.md](docs/pipelines_cvm.md) |
 | 3b. B3 | Cotações da bolsa (ações, FII, ETF), ticker → companhia pelo FCA da CVM, ajuste a desdobramentos | concluída (16/10/2026), ver [docs/pipelines_b3.md](docs/pipelines_b3.md) |
+| 3c. Streaming | Auto Loader na bronze e Change Data Feed na gold da B3 (`availableNow`, checkpoints, escrita idempotente) | concluída (16/10/2026), ver [docs/streaming.md](docs/streaming.md) |
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | concluída (16/10/2026), ver [docs/auditoria.md](docs/auditoria.md) |
 | 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | concluída (16/10/2026), ver [docs/orquestracao.md](docs/orquestracao.md) |
 | 6. Qualidade e analytics | Testes de dados, modelo dimensional, indicadores, Power BI | concluída (16/10/2026), ver [docs/analytics.md](docs/analytics.md) |

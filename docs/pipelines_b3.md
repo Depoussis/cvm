@@ -41,11 +41,11 @@ negócios esporádicos. Fica na silver e é excluída da gold, porque não é um
 
 | Tabela | Conteúdo |
 |---|---|
-| `bronze.b3_cotahist` | registos `01` do mercado à vista, campos do layout como texto, com auditoria |
+| `bronze.b3_cotahist` | registos `01` do mercado à vista, campos do layout como texto, com auditoria; carregada por **Auto Loader** ([streaming.md](streaming.md)) |
 | `silver.b3_cotacao_diaria` | SCD1 por (pregão, ticker): lote padrão (BDI 02), FII (12) e ETF e fundos (14). Preços em reais por unidade |
 | `silver.cvm_valor_mobiliario` | SCD1 por ticker: CNPJ da companhia, espécie declarada e segmento de listagem, do FCA mais recente |
 | `gold.dim_ativo_b3` | papel + emissor: companhia (FCA + cadastro CVM, com setor) ou FII (pelo ISIN do informe mensal) |
-| `gold.fct_cotacao_diaria` | OHLC, negócios, volume, `fator_evento`, `retorno_dia` e `preco_ajustado` |
+| `gold.fct_cotacao_diaria` | OHLC, negócios, volume, `fator_evento`, `retorno_dia` e `preco_ajustado`; incremental pelo **Change Data Feed** da silver ([streaming.md](streaming.md)) |
 | `gold.vw_b3_desempenho` | último fecho, retornos (dia, 1 mês, ano, 12 meses), volume médio de 30 dias e P/VP dos FII |
 
 ### Ajuste a desdobramentos e grupamentos (heurística)
