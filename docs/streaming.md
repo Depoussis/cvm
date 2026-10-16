@@ -62,18 +62,11 @@ execução são lidas depois:
 
 Ficam em `control.pipeline_execution.parameters`.
 
-## Como foi verificado (16/10/2026)
+## Como foi verificado
 
-| Teste | Resultado |
-|---|---|
-| Ficheiro diário de 15/10 marcado `FAILED` para forçar nova descarga | `RECEIVED` → carregado pelo Auto Loader (lote 1) → `PROCESSED`; +1 473 linhas na bronze; silver sem alterações (valores iguais) |
-| Primeira execução da gold por CDF (sem checkpoint) | `MERGE` de 1 272 346 linhas (a silver inteira) |
-| Desdobramento 2:1 simulado na silver (PETR4 em 15/10: fecho a metade, distribuição alterada) | fator 0,5 detetado, retorno do dia −1,29 % (e não −50 %), 1 442 pregões anteriores reajustados |
-| Simulação desfeita | fator 1 e passado reajustado de volta (1 442 linhas) |
-| Gold incremental comparada com uma reconstrução completa (`sql_diferencas`) | 0 diferenças, depois de cada passo |
-
-A comparação com a reconstrução completa ficou nos testes de integração semanais (`notebooks/tests/integracao.py`):
-se a lógica incremental divergir, a auditoria de domingo falha.
+Os casos de teste (Auto Loader TF-06/07, CDF TF-08 a TF-11, integração TI-01), com passos, resultados e IDs das
+execuções, estão em [testes.md](testes.md). Os conceitos (checkpoint, `availableNow`, `foreachBatch`, idempotência,
+watermark, deduplicação) estão explicados em [conceitos.md](conceitos.md).
 
 ## Próximos passos possíveis
 
