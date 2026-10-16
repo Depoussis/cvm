@@ -13,7 +13,8 @@ entidades:
   bcb_sgs:
     serie_4390: 45    # Selic acumulada no mês: publicada no fecho do mês
     serie_24363: 130  # IBC-Br: julho/2026 era o último disponível em 16/10/2026 (~3,5 meses)
-  cvm: {}
+  cvm:
+    cvm_demonstracoes: 160   # ITR/DFP trimestrais: até ~4,5 meses entre o fim do período e a entrega seguinte
 
 # Execuções: falha se a última execução com sucesso de cada pipeline for mais antiga do que isto (horas).
 execucao_max_horas:

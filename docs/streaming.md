@@ -62,6 +62,19 @@ execução são lidas depois:
 
 Ficam em `control.pipeline_execution.parameters`.
 
+### Segundo stream: eventos oficiais da B3
+
+Desde a integração dos proventos ([fundamentos.md](fundamentos.md)), o fator de evento das ações vem de
+`silver.b3_evento_acao`, que é carregada semanalmente e também tem CDF. Um segundo stream na mesma tarefa
+(`aplicar_eventos`, checkpoint `ops/checkpoints/gold_b3_eventos_oficiais`) faz o seguinte:
+1. lê os eventos novos ou alterados;
+2. liga-os ao ticker pelo ISIN;
+3. recalcula esses tickers a partir da data com, com a mesma função `recalcular` do stream de cotações.
+
+Assim, um desdobramento ou bonificação publicado na carga de domingo reajusta o histórico do papel na execução
+seguinte, sem reconstruir a tabela. Em `reprocess`, os dois checkpoints são apagados e recomeçam em
+`startingVersion = latest`, depois da reconstrução completa.
+
 ## Como foi verificado
 
 Os casos de teste (Auto Loader TF-06/07, CDF TF-08 a TF-11, integração TI-01), com passos, resultados e IDs das

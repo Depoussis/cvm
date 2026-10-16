@@ -15,25 +15,31 @@ from painel import dados, formato
 from painel.ui import aplicar_estilo, html
 
 st.set_page_config(page_title="Findata · Mercado e fundos", page_icon=":material/monitoring:", layout="wide",
-                   initial_sidebar_state="expanded")
+                   initial_sidebar_state="collapsed")
 aplicar_estilo()
 st.logo(str(Path(__file__).parent / "logo.svg"), size="large")
 
-pagina = st.navigation([
-    st.Page("paginas/mercado.py", title="Mercado", icon=":material/trending_up:", default=True),
-    st.Page("paginas/acoes.py", title="Bolsa", icon=":material/candlestick_chart:"),
-    st.Page("paginas/fundos.py", title="Fundos", icon=":material/account_balance:"),
-    st.Page("paginas/fii.py", title="Fundos imobiliários", icon=":material/apartment:"),
-    st.Page("paginas/analise.py", title="Análise de fundo", icon=":material/query_stats:"),
-    st.Page("paginas/operacao.py", title="Operação e qualidade", icon=":material/fact_check:"),
-])
+# Navegação no topo: páginas soltas e grupos (os grupos abrem um menu com as páginas)
+pagina = st.navigation({
+    "": [
+        st.Page("paginas/mercado.py", title="Mercado", icon=":material/trending_up:", default=True),
+        st.Page("paginas/acoes.py", title="Bolsa", icon=":material/candlestick_chart:"),
+        st.Page("paginas/modelo.py", title="Modelo", icon=":material/model_training:"),
+    ],
+    "Fundos": [
+        st.Page("paginas/fundos.py", title="Fundos de investimento", icon=":material/account_balance:"),
+        st.Page("paginas/fii.py", title="Fundos imobiliários", icon=":material/apartment:"),
+        st.Page("paginas/analise.py", title="Análise de fundo", icon=":material/query_stats:"),
+    ],
+    "Plataforma": [
+        st.Page("paginas/operacao.py", title="Operação e qualidade", icon=":material/fact_check:"),
+    ],
+}, position="top")
 
-with st.sidebar:
-    m = dados.meta()
-    quando = formato.data_hora(pd.Timestamp(m["exportado_em"])) if m.get("exportado_em") else "—"
-    html(f'<div class="snapshot">Atualizado em <b>{escape(quando)}</b><br>'
-         "Fontes: Banco Central (SGS, PTAX), B3 (COTAHIST) e CVM (informes e cadastros).</div>")
-    st.divider()
-    st.caption("Projeto de estudo: plataforma medallion em Azure Databricks. Tema claro/escuro: menu ⋮ → Settings.")
+m = dados.meta()
+quando = formato.data_hora(pd.Timestamp(m["exportado_em"])) if m.get("exportado_em") else "—"
+html(f'<div class="faixa-snapshot">Atualizado em <b>{escape(quando)}</b> · Fontes: Banco Central (SGS, PTAX), '
+     "B3 (cotações e proventos) e CVM (informes, cadastros, DFP/ITR) · Projeto de estudo · "
+     "Tema claro/escuro: menu ⋮ → Settings</div>")
 
 pagina.run()

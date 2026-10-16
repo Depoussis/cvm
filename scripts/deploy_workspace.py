@@ -39,10 +39,19 @@ JOBS = {
     "cvm": ("CVM (fundos e companhias abertas): bronze -> silver -> gold. Ver docs/pipelines_cvm.md.", "cron_cvm", [
         ("bronze_cvm", "bronze/cvm", [], 2), ("silver_cvm", "silver/cvm", ["bronze_cvm"], 0),
         ("gold_cvm", "gold/cvm", ["silver_cvm"], 0),
+        ("gold_fundamentos", "gold/cvm_fundamentos", ["silver_cvm"], 0),
         ("reapresentacoes", "audit/reapresentacoes", ["gold_cvm"], 0, {"fonte": "cvm"})]),
     "b3": ("B3 (cotações históricas COTAHIST): bronze -> silver -> gold. Ver docs/pipelines_b3.md.", "cron_b3", [
         ("bronze_b3", "bronze/b3", [], 2), ("silver_b3", "silver/b3", ["bronze_b3"], 0),
         ("gold_b3", "gold/b3", ["silver_b3"], 0)]),
+    "b3_proventos": ("B3 proventos (dividendos, JCP, desdobramentos, número de ações): semanal. Ver docs/fundamentos.md.",
+                     "cron_b3_proventos", [
+        ("bronze_b3_proventos", "bronze/b3_proventos", [], 2),
+        ("silver_b3_proventos", "silver/b3_proventos", ["bronze_b3_proventos"], 0),
+        ("gold_b3_proventos", "gold/b3_proventos", ["silver_b3_proventos"], 0)]),
+    "ml": ("Modelo de ranking de ações: features point-in-time, walk-forward, backtest e ranking atual (MLflow). "
+           "Ver docs/modelo_preditivo.md.", "cron_ml", [
+        ("ml_features", "ml/features", [], 0), ("ml_treino", "ml/treino", ["ml_features"], 0)]),
     "frescura": ("Verifica a frescura dos dados contra config/sla.yaml (corre no fim do pipeline diário do ADF).",
                  "cron_frescura", [("frescura", "audit/frescura", [], 0)]),
     "auditoria": ("Auditoria semanal: testes de integração e reconciliação com as fontes. Ver docs/auditoria.md.",

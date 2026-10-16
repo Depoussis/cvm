@@ -1,4 +1,4 @@
-# Casos de teste: B3 e streaming
+# Casos de teste: B3, streaming, fundamentos e modelo preditivo
 
 Catálogo dos testes da integração da B3 (cotações da bolsa) e do streaming (Auto Loader e Change Data Feed),
 executados em 16/10/2026 no ambiente `dev` (catálogo `findata_dev`, workspace `dbw-findata-dev`). Cada caso diz o
@@ -176,3 +176,93 @@ Suite completa: **56 testes aprovados**.
 Na TF-11 apareceram dois problemas no próprio teste, ambos corrigidos:
 - A consulta foi achatada numa só linha e os comentários `--` anularam o resto do SQL.
 - Uma divisão por zero na comparação: há fechos a 0. Passou a usar diferença absoluta relativa ao valor esperado.
+
+---
+
+# Parte 2: fundamentos, proventos e modelo preditivo
+
+Testes de 16/10/2026 sobre as fontes novas (DFP/ITR da CVM e proventos da B3), a substituição da heurística pelos
+eventos oficiais e o modelo de ranking. Documentação funcional em [fundamentos.md](fundamentos.md) e
+[modelo_preditivo.md](modelo_preditivo.md).
+
+Resumo: **9 TU, 1 TI (repetido), 9 TF, 10 TD e 4 TP, todos aprovados no fim**. Os defeitos D-04 a D-07,
+encontrados e corrigidos durante os testes, estão no fim.
+
+## Testes unitários
+
+```bash
+.venv/Scripts/python -m pytest tests/unit/test_b3.py tests/unit/test_ml.py -v   # suite completa: 65 aprovados
+```
+
+| ID | Teste | Verifica | Estado |
+|---|---|---|---|
+| TU-10 | `test_proventos_urls_numeros_e_datas` | parâmetros da API em JSON base64; números brasileiros (`0,674`, `1.234,5`); datas `dd/mm/aaaa` (inclui `31/12/9999`); chaves em falta; nº de páginas | aprovado |
+| TU-11 | `test_registo_de_provento_para_a_bronze` | um provento real da API vira as colunas da bronze; campos novos da API são ignorados | aprovado |
+| TU-12 | `test_regras_de_contas_dos_fundamentos` | o SQL dos fundamentos não tem chavetas soltas (passa por `str.format`); as regras de descrição apanham "Lucro/Prejuízo Consolidado do Período", "Lucro ou Prejuízo Líquido do Exercício", "Atribuído a Sócios da Empresa Controladora", PL, não controladores, caixa e aplicações; não apanham "Lucro por Ação" nem "Não Controladores" como controladora | aprovado |
+| TU-09 (revisto) | `test_calculo_gold_reutilizado_pela_carga_incremental_e_pela_verificacao` | além do anterior: eventos oficiais têm prioridade sobre a heurística; fórmulas do fator (% e fração) | aprovado |
+| TU-13 | `test_dobras_nunca_treinam_com_o_mes_de_teste_nem_o_anterior` | walk-forward: o treino de cada mês acaba pelo menos ~40 dias antes do mês de teste; mínimo de 18 meses | aprovado |
+| TU-14 | `test_alvo_acima_da_mediana_por_data_e_nan_sem_futuro` | alvo por data (mediana da própria data); sem retorno futuro → sem alvo | aprovado |
+| TU-15 | `test_ranks_por_data` | percentis calculados só entre as ações da mesma data | aprovado |
+| TU-16 | `test_auc_e_ic` | AUC pela fórmula de Mann-Whitney (1, 0 e 0,5 em casos conhecidos); IC de Spearman | aprovado |
+| TU-17 | `test_carteira_com_custos_e_rotacao` | carteira top N: custo de entrada (1 lado), rotação, custo de 2 lados e comparação com o universo | aprovado |
+| TU-18 | `test_sql_das_features_point_in_time` | o SQL das features tem as três salvaguardas (fundamentos ≤ t, dividendos com data ex ≤ t, alvo 21 pregões à frente) e todas as variáveis do modelo | aprovado |
+
+## Teste de integração
+
+| ID | TI-01 (repetido com eventos oficiais) |
+|---|---|
+| Objetivo | Depois de trocar a heurística pelos eventos oficiais, a gold incremental continua igual a uma reconstrução completa |
+| Como | `sql_diferencas(k)` compara também `fator_evento` com tolerância relativa |
+| Obtido | tarefa `testes_integracao` SUCCESS |
+| Evidência | run `160388811525714` |
+
+## Testes funcionais
+
+| ID | Caso | Passos | Esperado | Obtido | Evidência |
+|---|---|---|---|---|---|
+| TF-12 | Backfill DFP/ITR 2021-2026 | job CVM, `run_mode=backfill`, `entidades=cia_aberta_dfp,cia_aberta_itr`, só as tarefas bronze, silver e `gold_fundamentos` | 12 ZIP `PROCESSED`; silver com contas e documentos | bronze e silver SUCCESS (DRE da DFP: 401 460 linhas); a gold falhou (D-04) | run `475095205445948` |
+| TF-13 | Gold de fundamentos | só a tarefa `gold_fundamentos` | uma linha por companhia e trimestre | 1.ª tentativa: regra CRITICAL de chave única falhou (D-05); depois da correção, SUCCESS: 15 536 trimestres de 878 companhias | runs `802234466502566` (falhou), `1010774919313167` |
+| TF-14 | Primeira carga de proventos | job `findata_dev_b3_proventos` | empresas ativas, sem falhas; silver e gold | 310 empresas, 725 pedidos, 0 falhas; 18 536 proventos, 716 eventos, 310 empresas; `fct_provento` 17 175 linhas em 358 tickers (17 118 com data ex) | run `987355423546317` |
+| TF-15 | Gold da B3 reconstruída com eventos oficiais | só `gold_b3`, `run_mode=reprocess` | reconstrução e checkpoints dos dois streams reiniciados | SUCCESS | run `504488120425256` |
+| TF-16 | Proventos recalculados com os novos fatores | só `gold_b3_proventos` | `valor_ajustado` com os fatores oficiais | SUCCESS | run `997666706312965` |
+| TF-17 | Features do modelo | job `findata_dev_ml`, tarefa `ml_features` | regras CRITICAL anti-futuro com 0 falhas | 12 594 linhas (413 ações, 58 datas); `ml_fundamentos_publicados_antes` 0/12 594; `ml_alvo_depois_da_referencia` 0/12 594; chave única OK | run `188558971629497` |
+| TF-18 | Treino, backtest e registo | tarefa `ml_treino` | 3 modelos, 37 meses fora da amostra, MLflow, modelo no Unity Catalog, 5 tabelas gold | SUCCESS; MLflow run `7722ad9d1115465f875e127bff38ec0d`; modelo `findata_dev.gold.ranking_acoes` v1 | run `188558971629497` |
+| TF-19 | Pipeline semanal do ADF | `pl_findata_semanal` com `B3 proventos → Modelo` em paralelo com a auditoria | publicado com `job_id_b3_proventos` e `job_id_ml` | teste unitário `test_adf.py` aprovado | — |
+| TF-20 | SQL validado antes de correr | `EXPLAIN` no warehouse dos SQL de fundamentos, features e cotações | sem erros de sintaxe ou análise | os três OK (depois de D-04) | — |
+
+## Validação de dados
+
+| ID | Caso | Esperado | Obtido |
+|---|---|---|---|
+| TD-10 | Lucro 12 meses e PL contra os balanços publicados | valores dos relatórios anuais | Petrobras 2025: lucro R$ 110,1 bi, PL R$ 415,8 bi, dívida R$ 384 bi; WEG 2025: R$ 6,4 bi; Itaú 2025: R$ 44,9 bi |
+| TD-11 | Código de contas diferente por setor | lucro e PL identificados em indústria, banco e seguradora | Itaú (3.09/2.08), BB Seguridade (3.13/2.03) e WEG/Petrobras (3.11/2.03) |
+| TD-12 | Número de ações da CVM | ações em unidades | **Itaú declara em milhares** (10,8 mi vs 11,03 mil mi na B3) → valor de mercado passou a usar a B3 (D-07) |
+| TD-13 | Número de ações da B3 | coerente com o mercado | PETR 7,44 mil mi ON + 5,45 mil mi PN; ITUB 11,03 mil mi; VALE 4,44 mil mi |
+| TD-14 | DY por ano | coerente com a história | PETR4 49,9 % (2022) e 24,7 % (2023); TAEE11 8–10 %/ano; DY 12m ITUB4 7,6 %, VALE3 7,7 % |
+| TD-15 | Proventos sem ticker | só espécies sem papel líquido | 15 de 449 combinações emissor/espécie (ex.: CEEB PNB, BRBI ON/PN), regra INFO `provento_sem_ticker` |
+| TD-16 | Yield de evento acima de 30 % | rever | 9 casos (ex.: CEBR5 31 % em 2021, CASH3 2024), regra INFO `yield_evento_suspeito` |
+| TD-17 | Heurística contra eventos oficiais | eventos detetados | **38 de 105** desdobramentos/grupamentos desde 2021 não detetados e nenhuma bonificação (D-06). Ex.: VAMO3 1:4 (razão 0,228, fora da tolerância), CMIG4 +30 % (−23 % no preço), EGIE3 +40 %, ITUB4 +3 %, BBDC4 +10 % |
+| TD-18 | Cobertura de fundamentos nas features | maioria das linhas | 9 930 de 12 594 com lucro/valor de mercado (2 664 sem fundamentos: empresas sem DFP/ITR ligadas ao ticker ou meses iniciais) |
+| TD-19 | Resultados do backtest plausíveis | AUC entre 0,5 e ~0,6 (mais alto seria suspeito) | AUC 0,523 / 0,568 / 0,556; IC 0,04 / 0,13 / 0,11 |
+
+## Painel
+
+| ID | Caso | Obtido |
+|---|---|---|
+| TP-06 | Navegação no topo (pedido do utilizador) | Mercado, Bolsa e Modelo como abas; menus "Fundos" (3 páginas) e "Plataforma"; faixa com data do snapshot e fontes por baixo |
+| TP-07 | Página Modelo | indicadores (AUC 0,556, IC 0,109, carteira +46,6 %, 37 meses), backtest com escolha do modelo, comparação, IC por mês, importância das variáveis, ranking atual; a tabela de comparação foi reduzida a 5 colunas, porque cortava |
+| TP-08 | Bolsa: dividendos | cartão "Dividendos e JCP por ano" (PETR4: barras por ano e tabela com DY) |
+| TP-09 | Bolsa: indicadores | colunas DY 12m, P/L, P/VP e ROE nas ações; ranking "Maior dividend yield (12 meses)" |
+
+## Defeitos encontrados e corrigidos (parte 2)
+
+| ID | Defeito | Causa | Correção |
+|---|---|---|---|
+| D-04 | `gold_fundamentos`: `PARSE_SYNTAX_ERROR` | o Spark SQL não aceita uma moldura sobre uma janela com nome (`OVER (w ROWS BETWEEN ...)`), confirmado no warehouse | janelas escritas por extenso nos fundamentos e nas features; os SQL passaram a ser validados com `EXPLAIN` antes de correr |
+| D-05 | Chave única falhou na gold de fundamentos (8 trimestres repetidos) | algumas empresas entregam uma ITR também do 4.º trimestre, além da DFP | fica a DFP (`QUALIFY` por documento) |
+| D-06 | Bonificações e vários desdobramentos sem ajuste no preço (TD-17) | a heurística só procura fatores inteiros com tolerância de 8 % | eventos oficiais da B3 nas ações cobertas; heurística só em FII/ETF; gold reconstruída |
+| D-07 | Valor de mercado errado para empresas que declaram ações em milhares | unidade inconsistente na composição do capital da CVM | valor de mercado = preço ajustado × nº de ações da B3 (mesma base de ações) |
+
+O teste unitário TU-17 também tinha uma expectativa errada. A carteira do 2.º mês (1,8 %) rendia menos do que o
+universo (2,33 %), por isso a percentagem de meses acima do universo é 50 % e não 100 %. Foi corrigido o teste,
+não o código.

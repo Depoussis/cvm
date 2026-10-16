@@ -131,7 +131,7 @@ finally:
 # (só leitura; ignorado enquanto a tabela não existir).
 if spark.catalog.tableExists(f"{k}.gold.fct_cotacao_diaria"):
     from src.gold.cotacoes import sql_diferencas
-    dif = spark.sql(sql_diferencas(f"{k}.gold.fct_cotacao_diaria", f"{k}.silver.b3_cotacao_diaria"))
+    dif = spark.sql(sql_diferencas(k))
     verificar("gold B3 incremental (CDF) igual à reconstrução completa", dif.count(), 0)
 
 # COMMAND ----------

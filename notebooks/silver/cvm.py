@@ -6,6 +6,7 @@
 # MAGIC - `cvm_fundo`, `cvm_fundo_gestor`, `cvm_fundo_classe`, `cvm_companhia` (SCD2): a partir do snapshot mais recente
 # MAGIC   ainda não consolidado. Chaves que desaparecem do snapshot têm a versão atual fechada.
 # MAGIC - `cvm_valor_mobiliario` (SCD1): ticker na B3 → companhia, do FCA mais recente.
+# MAGIC - `cvm_demo_documento`, `cvm_demo_conta`, `cvm_demo_capital` (SCD1): DFP e ITR, versão mais alta.
 # MAGIC - Dados pessoais da bronze não são selecionados.
 
 # COMMAND ----------
@@ -385,6 +386,156 @@ if p.escolhida("cia_aberta_fca") or p.escolhida("cvm_valor_mobiliario"):
     except Exception as ex:
         control.falhar(spark, e, ex, c)
         erros["cvm_valor_mobiliario"] = repr(ex)
+
+# COMMAND ----------
+
+# MAGIC %md ## Demonstrações financeiras: DFP e ITR (SCD1)
+# MAGIC Documentos com linhas novas nesta execução (em qualquer das tabelas bronze) são recalculados a partir de toda a
+# MAGIC bronze desse documento: fica a versão mais alta, mesmo que uma versão antiga seja recarregada depois.
+
+# COMMAND ----------
+
+if p.escolhida("cia_aberta_dfp") or p.escolhida("cia_aberta_itr") or p.escolhida("cvm_demonstracoes"):
+    ENT = "cvm_demonstracoes"
+    e = control.Execucao(k, p.run_id, "silver_cvm", FONTE, ENT, "silver", p.run_mode)
+    control.iniciar(spark, e)
+    c = control.Contagens()
+    try:
+        T = {x: f"{k}.bronze.cvm_demo_{x}" for x in ("documentos", "dre", "bpa", "bpp", "composicao_capital")}
+        filtro = "_source_entity IN ('cia_aberta_dfp', 'cia_aberta_itr')"
+        tipo = "upper(substr(_source_entity, 12))"   # cia_aberta_dfp → DFP
+        pend = " UNION ".join(
+            f"SELECT DISTINCT {cnpj('cnpj_cia')} AS cnpj_cia, {tipo} AS tipo_doc, {dt('dt_refer')} AS dt_refer "
+            f"FROM ({sql_pendentes(t, k, FONTE, ENT, filtro, reprocessar)})" for t in T.values())
+        spark.sql(pend).createOrReplaceTempView("_demo_docs")
+        n_docs = spark.table("_demo_docs").count()
+        print(f"demonstrações: {n_docs} documentos com dados novos")
+
+        def do_documento(tabela: str) -> str:
+            """Linhas bronze dos documentos pendentes, com as chaves normalizadas."""
+            return (f"SELECT b.*, {cnpj('b.cnpj_cia')} AS _cnpj, {tipo} AS _tipo, {dt('b.dt_refer')} AS _dt_refer, "
+                    f"CAST(try_cast({txt('b.versao')} AS DOUBLE) AS INT) AS _versao "
+                    f"FROM {tabela} b WHERE {filtro} AND _corrupt_record IS NULL AND EXISTS ("
+                    f"SELECT 1 FROM _demo_docs d WHERE d.cnpj_cia = {cnpj('b.cnpj_cia')} AND d.tipo_doc = {tipo} "
+                    f"AND d.dt_refer = {dt('b.dt_refer')})")
+
+        # documentos (todas as versões, com a data de entrega)
+        spark.sql(f"""
+            SELECT _cnpj AS cnpj_cia, _tipo AS tipo_doc, _dt_refer AS dt_refer, _versao AS versao,
+                   {txt('cd_cvm')} AS cd_cvm, {txt('denom_cia')} AS denom_cia, {txt('id_doc')} AS id_doc,
+                   {dt('dt_receb')} AS dt_receb
+            FROM ({do_documento(T['documentos'])}) WHERE _versao IS NOT NULL
+            QUALIFY row_number() OVER (PARTITION BY _cnpj, _tipo, _dt_refer, _versao ORDER BY _ingestion_timestamp DESC) = 1
+        """).createOrReplaceTempView("_demo_doc_v")
+        col_doc = ["cd_cvm", "denom_cia", "id_doc", "dt_receb"]
+        spark.sql(f"SELECT *, {expr_hash(col_doc)} AS record_hash, '{p.run_id}' AS _pipeline_run_id FROM _demo_doc_v"
+                  ).createOrReplaceTempView("_demo_doc_src")
+        i, u = executar_merge(spark, merge_scd1(f"{k}.silver.cvm_demo_documento", "_demo_doc_src",
+                                                ["cnpj_cia", "tipo_doc", "dt_refer", "versao"], col_doc))
+        c.inserted += i
+        c.updated += u
+
+        # contas: DRE, BPA e BPP, exercício corrente, até ao 3.º nível, versão mais alta do documento
+        partes = []
+        for nome in ("dre", "bpa", "bpp"):
+            ini = f"{dt('dt_ini_exerc')}" if nome == "dre" else "CAST(NULL AS DATE)"
+            partes.append(f"""
+                SELECT _cnpj, _tipo, _dt_refer, _versao, _ingestion_timestamp, '{nome.upper()}' AS demonstracao,
+                       CASE WHEN grupo_dfp LIKE 'DF Consolidado%' THEN 'con'
+                            WHEN grupo_dfp LIKE 'DF Individual%' THEN 'ind' END AS escopo,
+                       coalesce({ini}, {dt('dt_fim_exerc')}) AS dt_ini_exerc, {dt('dt_fim_exerc')} AS dt_fim_exerc,
+                       {txt('cd_conta')} AS cd_conta, {txt('ds_conta')} AS ds_conta,
+                       {txt('st_conta_fixa')} AS conta_fixa, {txt('vl_conta')} AS vl_texto,
+                       upper({txt('escala_moeda')}) AS escala
+                FROM ({do_documento(T[nome])})
+                WHERE ordem_exerc NOT LIKE 'PEN%' AND size(split(cd_conta, '[.]')) <= 3""")
+        spark.sql(" UNION ALL ".join(partes)).createOrReplaceTempView("_demo_contas_bruto")
+        c.read = spark.table("_demo_contas_bruto").count()
+        valido = ("_cnpj IS NOT NULL AND length(_cnpj) = 14 AND _dt_refer IS NOT NULL AND _versao IS NOT NULL "
+                  "AND escopo IS NOT NULL AND dt_fim_exerc IS NOT NULL AND cd_conta IS NOT NULL "
+                  "AND (vl_texto IS NULL OR try_cast(vl_texto AS DOUBLE) IS NOT NULL) AND escala IN ('MIL', 'UNIDADE')")
+        spark.sql(f"SELECT *, coalesce(({valido}), false) AS _valido FROM _demo_contas_bruto").createOrReplaceTempView("_demo_pend")
+        invalidos = spark.table("_demo_pend").where("NOT _valido").drop("_valido")
+        c.rejected = invalidos.count()
+        if c.rejected:
+            invalidos.write.mode("append").json(caminho_quarentena(k, FONTE, ENT, hoje, p.run_id))
+        col_conta = ["ds_conta", "conta_fixa", "valor", "versao"]
+        spark.sql(f"""
+            SELECT cnpj_cia, tipo_doc, dt_refer, escopo, demonstracao, dt_ini_exerc, dt_fim_exerc, cd_conta,
+                   {', '.join(col_conta)}, {expr_hash(col_conta)} AS record_hash, '{p.run_id}' AS _pipeline_run_id
+            FROM (
+              SELECT _cnpj AS cnpj_cia, _tipo AS tipo_doc, _dt_refer AS dt_refer, escopo, demonstracao, dt_ini_exerc,
+                     dt_fim_exerc, cd_conta, ds_conta, conta_fixa, _versao AS versao, _ingestion_timestamp,
+                     CAST(CAST(vl_texto AS DECIMAL(30, 10)) * CASE escala WHEN 'MIL' THEN 1000 ELSE 1 END
+                          AS DECIMAL(24, 2)) AS valor,
+                     max(_versao) OVER (PARTITION BY _cnpj, _tipo, _dt_refer) AS _versao_max
+              FROM _demo_pend WHERE _valido
+            )
+            WHERE versao = _versao_max
+            QUALIFY row_number() OVER (PARTITION BY cnpj_cia, tipo_doc, dt_refer, escopo, demonstracao, dt_ini_exerc,
+                                                    dt_fim_exerc, cd_conta
+                                       ORDER BY _ingestion_timestamp DESC, valor) = 1
+        """).createOrReplaceTempView("_demo_contas_src")
+        i, u = executar_merge(spark, merge_scd1(
+            f"{k}.silver.cvm_demo_conta", "_demo_contas_src",
+            ["cnpj_cia", "tipo_doc", "dt_refer", "escopo", "demonstracao", "dt_ini_exerc", "dt_fim_exerc", "cd_conta"],
+            col_conta))
+        c.inserted += i
+        c.updated += u
+
+        # composição do capital
+        col_cap = ["versao", "acoes_on", "acoes_pn", "acoes_total", "tesouraria_on", "tesouraria_pn", "tesouraria_total"]
+        q = lambda x: f"CAST(try_cast({txt(x)} AS DOUBLE) AS BIGINT)"  # noqa: E731
+        spark.sql(f"""
+            SELECT cnpj_cia, tipo_doc, dt_refer, {', '.join(col_cap)}, {expr_hash(col_cap)} AS record_hash,
+                   '{p.run_id}' AS _pipeline_run_id
+            FROM (
+              SELECT _cnpj AS cnpj_cia, _tipo AS tipo_doc, _dt_refer AS dt_refer, _versao AS versao,
+                     {q('qt_acao_ordin_cap_integr')} AS acoes_on, {q('qt_acao_pref_cap_integr')} AS acoes_pn,
+                     {q('qt_acao_total_cap_integr')} AS acoes_total, {q('qt_acao_ordin_tesouro')} AS tesouraria_on,
+                     {q('qt_acao_pref_tesouro')} AS tesouraria_pn, {q('qt_acao_total_tesouro')} AS tesouraria_total,
+                     _ingestion_timestamp
+              FROM ({do_documento(T['composicao_capital'])})
+              WHERE _cnpj IS NOT NULL AND _dt_refer IS NOT NULL AND _versao IS NOT NULL
+            )
+            QUALIFY row_number() OVER (PARTITION BY cnpj_cia, tipo_doc, dt_refer
+                                       ORDER BY versao DESC, _ingestion_timestamp DESC) = 1
+        """).createOrReplaceTempView("_demo_cap_src")
+        i, u = executar_merge(spark, merge_scd1(f"{k}.silver.cvm_demo_capital", "_demo_cap_src",
+                                                ["cnpj_cia", "tipo_doc", "dt_refer"], col_cap))
+        c.inserted += i
+        c.updated += u
+
+        conta = f"{k}.silver.cvm_demo_conta"
+        regras = [
+            dq.Regra("chave_unica", "Uma linha por conta, período e documento", "CRITICAL", conta,
+                     f"SELECT cnpj_cia, tipo_doc, dt_refer, escopo, demonstracao, dt_ini_exerc, dt_fim_exerc, cd_conta, "
+                     f"count(*) n FROM {conta} GROUP BY ALL HAVING n > 1", f"SELECT count(*) FROM {conta}"),
+            dq.Regra("formato_api", "CNPJ, datas, versão, escala e valor convertíveis", "HIGH", f"{k}.bronze.cvm_demo_dre",
+                     "SELECT * FROM _demo_pend WHERE NOT _valido", "SELECT count(*) FROM _demo_pend"),
+            # Balanço: ativo total = passivo total (+ PL). Só regista: arredondamentos e erros de preenchimento.
+            dq.Regra("balanco_fecha", "Ativo total (1) = passivo + PL (2), tolerância de 0,1 %", "INFO", conta,
+                     f"""SELECT a.cnpj_cia, a.tipo_doc, a.dt_refer, a.escopo, a.valor AS ativo, b.valor AS passivo
+                         FROM {conta} a JOIN {conta} b USING (cnpj_cia, tipo_doc, dt_refer, escopo, dt_fim_exerc)
+                         WHERE a.cd_conta = '1' AND b.cd_conta = '2' AND a.demonstracao = 'BPA' AND b.demonstracao = 'BPP'
+                           AND abs(a.valor - b.valor) > 0.001 * greatest(abs(a.valor), 1)
+                           AND a._pipeline_run_id = '{p.run_id}'""",
+                     f"SELECT count(*) FROM {conta} WHERE cd_conta = '1' AND _pipeline_run_id = '{p.run_id}'"),
+        ]
+        resultados = dq.avaliar(spark, regras)
+        dq.gravar(spark, k, p.run_id, resultados)
+        maximo = spark.sql(f"SELECT max(dt_refer) FROM {k}.silver.cvm_demo_documento").first()[0]
+        criticas = [r.regra.nome for r in resultados if not r.passou and r.regra.severidade == "CRITICAL"]
+        if maximo and not criticas:
+            control.confirmar_watermark(spark, e, "reference_date", maximo.isoformat(), None)
+        control.concluir(spark, e, c)
+        print(f"demonstrações: contas lidas={c.read} novas/alteradas={c.inserted}/{c.updated} rejeitadas={c.rejected} "
+              f"watermark={maximo} falhas={[r.regra.nome for r in resultados if not r.passou]}")
+        if criticas:
+            raise RuntimeError(f"regras críticas falharam: {criticas}")
+    except Exception as ex:
+        control.falhar(spark, e, ex, c)
+        erros[ENT] = repr(ex)
 
 # COMMAND ----------
 

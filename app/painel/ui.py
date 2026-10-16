@@ -52,6 +52,9 @@ h1 { font-size: 1.6rem !important; font-weight: 700 !important; letter-spacing: 
 .marca b { display: block; font-size: 1rem; color: var(--texto); line-height: 1.15; }
 .marca small { color: var(--suave); font-size: .74rem; }
 .snapshot { font-size: .76rem; color: var(--suave); line-height: 1.45; }
+.faixa-snapshot { font-size: .74rem; color: var(--suave); margin: -.4rem 0 .9rem; padding-bottom: .55rem;
+                  border-bottom: 1px solid var(--divisor); }
+.faixa-snapshot b { color: var(--texto); font-weight: 600; }
 .snapshot b { color: var(--texto); font-weight: 600; }
 
 /* cabeçalho de página */

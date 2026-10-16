@@ -75,6 +75,15 @@ def extras(k: str) -> dict[str, str]:
                    CAST(preco_ajustado AS FLOAT) AS preco_ajustado
             FROM {g}.fct_cotacao_diaria
             WHERE ticker IN (SELECT ticker FROM {g}.vw_b3_desempenho WHERE volume_medio_diario >= 1000000)""",
+        # dividendos por ano (ações líquidas) e saídas do modelo de ranking (tabelas pequenas)
+        "b3_dividendos": f"""
+            SELECT ticker, ano, eventos, valor_ajustado_ano, jcp_ajustado_ano, dy_ano FROM {g}.vw_b3_dividendos_anuais
+            WHERE ano >= 2016 AND ticker IN (SELECT ticker FROM {g}.vw_b3_desempenho
+                                             WHERE classe_ativo = 'Ação' AND volume_medio_diario >= 1000000)""",
+        "ml_resumo": f"SELECT * FROM {g}.ml_resumo",
+        "ml_backtest": f"SELECT * FROM {g}.ml_backtest_mensal",
+        "ml_importancia": f"SELECT * FROM {g}.ml_importancia",
+        "ml_ranking": f"SELECT * FROM {g}.ml_ranking_atual",
     }
 
 

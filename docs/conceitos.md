@@ -142,3 +142,52 @@ Cada regra é uma consulta que devolve os registos inválidos (`src/quality/rule
 
 Registos que não convertem vão para a quarentena (`ops.quarantine`) com o motivo, em vez de serem descartados em
 silêncio.
+
+## Point-in-time (sem olhar para o futuro)
+
+Uma análise histórica é **point-in-time** quando, em cada data t, usa só a informação que já era pública em t. Se
+uma variável usar o lucro de um trimestre antes de a empresa o ter publicado, o modelo parece prever bem no
+backtest, mas é impossível de reproduzir na prática. É a "fuga de informação" (*look-ahead bias*).
+
+Na plataforma:
+- os fundamentos têm `data_publicacao` (primeira entrega à CVM), que é a data usada, em vez do fim do trimestre;
+- os dividendos entram pela data ex;
+- os preços são ajustados a eventos (desdobramentos, bonificações), para um retorno passado nunca misturar bases
+  de ações diferentes.
+
+Regras CRITICAL verificam estas garantias em cada execução ([modelo_preditivo.md](modelo_preditivo.md)).
+
+## Validação walk-forward
+
+Em séries temporais não se pode baralhar os dados para treinar e testar, como numa validação cruzada normal: o
+modelo aprenderia com o futuro. O **walk-forward** simula o uso real. Para cada mês de teste, treina só com os meses
+anteriores (aqui com um mês de intervalo, porque o alvo de um mês pode acabar já dentro do seguinte), pontua esse
+mês e avança. As métricas resultantes são **fora da amostra**: são a melhor estimativa do que o modelo faria daqui
+para a frente.
+
+## AUC e IC
+
+- **AUC (área sob a curva ROC):** a probabilidade de, escolhendo ao acaso uma ação que ficou acima da mediana e
+  outra abaixo, o modelo dar mais pontuação à primeira. 0,5 = acaso; 1 = perfeito. Em ações, 0,55 já é um
+  resultado bom.
+- **IC (information coefficient):** a correlação de Spearman entre a pontuação e o retorno realizado das ações num
+  mês. A média e o seu *t* (média / erro padrão) dizem se a capacidade de ordenar é consistente ou sorte.
+
+## Backtest
+
+Simulação de uma estratégia no passado: em cada mês, comprar as 10 ações com maior pontuação e manter até ao mês
+seguinte. Contam os **custos de transação** (aqui 0,10 % por lado sobre a parte da carteira que muda) e as
+referências: o universo (média das ações) e o BOVA11 (Ibovespa). Um backtest que não bate referências simples não
+vale a complexidade do modelo.
+
+## MLflow e Unity Catalog
+
+O **MLflow** regista cada treino:
+- **parâmetros:** universo, horizonte, custos;
+- **métricas:** AUC, IC, retornos;
+- **artefactos:** backtest mensal, importância das variáveis;
+- **o próprio modelo**, com um exemplo de entrada.
+
+O modelo final é registado no **Unity Catalog** (`findata_dev.gold.ranking_acoes`), com versões numeradas e as
+mesmas permissões e linhagem das tabelas. Isto permite saber que modelo produziu cada ranking e voltar a uma versão
+anterior.

@@ -16,6 +16,8 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 | 3. CVM | Catálogo, ficheiros históricos, ZIP, fundos e companhias abertas | concluída (16/10/2026), ver [docs/pipelines_cvm.md](docs/pipelines_cvm.md) |
 | 3b. B3 | Cotações da bolsa (ações, FII, ETF), ticker → companhia pelo FCA da CVM, ajuste a desdobramentos | concluída (16/10/2026), ver [docs/pipelines_b3.md](docs/pipelines_b3.md) |
 | 3c. Streaming | Auto Loader na bronze e Change Data Feed na gold da B3 (`availableNow`, checkpoints, escrita idempotente) | concluída (16/10/2026), ver [docs/streaming.md](docs/streaming.md), [casos de teste](docs/testes.md) e [conceitos](docs/conceitos.md) |
+| 3d. Fundamentos e proventos | DFP/ITR da CVM (receita, lucro, PL, dívida por trimestre); dividendos, JCP e eventos oficiais da B3 | concluída (16/10/2026), ver [docs/fundamentos.md](docs/fundamentos.md) |
+| 6b. Modelo preditivo | Ranking de ações para o mês seguinte: features point-in-time, walk-forward, backtest, MLflow | experimental (16/10/2026), ver [docs/modelo_preditivo.md](docs/modelo_preditivo.md) |
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | concluída (16/10/2026), ver [docs/auditoria.md](docs/auditoria.md) |
 | 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | concluída (16/10/2026), ver [docs/orquestracao.md](docs/orquestracao.md) |
 | 6. Qualidade e analytics | Testes de dados, modelo dimensional, indicadores, Power BI | concluída (16/10/2026), ver [docs/analytics.md](docs/analytics.md) |

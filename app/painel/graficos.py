@@ -78,6 +78,15 @@ def barras_sinal(df: pd.DataFrame, x: str, y: str, sufixo: str = "", casas: int 
     return layout(fig, altura, legenda=False)
 
 
+def barras(df: pd.DataFrame, x: str, y: str, rotulo: str = "", casas: int = 2, altura: int = 300) -> go.Figure:
+    """Barras verticais numa só cor (ex.: dividendos por ano)."""
+    fig = go.Figure(go.Bar(x=df[x], y=df[y], marker_color=PALETA[0], name=rotulo,
+                           hovertemplate=f"<b>%{{x}}</b><br>%{{y:,.{casas}f}} {rotulo}<extra></extra>"))
+    fig = layout(fig, altura, legenda=False)
+    fig.update_xaxes(tickformat=None, hoverformat=None, type="category")
+    return fig
+
+
 def barras_h(df: pd.DataFrame, y: str, x: str, sufixo: str = "", casas: int = 1, altura: int = 320) -> go.Figure:
     d = df.sort_values(x)
     fig = go.Figure(go.Bar(

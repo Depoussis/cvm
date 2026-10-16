@@ -22,3 +22,15 @@ cotahist:
 
 # Benchmark do mercado no painel: o Ibovespa não está no COTAHIST (só papéis); usa-se o ETF que o replica.
 referencia_ibovespa: BOVA11
+
+# Proventos e eventos societários (API pública "Empresas listadas" do site da B3; ver src/ingestion/b3/proventos.py).
+# Carga semanal: lista de empresas, complemento (número de ações e eventos em ações) e histórico de dividendos/JCP
+# das companhias com ações negociadas nos últimos `anos_atividade` anos.
+proventos:
+  anos_atividade: 2
+  pausa_entre_pedidos_s: 0.3
+  tabelas_bronze:
+    empresas: b3_empresas
+    complemento: b3_empresa_complemento
+    dinheiro: b3_proventos_dinheiro
+    eventos: b3_eventos_acoes

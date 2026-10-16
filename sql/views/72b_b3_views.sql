@@ -2,7 +2,7 @@
 -- grupamentos detetados (ver gold.fct_cotacao_diaria); não incluem dividendos.
 
 CREATE OR REPLACE VIEW ${catalog}.gold.vw_b3_desempenho
-COMMENT 'Papéis com negócios nos últimos 10 dias: último fecho, retornos (dia, mês, ano, 12 meses), liquidez e P/VP dos FII'
+COMMENT 'Papéis com negócios nos últimos 10 dias: último fecho, retornos (dia, mês, ano, 12 meses), liquidez, P/VP dos FII e DY 12 meses das ações'
 AS
 WITH ult AS (SELECT max(data_pregao) AS d FROM ${catalog}.gold.fct_cotacao_diaria),
 f AS (
@@ -38,8 +38,10 @@ SELECT r.ticker, a.classe_ativo, a.nome_pregao, a.especificacao, a.nome_emissor,
        CAST(coalesce(r.volume_30d, 0) / p.n AS DECIMAL(20, 2)) AS volume_medio_diario,
        CAST(coalesce(r.negocios_30d, 0) / p.n AS DOUBLE) AS negocios_medio_diario,
        CASE WHEN a.classe_ativo = 'FII' THEN CAST(r.fechamento / fii.vpc AS DOUBLE) END AS p_vp,
-       fii.mes_vpc
+       fii.mes_vpc,
+       dy.dy_12m
 FROM r CROSS JOIN pregoes p
 JOIN ${catalog}.gold.dim_ativo_b3 a USING (ticker)
 LEFT JOIN fii ON a.classe_ativo = 'FII' AND fii.cnpj_classe = a.cnpj_emissor
+LEFT JOIN ${catalog}.gold.vw_b3_dy_12m dy ON dy.ticker = r.ticker
 WHERE r.ultimo_negocio >= date_sub(r.data_referencia, 10);

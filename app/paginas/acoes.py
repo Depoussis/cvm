@@ -10,7 +10,8 @@ d = dados.tabela("b3_desempenho")
 cot = dados.tabela("b3_cotacoes")
 pregao = pd.Timestamp(d["data_referencia"].max())
 ui.cabecalho("Bolsa", "Ações, fundos imobiliários e ETF do mercado à vista da B3 (séries históricas COTAHIST). "
-             "Retornos de <b>preço</b>, ajustados a desdobramentos e grupamentos; não incluem dividendos.",
+             "Retornos de <b>preço</b>, ajustados a desdobramentos, grupamentos e bonificações (eventos oficiais da B3); "
+             "os dividendos aparecem à parte (DY e histórico anual).",
              selo=f"Pregão: {formato.data(pregao)}")
 
 acoes = d[d["classe_ativo"] == "Ação"]
@@ -51,6 +52,11 @@ base = base[base["volume_medio_diario"] >= liq]
 if escolha:
     base = base[base["setor"].isin(escolha)]
 base = base.assign(fundo=base["nome_emissor"].fillna(base["nome_pregao"]))
+# fundamentos das ações na data mais recente (DFP/ITR da CVM, calculados pelo job do modelo)
+fund = dados.tabela("ml_ranking")[["ticker", "earnings_yield", "book_to_market", "roe"]]
+base = base.merge(fund, on="ticker", how="left")
+base["p_l"] = (1 / base["earnings_yield"]).where(base["earnings_yield"] > 0)
+base["p_vp_acao"] = (1 / base["book_to_market"]).where(base["book_to_market"] > 0)
 
 
 def topo(col: str, menores: bool = False, filtro=None) -> pd.DataFrame:
@@ -75,8 +81,8 @@ if classe == "FII":
     rankings.append(("Menor P/VP", pvp.nsmallest(n, "p_vp").assign(valor=lambda x: x["p_vp"]),
                      lambda v: formato.numero(v, 2), "Cotação / valor patrimonial da cota (último informe CVM)"))
 else:
-    rankings.append(("Maiores altas no ano", topo("retorno_ano"), lambda v: formato.pct(v, 1, sinal=True),
-                     f"Desde o último pregão de {pregao.year - 1}"))
+    rankings.append(("Maior dividend yield (12 meses)", topo("dy_12m", filtro=base["dy_12m"].between(0, 0.30)),
+                     lambda v: formato.pct(v, 1), "Proventos com data com nos últimos 12 meses / preço · exclui > 30 %"))
 for inicio in (0, 3):
     for i, col in enumerate(st.columns(3, gap="medium"), start=inicio):
         titulo, df, fmt, sub = rankings[i]
@@ -121,11 +127,13 @@ with ui.card("b3_tabela"):
         alvo = dados._normalizar(busca)
         t = t[(t["ticker"] + " " + t["fundo"].fillna("")).map(dados._normalizar).str.contains(alvo, regex=False)]
     colunas = ["ticker", "fundo", "setor", "segmento_listagem", "fechamento", "retorno_dia", "retorno_1m",
-               "retorno_ano", "retorno_12m", "volume_medio_diario"] + (["p_vp"] if classe == "FII" else [])
+               "retorno_ano", "retorno_12m", "volume_medio_diario"] + (
+        ["p_vp"] if classe == "FII" else ["dy_12m", "p_l", "p_vp_acao", "roe"] if classe == "Ação" else [])
     t = t[colunas].sort_values("volume_medio_diario", ascending=False)
     t["segmento_listagem"] = t["segmento_listagem"].str.replace(" de Governança Corporativa", "", regex=False)
-    for c in ("retorno_dia", "retorno_1m", "retorno_ano", "retorno_12m"):
-        t[c] = t[c] * 100
+    for c in ("retorno_dia", "retorno_1m", "retorno_ano", "retorno_12m", "dy_12m", "roe"):
+        if c in t:
+            t[c] = t[c] * 100
     st.dataframe(
         t, hide_index=True, width="stretch", height=420,
         column_config={
@@ -140,9 +148,39 @@ with ui.card("b3_tabela"):
             "retorno_12m": st.column_config.NumberColumn("12 meses (%)", format="%+.1f"),
             "volume_medio_diario": st.column_config.NumberColumn("Volume médio (R$)", format="compact"),
             "p_vp": st.column_config.NumberColumn("P/VP", format="%.2f"),
+            "dy_12m": st.column_config.NumberColumn("DY 12m (%)", format="%.1f"),
+            "p_l": st.column_config.NumberColumn("P/L", format="%.1f", help="Valor de mercado / lucro 12 meses (vazio se prejuízo)"),
+            "p_vp_acao": st.column_config.NumberColumn("P/VP", format="%.2f", help="Valor de mercado / património líquido"),
+            "roe": st.column_config.NumberColumn("ROE (%)", format="%.1f", help="Lucro 12 meses / património líquido"),
         })
 
-ui.rodape("Fonte: B3, séries históricas de cotações (COTAHIST), mercado à vista em lote padrão; emissores e setores "
-          "do Formulário Cadastral e do cadastro de companhias da CVM; P/VP dos FII com a cota patrimonial do informe "
-          "mensal da CVM. O Ibovespa não vem no COTAHIST: usa-se o ETF BOVA11, que o replica. Eventos societários são "
-          "detetados pela própria série (heurística), não por um calendário oficial.")
+# ---------------------------------------------------------------- dividendos por ano
+divs = dados.tabela("b3_dividendos")
+com_div = [t_ for t_ in rotulos if t_ in set(divs["ticker"])]
+if com_div:
+    with ui.card("b3_dividendos"):
+        ui.titulo_card("Dividendos e JCP por ano", "Soma por ação (ajustada a desdobramentos) e dividend yield do ano "
+                       "(soma de cada provento / fecho na data com)")
+        escolhido = st.selectbox("Ação", com_div, index=com_div.index("PETR4") if "PETR4" in com_div else 0,
+                                 format_func=rotulos.get, key="b3_div_ticker", label_visibility="collapsed")
+        h = divs[divs["ticker"] == escolhido].sort_values("ano")
+        g1, g2 = st.columns([3, 2], gap="medium")
+        with g1:
+            graficos.mostrar(graficos.barras(h.assign(ano=h["ano"].astype(str)), "ano", "valor_ajustado_ano",
+                                             "R$ por ação", 2, altura=280))
+        with g2:
+            st.dataframe(
+                h.sort_values("ano", ascending=False).assign(dy_ano=h["dy_ano"] * 100),
+                hide_index=True, width="stretch", height=280,
+                column_config={"ticker": None,
+                               "ano": st.column_config.NumberColumn("Ano", format="%d"),
+                               "eventos": st.column_config.NumberColumn("Eventos"),
+                               "valor_ajustado_ano": st.column_config.NumberColumn("R$/ação", format="%.4f"),
+                               "jcp_ajustado_ano": st.column_config.NumberColumn("dos quais JCP", format="%.4f"),
+                               "dy_ano": st.column_config.NumberColumn("DY (%)", format="%.2f")})
+
+ui.rodape("Fonte: B3, séries históricas de cotações (COTAHIST), mercado à vista em lote padrão, e proventos (site da "
+          "B3, empresas listadas); emissores e setores do Formulário Cadastral e do cadastro de companhias da CVM; "
+          "P/L, P/VP e ROE das demonstrações DFP/ITR da CVM (último trimestre entregue); P/VP dos FII com a cota "
+          "patrimonial do informe mensal. O Ibovespa não vem no COTAHIST: usa-se o ETF BOVA11. Desdobramentos e bonificações "
+          "oficiais da B3 nas ações; em FII e ETF são detetados pela própria série.")

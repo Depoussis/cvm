@@ -13,7 +13,8 @@
 ckan:
   url_package_show: "https://dados.cvm.gov.br/api/3/action/package_show"
   # pacotes cujo catálogo de recursos é guardado em bronze.cvm_catalogo_recursos
-  pacotes: [fi-doc-inf_diario, fi-cad, cia_aberta-cad, cia_aberta-doc-fca, fii-doc-inf_mensal]
+  pacotes: [fi-doc-inf_diario, fi-cad, cia_aberta-cad, cia_aberta-doc-fca, cia_aberta-doc-dfp, cia_aberta-doc-itr,
+            fii-doc-inf_mensal]
 
 csv:
   separador: ";"
@@ -109,6 +110,122 @@ datasets:
              Sigla_Classe_Acao_Preferencial, Classe_Acao_Preferencial, Codigo_Negociacao, Composicao_BDR_Unit,
              Mercado, Sigla_Entidade_Administradora, Entidade_Administradora, Data_Inicio_Negociacao,
              Data_Fim_Negociacao, Segmento, Data_Inicio_Listagem, Data_Fim_Listagem]
+
+  cia_aberta_dfp:
+    pacote_ckan: cia_aberta-doc-dfp
+    descricao: "Demonstrações financeiras padronizadas anuais (DFP): DRE, balanço e capital"
+    # ZIP anual (~13 MB) com 19 CSV; carregam-se o índice (data de entrega), DRE, BPA, BPP (consolidado e individual) e capital. Cabeçalhos iguais de 2019 a 2026 (ISO-8859-1)
+    url: "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/dfp_cia_aberta_{aaaa}.zip"
+    periodicidade: anual
+    primeiro_ano_disponivel: 2021   # composicao_capital só existe a partir de 2021
+    inicio_backfill: 2021
+    revisao_anos: 2
+    ficheiros:
+      documentos:
+        padrao_nome: "dfp_cia_aberta_????.csv"
+        tabela_bronze: cvm_demo_documentos
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, CATEG_DOC, ID_DOC, DT_RECEB, LINK_DOC]
+      dre_con:
+        padrao_nome: "dfp_cia_aberta_DRE_con_*.csv"
+        tabela_bronze: cvm_demo_dre
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_INI_EXERC,
+               DT_FIM_EXERC, CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      dre_ind:
+        padrao_nome: "dfp_cia_aberta_DRE_ind_*.csv"
+        tabela_bronze: cvm_demo_dre
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_INI_EXERC,
+               DT_FIM_EXERC, CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      bpa_con:
+        padrao_nome: "dfp_cia_aberta_BPA_con_*.csv"
+        tabela_bronze: cvm_demo_bpa
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_FIM_EXERC,
+               CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      bpa_ind:
+        padrao_nome: "dfp_cia_aberta_BPA_ind_*.csv"
+        tabela_bronze: cvm_demo_bpa
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_FIM_EXERC,
+               CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      bpp_con:
+        padrao_nome: "dfp_cia_aberta_BPP_con_*.csv"
+        tabela_bronze: cvm_demo_bpp
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_FIM_EXERC,
+               CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      bpp_ind:
+        padrao_nome: "dfp_cia_aberta_BPP_ind_*.csv"
+        tabela_bronze: cvm_demo_bpp
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_FIM_EXERC,
+               CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      composicao_capital:
+        padrao_nome: "dfp_cia_aberta_composicao_capital_*.csv"
+        tabela_bronze: cvm_demo_composicao_capital
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, QT_ACAO_ORDIN_CAP_INTEGR, QT_ACAO_PREF_CAP_INTEGR,
+               QT_ACAO_TOTAL_CAP_INTEGR, QT_ACAO_ORDIN_TESOURO, QT_ACAO_PREF_TESOURO, QT_ACAO_TOTAL_TESOURO]
+
+  cia_aberta_itr:
+    pacote_ckan: cia_aberta-doc-itr
+    descricao: "Informações trimestrais (ITR): DRE do trimestre e acumulado, balanço e capital"
+    # ZIP anual (~31 MB) com os ITR do 1.º ao 3.º trimestre; o 4.º trimestre vem da DFP. Mesmos cabeçalhos da DFP
+    url: "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS/itr_cia_aberta_{aaaa}.zip"
+    periodicidade: anual
+    primeiro_ano_disponivel: 2021   # composicao_capital só existe a partir de 2021
+    inicio_backfill: 2021
+    revisao_anos: 2
+    ficheiros:
+      documentos:
+        padrao_nome: "itr_cia_aberta_????.csv"
+        tabela_bronze: cvm_demo_documentos
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, CATEG_DOC, ID_DOC, DT_RECEB, LINK_DOC]
+      dre_con:
+        padrao_nome: "itr_cia_aberta_DRE_con_*.csv"
+        tabela_bronze: cvm_demo_dre
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_INI_EXERC,
+               DT_FIM_EXERC, CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      dre_ind:
+        padrao_nome: "itr_cia_aberta_DRE_ind_*.csv"
+        tabela_bronze: cvm_demo_dre
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_INI_EXERC,
+               DT_FIM_EXERC, CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      bpa_con:
+        padrao_nome: "itr_cia_aberta_BPA_con_*.csv"
+        tabela_bronze: cvm_demo_bpa
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_FIM_EXERC,
+               CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      bpa_ind:
+        padrao_nome: "itr_cia_aberta_BPA_ind_*.csv"
+        tabela_bronze: cvm_demo_bpa
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_FIM_EXERC,
+               CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      bpp_con:
+        padrao_nome: "itr_cia_aberta_BPP_con_*.csv"
+        tabela_bronze: cvm_demo_bpp
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_FIM_EXERC,
+               CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      bpp_ind:
+        padrao_nome: "itr_cia_aberta_BPP_ind_*.csv"
+        tabela_bronze: cvm_demo_bpp
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, CD_CVM, GRUPO_DFP, MOEDA, ESCALA_MOEDA, ORDEM_EXERC, DT_FIM_EXERC,
+               CD_CONTA, DS_CONTA, VL_CONTA, ST_CONTA_FIXA]
+      composicao_capital:
+        padrao_nome: "itr_cia_aberta_composicao_capital_*.csv"
+        tabela_bronze: cvm_demo_composicao_capital
+        versoes:
+          v1: [CNPJ_CIA, DT_REFER, VERSAO, DENOM_CIA, QT_ACAO_ORDIN_CAP_INTEGR, QT_ACAO_PREF_CAP_INTEGR,
+               QT_ACAO_TOTAL_CAP_INTEGR, QT_ACAO_ORDIN_TESOURO, QT_ACAO_PREF_TESOURO, QT_ACAO_TOTAL_TESOURO]
 
   fii_inf_mensal:
     pacote_ckan: fii-doc-inf_mensal

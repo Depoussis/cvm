@@ -1,7 +1,7 @@
 {
   "name": "pl_findata_semanal",
   "properties": {
-    "description": "Auditoria semanal: testes de integração no Databricks e reconciliação com as fontes (BCB e CVM).",
+    "description": "Semanal: proventos da B3 → modelo de ranking (features, walk-forward, ranking atual), e em paralelo a auditoria (testes de integração e reconciliação com as fontes).",
     "folder": {
       "name": "findata"
     },
@@ -24,6 +24,52 @@
             }
           }
         }
+      },
+      {
+        "name": "B3 proventos",
+        "type": "ExecutePipeline",
+        "typeProperties": {
+          "pipeline": {
+            "referenceName": "pl_databricks_job",
+            "type": "PipelineReference"
+          },
+          "waitOnCompletion": true,
+          "parameters": {
+            "job_id": "${job_id_b3_proventos}",
+            "run_mode": "incremental",
+            "run_id_origem": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          }
+        }
+      },
+      {
+        "name": "Modelo",
+        "type": "ExecutePipeline",
+        "typeProperties": {
+          "pipeline": {
+            "referenceName": "pl_databricks_job",
+            "type": "PipelineReference"
+          },
+          "waitOnCompletion": true,
+          "parameters": {
+            "job_id": "${job_id_ml}",
+            "run_mode": "incremental",
+            "run_id_origem": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          }
+        },
+        "dependsOn": [
+          {
+            "activity": "B3 proventos",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
       }
     ]
   }

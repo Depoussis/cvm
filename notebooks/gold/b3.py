@@ -3,11 +3,12 @@
 # MAGIC # Gold · B3
 # MAGIC - Bloqueia a publicação se a execução tiver falhas de qualidade CRITICAL/HIGH.
 # MAGIC - `dim_ativo_b3`: papéis da silver com o emissor da CVM (ações pelo FCA, FII pelo ISIN do informe mensal).
-# MAGIC - `fct_cotacao_diaria`: incremental pelo **Change Data Feed** da silver (stream `availableNow` com checkpoint):
-# MAGIC   só os tickers alterados são recalculados; `reprocess` reconstrói tudo. Ver docs/streaming.md.
-# MAGIC   Desdobramentos e grupamentos são detetados
-# MAGIC   quando o fecho varia perto de um fator inteiro (1/2, 1/10, 5, ...) no pregão em que muda o número de
-# MAGIC   distribuição do papel; o preço ajustado e o retorno diário descontam esse fator. Dividendos não são ajustados.
+# MAGIC - `fct_cotacao_diaria`: incremental pelo **Change Data Feed** de duas tabelas silver (streams `availableNow`):
+# MAGIC   cotações (tickers com pregões novos ou corrigidos) e eventos oficiais da B3 (tickers com desdobramentos,
+# MAGIC   grupamentos ou bonificações novos). Só esses tickers são recalculados; `reprocess` reconstrói tudo.
+# MAGIC - Fator de evento: oficial da B3 nas ações cobertas; heurística (variação perto de um fator inteiro quando muda
+# MAGIC   a distribuição) em FII e ETF. Ver src/gold/cotacoes.py e docs/streaming.md. Dividendos não entram no preço
+# MAGIC   ajustado (estão em `fct_provento`).
 
 # COMMAND ----------
 
@@ -92,35 +93,32 @@ LEFT JOIN fii ON fii.codigo_isin = c.isin AND c.classe_ativo = 'FII'
 """
 
 SILVER = f"{k}.silver.b3_cotacao_diaria"
+EVENTOS = f"{k}.silver.b3_evento_acao"
 FCT = f"{k}.gold.fct_cotacao_diaria"
 CHECKPOINT = f"/Volumes/{k}/ops/checkpoints/gold_b3_fct_cotacao"
+CHECKPOINT_EVENTOS = f"/Volumes/{k}/ops/checkpoints/gold_b3_eventos_oficiais"
 
 
 def reconstruir() -> int:
     """Reconstrução completa (reprocess): todo o histórico de todos os tickers."""
-    spark.sql(f"INSERT OVERWRITE {FCT} " + calculo(f"SELECT *, DATE'1900-01-01' AS d0 FROM {SILVER}", "true"))
+    spark.sql(f"INSERT OVERWRITE {FCT} " + calculo(k, f"SELECT *, DATE'1900-01-01' AS d0 FROM {SILVER}", "true"))
     return spark.table(FCT).count()
 
 
-def aplicar_alteracoes(lote, lote_id: int) -> None:
-    """Um lote do Change Data Feed da silver: recalcula cada ticker alterado desde a primeira data alterada.
+def recalcular(s, lote_id: int) -> None:
+    """Recalcula os tickers da vista _cdf_afetados (ticker, d0) desde d0.
 
-    1. d0 = primeira data inserida/alterada do ticker; o cálculo começa no pregão anterior (para o fecho anterior)
-       e vai até ao fim da série.
+    1. O cálculo começa no pregão anterior a d0 (para o fecho anterior) e vai até ao fim da série.
     2. Pregões antes de d0 mantêm-se, mas o preço ajustado é multiplicado por fator_novo / fator_antigo: o produto
        dos fatores de evento no intervalo recalculado, agora e antes (um desdobramento novo reajusta o passado).
     3. MERGE das linhas recalculadas (a silver é SCD1 e nunca apaga, por isso basta inserir/atualizar).
     """
-    s = lote.sparkSession
-    (lote.where("_change_type IN ('insert', 'update_postimage')")
-         .groupBy("ticker").agg(F.min("data_pregao").alias("d0"))
-         .createOrReplaceTempView("_cdf_afetados"))
     s.sql(f"""
         SELECT a.ticker, a.d0, coalesce(max(x.data_pregao), a.d0) AS d_ini
         FROM _cdf_afetados a LEFT JOIN {SILVER} x ON x.ticker = a.ticker AND x.data_pregao < a.d0
         GROUP BY a.ticker, a.d0""").createOrReplaceTempView("_cdf_inicio")
     fonte = f"SELECT x.*, i.d0 FROM {SILVER} x JOIN _cdf_inicio i ON x.ticker = i.ticker AND x.data_pregao >= i.d_ini"
-    s.sql(calculo(fonte, "data_pregao >= d0")).createOrReplaceTempView("_cdf_novo")
+    s.sql(calculo(k, fonte, "data_pregao >= d0")).createOrReplaceTempView("_cdf_novo")
     ajuste = s.sql(f"""
         WITH novo AS (SELECT n.ticker, exp(sum(ln(n.fator_evento))) AS k FROM _cdf_novo n GROUP BY 1),
              antigo AS (SELECT t.ticker, exp(sum(ln(t.fator_evento))) AS k
@@ -130,34 +128,49 @@ def aplicar_alteracoes(lote, lote_id: int) -> None:
         FROM _cdf_afetados a JOIN novo USING (ticker) LEFT JOIN antigo USING (ticker)
         WHERE abs(novo.k / coalesce(antigo.k, 1.0) - 1) > 1e-12""")
     linhas_ajuste = ajuste.collect()  # poucas linhas; materializa antes de alterar a tabela
-    n_ajuste = len(linhas_ajuste)
-    if n_ajuste:
+    if linhas_ajuste:
         s.createDataFrame(linhas_ajuste).createOrReplaceTempView("_cdf_ajuste")
         s.sql(f"""MERGE INTO {FCT} t USING _cdf_ajuste a ON t.ticker = a.ticker AND t.data_pregao < a.d0
                   WHEN MATCHED THEN UPDATE SET t.preco_ajustado = t.preco_ajustado * a.razao""")
-    m = s.sql(f"""MERGE INTO {FCT} t USING _cdf_novo s ON t.ticker = s.ticker AND t.data_key = s.data_key
-                  WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *""").first().asDict()
-    tickers = s.table("_cdf_afetados").count()
-    print(f"lote {lote_id}: {tickers} tickers, {m.get('num_inserted_rows')} linhas novas, "
-          f"{m.get('num_updated_rows')} recalculadas, {n_ajuste} tickers com o passado reajustado")
+    s.sql(f"""MERGE INTO {FCT} t USING _cdf_novo s ON t.ticker = s.ticker AND t.data_key = s.data_key
+              WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *""")
+    print(f"lote {lote_id}: {s.table('_cdf_afetados').count()} tickers, {len(linhas_ajuste)} com o passado reajustado")
+
+
+def aplicar_cotacoes(lote, lote_id: int) -> None:
+    """Lote do CDF da silver de cotações: d0 = primeira data inserida/alterada de cada ticker."""
+    (lote.where("_change_type IN ('insert', 'update_postimage')")
+         .groupBy("ticker").agg(F.min("data_pregao").alias("d0"))
+         .createOrReplaceTempView("_cdf_afetados"))
+    recalcular(lote.sparkSession, lote_id)
+
+
+def aplicar_eventos(lote, lote_id: int) -> None:
+    """Lote do CDF dos eventos oficiais (carga semanal de proventos): recalcula o ticker desde a data com."""
+    lote.where("_change_type IN ('insert', 'update_postimage', 'delete')").createOrReplaceTempView("_cdf_eventos")
+    s = lote.sparkSession
+    s.sql(f"""SELECT a.ticker, min(e.data_com) AS d0 FROM _cdf_eventos e
+              JOIN {k}.gold.dim_ativo_b3 a ON a.isin = e.isin GROUP BY a.ticker""").createOrReplaceTempView("_cdf_afetados")
+    recalcular(s, lote_id)
 
 
 def versao(tabela: str) -> int:
     return spark.sql(f"DESCRIBE HISTORY {tabela} LIMIT 1").first()["version"]
 
 
-def stream_cdf(desde_ultima: bool = False) -> dict:
-    """Corre o stream do CDF até ao fim. As contagens vêm do histórico Delta da gold
-    (no serverless o foreachBatch corre noutro processo e não consegue devolver valores ao notebook)."""
-    v0 = versao(FCT)
+def stream_cdf(origem: str, funcao, checkpoint: str, nome: str, desde_ultima: bool = False) -> None:
     leitor = spark.readStream.option("readChangeFeed", "true")
     if desde_ultima:
         leitor = leitor.option("startingVersion", "latest")
-    q = (leitor.table(SILVER).writeStream.foreachBatch(aplicar_alteracoes)
-         .option("checkpointLocation", CHECKPOINT).trigger(availableNow=True)
-         .queryName("gold_b3_fct_cotacao").start())
+    q = (leitor.table(origem).writeStream.foreachBatch(funcao)
+         .option("checkpointLocation", checkpoint).trigger(availableNow=True).queryName(nome).start())
     q.awaitTermination()
-    h = spark.sql(f"""
+
+
+def estatisticas(v0: int) -> dict:
+    """Contagens dos streams, lidas do histórico Delta da gold (no serverless o foreachBatch corre noutro processo e
+    não consegue devolver valores ao notebook)."""
+    return spark.sql(f"""
         SELECT count_if(operationParameters.predicate LIKE '%data_key%') AS lotes,
                coalesce(sum(CAST(operationMetrics.numTargetRowsInserted AS BIGINT))
                         FILTER (WHERE operationParameters.predicate LIKE '%data_key%'), 0) AS inseridas,
@@ -166,27 +179,28 @@ def stream_cdf(desde_ultima: bool = False) -> dict:
                coalesce(sum(CAST(operationMetrics.numTargetRowsUpdated AS BIGINT))
                         FILTER (WHERE operationParameters.predicate NOT LIKE '%data_key%'), 0) AS passado_reajustado
         FROM (DESCRIBE HISTORY {FCT}) WHERE version > {v0} AND operation = 'MERGE'""").first().asDict()
-    return h
 
 
 contagens = control.Contagens()
-fct_stats = {"lotes": 0, "inseridas": 0, "recalculadas": 0, "passado_reajustado": 0}
 try:
     spark.sql(DIM_ATIVO)
     n = spark.table(f"{k}.gold.dim_ativo_b3").count()
     contagens.inserted += n
     print(f"gold.dim_ativo_b3: {n} linhas")
 
-    if p.run_mode == "reprocess":
-        # recomeça o stream do zero: reconstrói tudo e o checkpoint novo só lê alterações posteriores
+    v0 = versao(FCT)
+    ultima = p.run_mode == "reprocess"
+    if ultima:
+        # reconstrói tudo e recomeça os dois streams: os checkpoints novos só leem alterações posteriores
         dbutils.fs.rm(CHECKPOINT, True)
+        dbutils.fs.rm(CHECKPOINT_EVENTOS, True)
         print(f"gold.fct_cotacao_diaria: reconstruída, {reconstruir()} linhas")
-        fct_stats = stream_cdf(desde_ultima=True)
-    else:
-        # Na primeira execução (sem checkpoint) o Change Data Feed entrega a silver inteira como inserts, o que
-        # equivale a uma reconstrução; depois, só as alterações desde a última execução.
-        fct_stats = stream_cdf()
-        print(f"gold.fct_cotacao_diaria (Change Data Feed): {fct_stats}")
+    # Sem checkpoint, o CDF entrega a tabela inteira como inserts (equivale a reconstruir os tickers afetados);
+    # depois, só as alterações desde a última execução.
+    stream_cdf(SILVER, aplicar_cotacoes, CHECKPOINT, "gold_b3_fct_cotacao", ultima)
+    stream_cdf(EVENTOS, aplicar_eventos, CHECKPOINT_EVENTOS, "gold_b3_eventos_oficiais", ultima)
+    fct_stats = estatisticas(v0)
+    print(f"gold.fct_cotacao_diaria (Change Data Feed): {fct_stats}")
     contagens.inserted += fct_stats["inseridas"]
     contagens.updated += fct_stats["recalculadas"]
     e.parameters = {**(e.parameters or {}), "change_data_feed": fct_stats}

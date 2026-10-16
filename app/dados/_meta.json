@@ -1,5 +1,5 @@
 {
- "exportado_em": "2026-10-16T17:11:17+00:00",
+ "exportado_em": "2026-10-16T19:51:21+00:00",
  "ambiente": "dev",
  "catalogo": "findata_dev",
  "linhas": {
@@ -20,16 +20,21 @@
   "industria": 33,
   "vs_selic": 128,
   "top_pl": 20,
-  "execucoes": 17,
-  "qualidade": 16,
+  "execucoes": 25,
+  "qualidade": 24,
   "reconciliacao": 3,
-  "frescura": 20,
+  "frescura": 21,
   "fundos_mensal": 413281,
   "fundos_cadastro": 25145,
   "fii_mensal": 62903,
   "fii_ranking": 702,
   "selic_mes": 322,
   "b3_desempenho": 947,
-  "b3_cotacoes": 412223
+  "b3_cotacoes": 412223,
+  "b3_dividendos": 1413,
+  "ml_resumo": 3,
+  "ml_backtest": 111,
+  "ml_importancia": 18,
+  "ml_ranking": 190
  }
 }

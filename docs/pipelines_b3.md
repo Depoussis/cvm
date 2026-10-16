@@ -48,7 +48,14 @@ negócios esporádicos. Fica na silver e é excluída da gold, porque não é um
 | `gold.fct_cotacao_diaria` | OHLC, negócios, volume, `fator_evento`, `retorno_dia` e `preco_ajustado`; incremental pelo **Change Data Feed** da silver ([streaming.md](streaming.md)) |
 | `gold.vw_b3_desempenho` | último fecho, retornos (dia, 1 mês, ano, 12 meses), volume médio de 30 dias e P/VP dos FII |
 
-### Ajuste a desdobramentos e grupamentos (heurística)
+### Ajuste a desdobramentos e grupamentos
+
+> **Atualização (16/10/2026):** nas ações, o fator passou a vir dos **eventos oficiais da B3**: desdobramentos,
+> grupamentos e também bonificações, que a heurística não tratava. A comparação mostrou que a heurística tinha
+> falhado 38 de 105 eventos desde 2021 e todas as bonificações. Ver [fundamentos.md](fundamentos.md). A heurística
+> descrita abaixo continua a ser usada em FII e ETF.
+
+#### Heurística (FII, ETF e ações sem dados oficiais)
 
 O COTAHIST traz o preço negociado, sem ajuste. Sem tratamento, um desdobramento 1:10 apareceria como uma queda de
 90 %. A gold marca um evento quando se cumprem duas condições no mesmo pregão:

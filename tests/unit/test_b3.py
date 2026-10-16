@@ -96,8 +96,56 @@ def test_chave_liga_txt_do_auto_loader_ao_zip_registado():
 
 def test_calculo_gold_reutilizado_pela_carga_incremental_e_pela_verificacao():
     from src.gold.cotacoes import calculo, sql_diferencas
-    sql = calculo("SELECT * FROM s", "data_pregao >= d0")
+    sql = calculo("cat", "SELECT * FROM s", "data_pregao >= d0")
     assert "FROM (SELECT * FROM s) s" in sql and sql.rstrip().endswith("WHERE data_pregao >= d0")
     assert "NOT LIKE 'IBO%'" in sql
-    dif = sql_diferencas("g.fct", "x.silver")
-    assert "FULL OUTER JOIN g.fct" in dif and "FROM x.silver" in dif
+    # eventos oficiais da B3 têm prioridade sobre a heurística
+    assert "cat.silver.b3_evento_acao" in sql and "WHEN fator_oficial IS NOT NULL THEN fator_oficial" in sql
+    assert "1.0 / (1.0 + CAST(o.fator AS DOUBLE) / 100.0)" in sql      # desdobramento/bonificação em %
+    assert "1.0 / CAST(o.fator AS DOUBLE)" in sql                      # grupamento em fração
+    dif = sql_diferencas("cat")
+    assert "FULL OUTER JOIN cat.gold.fct_cotacao_diaria" in dif and "FROM cat.silver.b3_cotacao_diaria" in dif
+
+
+def test_proventos_urls_numeros_e_datas():
+    import base64, json
+    from decimal import Decimal
+    from src.ingestion.b3 import proventos as pv
+    u = pv.url_dinheiro("PETROBRAS", 2)
+    assert json.loads(base64.b64decode(u.rsplit("/", 1)[1])) == {
+        "language": "pt-br", "pageNumber": 2, "pageSize": 120, "tradingName": "PETROBRAS"}
+    assert pv.url_complemento("PETR").endswith(base64.b64encode(b'{"issuingCompany":"PETR","language":"pt-br"}').decode())
+    assert pv.numero("0,67407131") == Decimal("0.67407131")
+    assert pv.numero("1.234,5") == Decimal("1234.5")
+    assert pv.numero("") is None and pv.numero("abc") is None
+    assert pv.data_br("21/08/2026") == date(2026, 8, 21) and pv.data_br("31/12/9999") == date(9999, 12, 31)
+    assert pv.data_br("") is None
+    assert pv.chaves_em_falta({"typeStock": "ON"}, {"typeStock", "valueCash"}) == {"valueCash"}
+    assert pv.paginas({"page": {"totalPages": 3}}) == 3 and pv.paginas({}) == 0
+
+
+def test_registo_de_provento_para_a_bronze():
+    from src.ingestion.b3 import proventos as pv
+    api = {"typeStock": "ON", "dateApproval": "06/08/2026", "valueCash": "0,67407131", "ratio": "1",
+           "corporateAction": "JRS CAP PROPRIO", "lastDatePriorEx": "21/08/2026", "closingPricePriorExDate": "49,34",
+           "quotedPerShares": "1", "campoNovo": "x"}
+    r = pv.registo("dinheiro", api, emissor="PETR")
+    assert r["emissor"] == "PETR" and r["tipo_acao"] == "ON" and r["valor"] == "0,67407131"
+    assert r["data_com"] == "21/08/2026" and r["data_hora_com"] is None and "campoNovo" not in r
+    assert pv.chaves_em_falta(api, pv.CHAVES_DINHEIRO) == set()
+
+
+def test_regras_de_contas_dos_fundamentos():
+    import re
+    from src.gold import fundamentos as f
+    sql = f.SQL_FUNDAMENTOS.format(k="cat")       # sem chavetas soltas
+    assert "cat.silver.cvm_demo_conta" in sql and "{" not in sql
+    py = lambda r: re.compile(r.replace("(?i)", ""), re.I)  # noqa: E731
+    assert py(f.RE_LUCRO).search("Lucro/Prejuízo Consolidado do Período")
+    assert py(f.RE_LUCRO).search("Lucro ou Prejuízo Líquido do Exercício")
+    assert not py(f.RE_LUCRO).search("Lucro por Ação - (R$ / Ação)")
+    assert py(f.RE_CONTROLADORA).search("Atribuído a Sócios da Empresa Controladora")
+    assert not py(f.RE_CONTROLADORA).search("Atribuído a Sócios Não Controladores")
+    assert py(f.RE_PL).search("Patrimônio Líquido Consolidado") and py(f.RE_NAO_CONTROLADORES).search(
+        "Participação dos Acionistas Não Controladores")
+    assert py(f.RE_CAIXA).search("Caixa e Equivalentes de Caixa") and py(f.RE_CAIXA).search("Aplicações Financeiras")
