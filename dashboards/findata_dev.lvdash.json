@@ -1,6 +1,62 @@
 {
  "datasets": [
   {
+   "name": "fii_kpi",
+   "displayName": "fii_kpi",
+   "queryLines": [
+    "SELECT count(*) AS fiis, count(DISTINCT segmento) AS segmentos, round(sum(patrimonio_liquido) / 1e9, 1) AS pl_bi, date_format(mode(mes), 'MM/yyyy') AS mes_ref FROM findata_dev.gold.vw_fii_ranking"
+   ]
+  },
+  {
+   "name": "rk_cotistas",
+   "displayName": "rk_cotistas",
+   "queryLines": [
+    "SELECT row_number() OVER (ORDER BY cotistas DESC) AS posicao, ticker, nome_fundo AS fundo, cotistas FROM findata_dev.gold.vw_fii_ranking WHERE cotistas IS NOT NULL ORDER BY cotistas DESC LIMIT 10"
+   ]
+  },
+  {
+   "name": "rk_liquidez",
+   "displayName": "rk_liquidez",
+   "queryLines": [
+    "SELECT row_number() OVER (ORDER BY liquidez_sobre_pl DESC) AS posicao, ticker, nome_fundo AS fundo, round(liquidez_sobre_pl * 100, 2) AS pct FROM findata_dev.gold.vw_fii_ranking WHERE liquidez_sobre_pl IS NOT NULL AND patrimonio_liquido >= 50000000 ORDER BY liquidez_sobre_pl DESC LIMIT 10"
+   ]
+  },
+  {
+   "name": "rk_pl",
+   "displayName": "rk_pl",
+   "queryLines": [
+    "SELECT row_number() OVER (ORDER BY patrimonio_liquido DESC) AS posicao, ticker, nome_fundo AS fundo, round(patrimonio_liquido / 1e9, 2) AS pl_bi FROM findata_dev.gold.vw_fii_ranking WHERE patrimonio_liquido IS NOT NULL ORDER BY patrimonio_liquido DESC LIMIT 10"
+   ]
+  },
+  {
+   "name": "rk_dy_mes",
+   "displayName": "rk_dy_mes",
+   "queryLines": [
+    "SELECT row_number() OVER (ORDER BY dy_mes DESC) AS posicao, ticker, nome_fundo AS fundo, round(dy_mes * 100, 2) AS pct FROM findata_dev.gold.vw_fii_ranking WHERE dy_mes > 0 AND dy_mes <= 0.05 AND patrimonio_liquido >= 100000000 ORDER BY dy_mes DESC LIMIT 10"
+   ]
+  },
+  {
+   "name": "rk_dy_12m",
+   "displayName": "rk_dy_12m",
+   "queryLines": [
+    "SELECT row_number() OVER (ORDER BY dy_12m DESC) AS posicao, ticker, nome_fundo AS fundo, round(dy_12m * 100, 2) AS pct FROM findata_dev.gold.vw_fii_ranking WHERE dy_12m > 0 AND dy_12m <= 0.40 AND patrimonio_liquido >= 100000000 ORDER BY dy_12m DESC LIMIT 10"
+   ]
+  },
+  {
+   "name": "rk_rent_12m",
+   "displayName": "rk_rent_12m",
+   "queryLines": [
+    "SELECT row_number() OVER (ORDER BY rentab_12m DESC) AS posicao, ticker, nome_fundo AS fundo, round(rentab_12m * 100, 2) AS pct FROM findata_dev.gold.vw_fii_ranking WHERE rentab_12m BETWEEN -0.9 AND 1.0 AND patrimonio_liquido >= 100000000 ORDER BY rentab_12m DESC LIMIT 10"
+   ]
+  },
+  {
+   "name": "fii_segmentos",
+   "displayName": "fii_segmentos",
+   "queryLines": [
+    "SELECT segmento, fundos, pl_bi, dy_mediano_mes_pct, fundos_dy_zero, posicoes_cotistas FROM findata_dev.gold.vw_fii_segmentos ORDER BY pl_bi DESC"
+   ]
+  },
+  {
    "name": "lista_fundos",
    "displayName": "lista_fundos",
    "queryLines": [
@@ -1079,6 +1135,721 @@
       "y": 19,
       "width": 6,
       "height": 9
+     }
+    }
+   ]
+  },
+  {
+   "name": "fii",
+   "displayName": "FII · rankings",
+   "layout": [
+    {
+     "widget": {
+      "name": "t_fii",
+      "multilineTextboxSpec": {
+       "lines": [
+        "## Fundos imobiliários: rankings\n\n",
+        "Fonte: CVM, informe mensal estruturado (último mês de cada FII negociado em bolsa, até 4 meses). Ticker derivado do ISIN das cotas. DY e rentabilidade são os **informados à CVM** (sobre o património), não sobre a cotação. Rankings de DY e rentabilidade só com PL ≥ R$ 100 mi e sem valores extremos (DY no mês > 5 %, DY 12 meses > 40 %, rentabilidade 12 meses fora de −90 %…+100 %: costumam ser amortizações ou erros de informe); % em caixa = ativos de liquidez / PL (PL ≥ R$ 50 mi). Sem cotação do dia, IFIX, liquidez de pregão nem comunicados: são dados da B3, fora das fontes oficiais gratuitas usadas.\n\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 6,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "k_fii_n",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "fii_kpi",
+         "fields": [
+          {
+           "name": "fiis",
+           "expression": "`fiis`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "fiis",
+         "displayName": "FII listados com informe"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "FII listados com informe"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_fii_seg",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "fii_kpi",
+         "fields": [
+          {
+           "name": "segmentos",
+           "expression": "`segmentos`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "segmentos",
+         "displayName": "Segmentos"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Segmentos"
+       }
+      }
+     },
+     "position": {
+      "x": 2,
+      "y": 2,
+      "width": 1,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_fii_mes",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "fii_kpi",
+         "fields": [
+          {
+           "name": "mes_ref",
+           "expression": "`mes_ref`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "mes_ref",
+         "displayName": "Mês de referência"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Mês de referência"
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 2,
+      "width": 1,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_fii_pl",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "fii_kpi",
+         "fields": [
+          {
+           "name": "pl_bi",
+           "expression": "`pl_bi`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "pl_bi",
+         "displayName": "PL somado (R$ bi)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "PL somado (R$ bi)"
+       }
+      }
+     },
+     "position": {
+      "x": 4,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "rk1",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "rk_cotistas",
+         "fields": [
+          {
+           "name": "posicao",
+           "expression": "`posicao`"
+          },
+          {
+           "name": "ticker",
+           "expression": "`ticker`"
+          },
+          {
+           "name": "fundo",
+           "expression": "`fundo`"
+          },
+          {
+           "name": "cotistas",
+           "expression": "`cotistas`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "posicao",
+          "displayName": "#"
+         },
+         {
+          "fieldName": "ticker",
+          "displayName": "Ticker"
+         },
+         {
+          "fieldName": "fundo",
+          "displayName": "Fundo"
+         },
+         {
+          "fieldName": "cotistas",
+          "displayName": "Cotistas"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Número de cotistas"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 5,
+      "width": 2,
+      "height": 8
+     }
+    },
+    {
+     "widget": {
+      "name": "rk2",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "rk_liquidez",
+         "fields": [
+          {
+           "name": "posicao",
+           "expression": "`posicao`"
+          },
+          {
+           "name": "ticker",
+           "expression": "`ticker`"
+          },
+          {
+           "name": "fundo",
+           "expression": "`fundo`"
+          },
+          {
+           "name": "pct",
+           "expression": "`pct`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "posicao",
+          "displayName": "#"
+         },
+         {
+          "fieldName": "ticker",
+          "displayName": "Ticker"
+         },
+         {
+          "fieldName": "fundo",
+          "displayName": "Fundo"
+         },
+         {
+          "fieldName": "pct",
+          "displayName": "%"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Percentual em caixa (liquidez / PL)"
+       }
+      }
+     },
+     "position": {
+      "x": 2,
+      "y": 5,
+      "width": 2,
+      "height": 8
+     }
+    },
+    {
+     "widget": {
+      "name": "rk3",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "rk_pl",
+         "fields": [
+          {
+           "name": "posicao",
+           "expression": "`posicao`"
+          },
+          {
+           "name": "ticker",
+           "expression": "`ticker`"
+          },
+          {
+           "name": "fundo",
+           "expression": "`fundo`"
+          },
+          {
+           "name": "pl_bi",
+           "expression": "`pl_bi`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "posicao",
+          "displayName": "#"
+         },
+         {
+          "fieldName": "ticker",
+          "displayName": "Ticker"
+         },
+         {
+          "fieldName": "fundo",
+          "displayName": "Fundo"
+         },
+         {
+          "fieldName": "pl_bi",
+          "displayName": "PL (R$ bi)"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Maior património líquido"
+       }
+      }
+     },
+     "position": {
+      "x": 4,
+      "y": 5,
+      "width": 2,
+      "height": 8
+     }
+    },
+    {
+     "widget": {
+      "name": "rk4",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "rk_dy_mes",
+         "fields": [
+          {
+           "name": "posicao",
+           "expression": "`posicao`"
+          },
+          {
+           "name": "ticker",
+           "expression": "`ticker`"
+          },
+          {
+           "name": "fundo",
+           "expression": "`fundo`"
+          },
+          {
+           "name": "pct",
+           "expression": "`pct`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "posicao",
+          "displayName": "#"
+         },
+         {
+          "fieldName": "ticker",
+          "displayName": "Ticker"
+         },
+         {
+          "fieldName": "fundo",
+          "displayName": "Fundo"
+         },
+         {
+          "fieldName": "pct",
+          "displayName": "%"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Maior DY no último mês (%)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 13,
+      "width": 2,
+      "height": 8
+     }
+    },
+    {
+     "widget": {
+      "name": "rk5",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "rk_dy_12m",
+         "fields": [
+          {
+           "name": "posicao",
+           "expression": "`posicao`"
+          },
+          {
+           "name": "ticker",
+           "expression": "`ticker`"
+          },
+          {
+           "name": "fundo",
+           "expression": "`fundo`"
+          },
+          {
+           "name": "pct",
+           "expression": "`pct`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "posicao",
+          "displayName": "#"
+         },
+         {
+          "fieldName": "ticker",
+          "displayName": "Ticker"
+         },
+         {
+          "fieldName": "fundo",
+          "displayName": "Fundo"
+         },
+         {
+          "fieldName": "pct",
+          "displayName": "%"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Maior DY em 12 meses (%)"
+       }
+      }
+     },
+     "position": {
+      "x": 2,
+      "y": 13,
+      "width": 2,
+      "height": 8
+     }
+    },
+    {
+     "widget": {
+      "name": "rk6",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "rk_rent_12m",
+         "fields": [
+          {
+           "name": "posicao",
+           "expression": "`posicao`"
+          },
+          {
+           "name": "ticker",
+           "expression": "`ticker`"
+          },
+          {
+           "name": "fundo",
+           "expression": "`fundo`"
+          },
+          {
+           "name": "pct",
+           "expression": "`pct`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "posicao",
+          "displayName": "#"
+         },
+         {
+          "fieldName": "ticker",
+          "displayName": "Ticker"
+         },
+         {
+          "fieldName": "fundo",
+          "displayName": "Fundo"
+         },
+         {
+          "fieldName": "pct",
+          "displayName": "%"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Maior rentabilidade em 12 meses (%)"
+       }
+      }
+     },
+     "position": {
+      "x": 4,
+      "y": 13,
+      "width": 2,
+      "height": 8
+     }
+    },
+    {
+     "widget": {
+      "name": "b_seg",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "fii_segmentos",
+         "fields": [
+          {
+           "name": "segmento",
+           "expression": "`segmento`"
+          },
+          {
+           "name": "pl_bi",
+           "expression": "`pl_bi`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "segmento",
+         "scale": {
+          "type": "categorical"
+         },
+         "displayName": "Segmento"
+        },
+        "y": {
+         "fieldName": "pl_bi",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "PL (R$ bi)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "PL por segmento (R$ bi)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 21,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_seg",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "fii_segmentos",
+         "fields": [
+          {
+           "name": "segmento",
+           "expression": "`segmento`"
+          },
+          {
+           "name": "fundos",
+           "expression": "`fundos`"
+          },
+          {
+           "name": "pl_bi",
+           "expression": "`pl_bi`"
+          },
+          {
+           "name": "dy_mediano_mes_pct",
+           "expression": "`dy_mediano_mes_pct`"
+          },
+          {
+           "name": "fundos_dy_zero",
+           "expression": "`fundos_dy_zero`"
+          },
+          {
+           "name": "posicoes_cotistas",
+           "expression": "`posicoes_cotistas`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "segmento",
+          "displayName": "Segmento"
+         },
+         {
+          "fieldName": "fundos",
+          "displayName": "fundos"
+         },
+         {
+          "fieldName": "pl_bi",
+          "displayName": "PL (R$ bi)"
+         },
+         {
+          "fieldName": "dy_mediano_mes_pct",
+          "displayName": "DY mediano no mês (%)"
+         },
+         {
+          "fieldName": "fundos_dy_zero",
+          "displayName": "Informam DY 0"
+         },
+         {
+          "fieldName": "posicoes_cotistas",
+          "displayName": "Posições de cotistas"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Segmentos"
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 21,
+      "width": 3,
+      "height": 7
      }
     }
    ]

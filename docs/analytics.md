@@ -41,11 +41,17 @@ da Selic; ações, 35,9 %.
 1. **Mercado (BCB):** Meta Selic, PTAX USD/EUR, Selic desde 2000, PTAX diária, variação mensal do câmbio, IBC-Br.
 2. **Fundos (CVM):** PL e captação somados, % de fundos acima da Selic e rentabilidade mediana por classificação,
    20 maiores fundos.
-3. **Análise de fundo:** dropdown com pesquisa (≈ 26 mil FI e FII com dados recentes, formato `nome · FI|FII · CNPJ`)
+3. **FII · rankings** (inspirada no StatusInvest, só com dados oficiais da CVM): FII listados, segmentos, mês de
+   referência e PL somado; top 10 por cotistas, % em caixa (liquidez/PL), PL, DY no mês, DY 12 meses e
+   rentabilidade 12 meses; PL e DY mediano por segmento. Ticker derivado do ISIN (`BRKNCRCTF000` → `KNCR11`).
+   Fora: cotação do dia, IFIX, liquidez de pregão, comunicados e calendário (dados da B3/outras fontes).
+   Notas dos dados: ~40 % dos FII informam DY = 0 todos os meses (a mediana usa só DY > 0); valores extremos
+   (DY no mês > 5 %, DY 12 m > 40 %, rentabilidade 12 m fora de −90 %…+100 %) ficam fora dos rankings.
+4. **Análise de fundo:** dropdown com pesquisa (≈ 26 mil FI e FII com dados recentes, formato `nome · FI|FII · CNPJ`)
    ligado ao parâmetro `:fundo` de cinco datasets: ficha, rentabilidade no mês vs Selic do mês, PL e cotistas,
    dividend yield (FII) e cota diária (FI). Abre no maior FII do grupo Itaú (Kinea Rendimentos Imobiliários,
    administrado pela Intrag).
-4. **Operação e qualidade:** reconciliação (última execução por fonte), frescura, execuções e regras com falhas.
+5. **Operação e qualidade:** reconciliação (última execução por fonte), frescura, execuções e regras com falhas.
 
 As consultas correm no SQL Warehouse serverless 2X-Small (≈ 3,20 €/h só enquanto ligado; auto-stop 1 min).
 

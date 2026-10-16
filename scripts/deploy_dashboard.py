@@ -33,6 +33,40 @@ def datasets(k: str) -> dict[str, str]:
     g, c = f"{k}.gold", f"{k}.control"
     mes_fechado = "trunc(current_date(), 'MM')"
     return {
+        "fii_kpi": f"""
+            SELECT count(*) AS fiis, count(DISTINCT segmento) AS segmentos,
+                   round(sum(patrimonio_liquido) / 1e9, 1) AS pl_bi, date_format(mode(mes), 'MM/yyyy') AS mes_ref
+            FROM {g}.vw_fii_ranking""",
+        "rk_cotistas": f"""
+            SELECT row_number() OVER (ORDER BY cotistas DESC) AS posicao, ticker, nome_fundo AS fundo, cotistas
+            FROM {g}.vw_fii_ranking WHERE cotistas IS NOT NULL ORDER BY cotistas DESC LIMIT 10""",
+        "rk_liquidez": f"""
+            SELECT row_number() OVER (ORDER BY liquidez_sobre_pl DESC) AS posicao, ticker, nome_fundo AS fundo,
+                   round(liquidez_sobre_pl * 100, 2) AS pct
+            FROM {g}.vw_fii_ranking WHERE liquidez_sobre_pl IS NOT NULL AND patrimonio_liquido >= 50000000
+            ORDER BY liquidez_sobre_pl DESC LIMIT 10""",
+        "rk_pl": f"""
+            SELECT row_number() OVER (ORDER BY patrimonio_liquido DESC) AS posicao, ticker, nome_fundo AS fundo,
+                   round(patrimonio_liquido / 1e9, 2) AS pl_bi
+            FROM {g}.vw_fii_ranking WHERE patrimonio_liquido IS NOT NULL ORDER BY patrimonio_liquido DESC LIMIT 10""",
+        "rk_dy_mes": f"""
+            SELECT row_number() OVER (ORDER BY dy_mes DESC) AS posicao, ticker, nome_fundo AS fundo,
+                   round(dy_mes * 100, 2) AS pct
+            FROM {g}.vw_fii_ranking WHERE dy_mes > 0 AND dy_mes <= 0.05 AND patrimonio_liquido >= 100000000
+            ORDER BY dy_mes DESC LIMIT 10""",
+        "rk_dy_12m": f"""
+            SELECT row_number() OVER (ORDER BY dy_12m DESC) AS posicao, ticker, nome_fundo AS fundo,
+                   round(dy_12m * 100, 2) AS pct
+            FROM {g}.vw_fii_ranking WHERE dy_12m > 0 AND dy_12m <= 0.40 AND patrimonio_liquido >= 100000000
+            ORDER BY dy_12m DESC LIMIT 10""",
+        "rk_rent_12m": f"""
+            SELECT row_number() OVER (ORDER BY rentab_12m DESC) AS posicao, ticker, nome_fundo AS fundo,
+                   round(rentab_12m * 100, 2) AS pct
+            FROM {g}.vw_fii_ranking WHERE rentab_12m BETWEEN -0.9 AND 1.0 AND patrimonio_liquido >= 100000000
+            ORDER BY rentab_12m DESC LIMIT 10""",
+        "fii_segmentos": f"""
+            SELECT segmento, fundos, pl_bi, dy_mediano_mes_pct, fundos_dy_zero, posicoes_cotistas
+            FROM {g}.vw_fii_segmentos ORDER BY pl_bi DESC""",
         "lista_fundos": f"""
             SELECT fundo FROM (
               SELECT concat(coalesce(max_by(d.denominacao_social, m.mes), '(sem nome)'), ' · FI · ', m.cnpj_classe) AS fundo,
@@ -165,7 +199,9 @@ ROTULOS = {"data": "Data", "mes": "Mês", "valor": "% a.a.", "cotacao_venda": "R
            "execucoes": "Execuções", "lidos": "Lidos", "escritos": "Escritos", "rejeitados": "Rejeitados",
            "duracao_media_s": "Duração média (s)", "ultima": "Última", "tabela": "Tabela", "regra": "Regra",
            "severidade": "Severidade", "registos_falhados": "Registos", "posicao": "#", "fundo": "Fundo",
-           "pl_bi": "PL (R$ bi)"}
+           "pl_bi": "PL (R$ bi)", "ticker": "Ticker", "pct": "%", "segmento": "Segmento",
+           "dy_mediano_mes_pct": "DY mediano no mês (%)", "fundos_dy_zero": "Informam DY 0",
+           "posicoes_cotistas": "Posições de cotistas", "fiis": "FII"}
 
 
 def linha(nome, ds, x, y, cor, titulo, pos, tipo="line", x_tipo="temporal"):
@@ -248,6 +284,30 @@ def painel(k: str, padrao: str = "") -> dict:
         tabela("tb_dq", "qualidade", ["ultima", "tabela", "regra", "severidade", "registos_falhados"],
                "Regras de qualidade com falhas (INFO só regista; CRITICAL/HIGH bloqueiam a gold)", (0, 16, 6, 8)),
     ]
+    fii = [
+        texto("t_fii", ["## Fundos imobiliários: rankings", "Fonte: CVM, informe mensal estruturado (último mês de cada "
+                        "FII negociado em bolsa, até 4 meses). Ticker derivado do ISIN das cotas. DY e rentabilidade "
+                        "são os **informados à CVM** (sobre o património), não sobre a cotação. Rankings de DY e "
+                        "rentabilidade só com PL ≥ R$ 100 mi e sem valores extremos (DY no mês > 5 %, DY 12 meses > 40 %, "
+                        "rentabilidade 12 meses fora de −90 %…+100 %: costumam ser amortizações ou erros de informe); "
+                        "% em caixa = ativos de liquidez / PL (PL ≥ R$ 50 mi). "
+                        "Sem cotação do dia, IFIX, liquidez de pregão nem comunicados: são dados da B3, fora das "
+                        "fontes oficiais gratuitas usadas."], (0, 0, 6, 2)),
+        contador("k_fii_n", "fii_kpi", "fiis", "FII listados com informe", (0, 2, 2, 3)),
+        contador("k_fii_seg", "fii_kpi", "segmentos", "Segmentos", (2, 2, 1, 3)),
+        contador("k_fii_mes", "fii_kpi", "mes_ref", "Mês de referência", (3, 2, 1, 3)),
+        contador("k_fii_pl", "fii_kpi", "pl_bi", "PL somado (R$ bi)", (4, 2, 2, 3)),
+        tabela("rk1", "rk_cotistas", ["posicao", "ticker", "fundo", "cotistas"], "Número de cotistas", (0, 5, 2, 8)),
+        tabela("rk2", "rk_liquidez", ["posicao", "ticker", "fundo", "pct"], "Percentual em caixa (liquidez / PL)", (2, 5, 2, 8)),
+        tabela("rk3", "rk_pl", ["posicao", "ticker", "fundo", "pl_bi"], "Maior património líquido", (4, 5, 2, 8)),
+        tabela("rk4", "rk_dy_mes", ["posicao", "ticker", "fundo", "pct"], "Maior DY no último mês (%)", (0, 13, 2, 8)),
+        tabela("rk5", "rk_dy_12m", ["posicao", "ticker", "fundo", "pct"], "Maior DY em 12 meses (%)", (2, 13, 2, 8)),
+        tabela("rk6", "rk_rent_12m", ["posicao", "ticker", "fundo", "pct"], "Maior rentabilidade em 12 meses (%)", (4, 13, 2, 8)),
+        linha("b_seg", "fii_segmentos", "segmento", "pl_bi", None, "PL por segmento (R$ bi)", (0, 21, 3, 7),
+              tipo="bar", x_tipo="categorical"),
+        tabela("tb_seg", "fii_segmentos", ["segmento", "fundos", "pl_bi", "dy_mediano_mes_pct", "fundos_dy_zero",
+                                           "posicoes_cotistas"], "Segmentos", (3, 21, 3, 7)),
+    ]
     analise = [
         texto("t_analise", ["## Análise de um fundo", "Escolhe um fundo de investimento (FI, informe diário) ou "
                             "imobiliário (FII, informe mensal). A rentabilidade do FII é a efetiva do mês (inclui "
@@ -274,6 +334,7 @@ def painel(k: str, padrao: str = "") -> dict:
         "datasets": ds_,
         "pages": [{"name": "mercado", "displayName": "Mercado (BCB)", "layout": mercado},
                   {"name": "fundos", "displayName": "Fundos (CVM)", "layout": fundos},
+                  {"name": "fii", "displayName": "FII · rankings", "layout": fii},
                   {"name": "analise", "displayName": "Análise de fundo", "layout": analise},
                   {"name": "operacao", "displayName": "Operação e qualidade", "layout": operacao}],
     }

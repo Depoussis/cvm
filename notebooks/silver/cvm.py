@@ -221,7 +221,7 @@ if p.escolhida("fii_inf_mensal"):
                      {num('c.percentual_rentabilidade_patrimonial_mes', 'DOUBLE')} AS rentab_patrimonial_mes,
                      {num('c.percentual_dividend_yield_mes', 'DOUBLE')} AS dividend_yield_mes,
                      {num('c.percentual_amortizacao_cotas_mes', 'DOUBLE')} AS amortizacao_mes,
-                     c._ingestion_timestamp, c._record_hash
+                     c._ingestion_timestamp, c._record_hash, g._record_hash AS _g_hash
               FROM _fii_pend c
               LEFT JOIN {bronze_g} g
                 ON g._file_hash = c._file_hash AND g.cnpj_fundo_classe = c.cnpj_fundo_classe
@@ -230,7 +230,8 @@ if p.escolhida("fii_inf_mensal"):
             )
             -- reenvios: fica a versão mais alta; na mesma versão, a carga mais recente
             QUALIFY row_number() OVER (PARTITION BY cnpj_classe, data_referencia
-                                       ORDER BY versao DESC, _ingestion_timestamp DESC, _record_hash) = 1
+                                       ORDER BY versao DESC, _ingestion_timestamp DESC, _record_hash,
+                                                _g_hash) = 1  -- determinístico se o geral repetir a linha
         """).createOrReplaceTempView("_fii_src")
         n_validos = spark.table("_fii_src").count()
         c.inserted, c.updated = executar_merge(spark, merge_scd1(
@@ -267,6 +268,66 @@ if p.escolhida("fii_inf_mensal"):
     except Exception as ex:
         control.falhar(spark, e, ex, c)
         erros["fii_inf_mensal"] = repr(ex)
+
+# COMMAND ----------
+
+if p.escolhida("fii_inf_mensal"):
+    bronze_ap = f"{k}.bronze.cvm_fii_inf_mensal_ativo_passivo"
+    destino = f"{k}.silver.cvm_fii_ativo_passivo"
+    e = control.Execucao(k, p.run_id, "silver_cvm", FONTE, "fii_ativo_passivo", "silver", p.run_mode)
+    control.iniciar(spark, e)
+    c = control.Contagens()
+    try:
+        valores = {"total_necessidades_liquidez": "total_necessidades_liquidez", "disponibilidades": "disponibilidades",
+                   "titulos_publicos": "titulos_publicos", "fundos_renda_fixa": "fundos_renda_fixa",
+                   "total_investido": "total_investido", "direitos_bens_imoveis": "direitos_bens_imoveis",
+                   "cri": "cri", "lci": "lci", "rendimentos_distribuir": "rendimentos_distribuir",
+                   "total_passivo": "total_passivo"}
+        valido = " AND ".join(["_corrupt_record IS NULL", f"length({cnpj('cnpj_fundo_classe')}) = 14",
+                               f"{dt('data_referencia')} IS NOT NULL", num_valido("versao")]
+                              + [num_valido(x) for x in valores.values()])
+        pend = sql_pendentes(bronze_ap, k, FONTE, "fii_ativo_passivo", "true", reprocessar)
+        spark.sql(f"SELECT *, coalesce(({valido}), false) AS _valido FROM ({pend})").createOrReplaceTempView("_ap_pend")
+        c.read = spark.table("_ap_pend").count()
+        invalidos = spark.table("_ap_pend").where("NOT _valido").drop("_valido")
+        c.rejected = invalidos.count()
+        if c.rejected:
+            invalidos.write.mode("append").json(caminho_quarentena(k, FONTE, "fii_ativo_passivo", hoje, p.run_id))
+        colunas = ["versao", *valores]
+        spark.sql(f"""
+            SELECT cnpj_classe, data_referencia, {', '.join(colunas)},
+                   {expr_hash(colunas)} AS record_hash, '{p.run_id}' AS _pipeline_run_id
+            FROM (
+              SELECT {cnpj('cnpj_fundo_classe')} AS cnpj_classe, {dt('data_referencia')} AS data_referencia,
+                     CAST(try_cast({txt('versao')} AS DOUBLE) AS INT) AS versao,
+                     {', '.join(f"{num(orig, 'DECIMAL(20,2)')} AS {dest}" for dest, orig in valores.items())},
+                     _ingestion_timestamp, _record_hash
+              FROM _ap_pend WHERE _valido
+            )
+            QUALIFY row_number() OVER (PARTITION BY cnpj_classe, data_referencia
+                                       ORDER BY versao DESC, _ingestion_timestamp DESC, _record_hash) = 1
+        """).createOrReplaceTempView("_ap_src")
+        n_validos = spark.table("_ap_src").count()
+        c.inserted, c.updated = executar_merge(spark, merge_scd1(
+            destino, "_ap_src", ["cnpj_classe", "data_referencia"], colunas))
+        c.unchanged = n_validos - c.inserted - c.updated
+        regras = [
+            dq.Regra("chave_unica", "Uma linha por (CNPJ, mês)", "CRITICAL", destino,
+                     f"SELECT cnpj_classe, data_referencia, count(*) n FROM {destino} GROUP BY ALL HAVING n > 1",
+                     f"SELECT count(*) FROM {destino}"),
+            dq.Regra("formato_api", "CNPJ, data e números convertíveis", "HIGH", bronze_ap,
+                     "SELECT * FROM _ap_pend WHERE NOT _valido", "SELECT count(*) FROM _ap_pend"),
+        ]
+        resultados = dq.avaliar(spark, regras)
+        dq.gravar(spark, k, p.run_id, resultados)
+        criticas = [r.regra.nome for r in resultados if not r.passou and r.regra.severidade == "CRITICAL"]
+        control.concluir(spark, e, c)
+        print(f"fii_ativo_passivo: lidos={c.read} novos={c.inserted} alterados={c.updated} rejeitados={c.rejected}")
+        if criticas:
+            raise RuntimeError(f"regras críticas falharam: {criticas}")
+    except Exception as ex:
+        control.falhar(spark, e, ex, c)
+        erros["fii_ativo_passivo"] = repr(ex)
 
 # COMMAND ----------
 

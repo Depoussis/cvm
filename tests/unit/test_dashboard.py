@@ -15,7 +15,7 @@ def test_painel_coerente():
         for q in i["widget"].get("queries", []):
             assert q["query"]["datasetName"] in nomes_ds
     assert all("findata_dev." in d["queryLines"][0] for d in p["datasets"])
-    assert [pg["name"] for pg in p["pages"]] == ["mercado", "fundos", "analise", "operacao"]
+    assert [pg["name"] for pg in p["pages"]] == ["mercado", "fundos", "fii", "analise", "operacao"]
     com_param = {d["name"] for d in p["datasets"] if d.get("parameters")}
     assert com_param == set(DATASETS_FUNDO)
     assert all(":fundo" in d["queryLines"][0] for d in p["datasets"] if d["name"] in com_param)
