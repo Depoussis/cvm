@@ -16,7 +16,10 @@ sys.path.insert(0, str(Path.cwd().parents[1]))
 from src.common import notebook
 
 notebook.declarar(dbutils)
+# fonte = bcb | cvm (parâmetro da tarefa em cada job, para os jobs paralelos não escreverem nas mesmas linhas)
+dbutils.widgets.text("fonte", "", "fonte (bcb, cvm; vazio = todas)")
 p = notebook.ler(dbutils)
+fonte = dbutils.widgets.get("fonte").strip()
 print(p)
 
 # COMMAND ----------
@@ -30,7 +33,7 @@ destino = f"{k}.control.reapresentacoes"
 erros = {}
 
 for relativa, (chaves, colunas) in TABELAS_SCD1.items():
-    if not p.escolhida(relativa):
+    if not p.escolhida(relativa) or (fonte and not relativa.startswith(f"silver.{fonte}_")):
         continue
     tabela = f"{k}.{relativa}"
     entidade = f"reapresentacoes:{relativa}"

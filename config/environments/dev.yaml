@@ -15,6 +15,7 @@ databricks:
   host: https://adb-7405612954969039.19.azuredatabricks.net
   sql_warehouse_name: Serverless Starter Warehouse
   job:
+    # Os agendamentos dos jobs ficam em PAUSE: quem agenda é o ADF (pipelines/azure_data_factory/trigger).
     # serverless: não usa a quota de vCPUs da subscrição e só cobra enquanto corre.
     # classic: cluster de jobs single-node (exige um tipo de VM habilitado na subscrição; no Free Trial o
     #          Databricks reporta os tipos DSv2/Dv5 como NotEnabledOnSubscription).
@@ -24,6 +25,7 @@ databricks:
     timeout_tarefa_s: 3600
     cron: "0 0 20 ? * MON-FRI"    # 20:00 de Brasília, depois da PTAX de fechamento e das séries diárias
     cron_cvm: "0 0 8 ? * *"       # 08:00 de Brasília, todos os dias (a CVM atualiza os ficheiros de madrugada)
+    cron_frescura: "0 0 22 ? * MON-FRI"  # só usado se o agendamento for pelo Databricks (por omissão: ADF)
     cron_auditoria: "0 0 6 ? * SUN"  # domingo 06:00: testes de integração e reconciliação
     timezone: America/Sao_Paulo
 

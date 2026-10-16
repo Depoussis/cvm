@@ -1,0 +1,12 @@
+{
+  "name": "ls_databricks_findata",
+  "properties": {
+    "description": "Workspace Databricks do ambiente, autenticação pela identidade gerida do ADF (Contributor no workspace).",
+    "type": "AzureDatabricks",
+    "typeProperties": {
+      "domain": "${databricks_host}",
+      "authentication": "MSI",
+      "workspaceResourceId": "${databricks_workspace_id}"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "pl_findata_semanal",
+  "properties": {
+    "description": "Auditoria semanal: testes de integração no Databricks e reconciliação com as fontes (BCB e CVM).",
+    "folder": {
+      "name": "findata"
+    },
+    "activities": [
+      {
+        "name": "Auditoria",
+        "type": "ExecutePipeline",
+        "typeProperties": {
+          "pipeline": {
+            "referenceName": "pl_databricks_job",
+            "type": "PipelineReference"
+          },
+          "waitOnCompletion": true,
+          "parameters": {
+            "job_id": "${job_id_auditoria}",
+            "run_mode": "incremental",
+            "run_id_origem": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

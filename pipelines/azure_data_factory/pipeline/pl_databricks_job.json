@@ -1,0 +1,80 @@
+{
+  "name": "pl_databricks_job",
+  "properties": {
+    "description": "Dispara um job Databricks e espera o fim. Envia pipeline_run_id = adf-<job_id>-<RunId>, em que RunId é o do pipeline principal (run_id_origem) ou o deste pipeline quando corre sozinho; o job_id evita colisões entre jobs paralelos.",
+    "folder": {
+      "name": "findata"
+    },
+    "parameters": {
+      "job_id": {
+        "type": "string"
+      },
+      "run_mode": {
+        "type": "string",
+        "defaultValue": "incremental"
+      },
+      "data_inicio": {
+        "type": "string",
+        "defaultValue": ""
+      },
+      "data_fim": {
+        "type": "string",
+        "defaultValue": ""
+      },
+      "entidades": {
+        "type": "string",
+        "defaultValue": ""
+      },
+      "run_id_origem": {
+        "type": "string",
+        "defaultValue": ""
+      }
+    },
+    "activities": [
+      {
+        "name": "Executar job Databricks",
+        "type": "DatabricksJob",
+        "linkedServiceName": {
+          "referenceName": "ls_databricks_findata",
+          "type": "LinkedServiceReference"
+        },
+        "policy": {
+          "timeout": "0.02:00:00",
+          "retry": 1,
+          "retryIntervalInSeconds": 600,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "typeProperties": {
+          "jobId": {
+            "value": "@pipeline().parameters.job_id",
+            "type": "Expression"
+          },
+          "jobParameters": {
+            "env": "${env}",
+            "run_mode": {
+              "value": "@pipeline().parameters.run_mode",
+              "type": "Expression"
+            },
+            "data_inicio": {
+              "value": "@pipeline().parameters.data_inicio",
+              "type": "Expression"
+            },
+            "data_fim": {
+              "value": "@pipeline().parameters.data_fim",
+              "type": "Expression"
+            },
+            "entidades": {
+              "value": "@pipeline().parameters.entidades",
+              "type": "Expression"
+            },
+            "pipeline_run_id": {
+              "value": "@concat('adf-', pipeline().parameters.job_id, '-', if(empty(pipeline().parameters.run_id_origem), pipeline().RunId, pipeline().parameters.run_id_origem))",
+              "type": "Expression"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

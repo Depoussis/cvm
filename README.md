@@ -15,7 +15,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 | 2. Banco Central | SGS e PTAX: histórico e incremental, bronze/silver/gold | concluída (16/10/2026), ver [docs/pipelines_bcb.md](docs/pipelines_bcb.md) |
 | 3. CVM | Catálogo, ficheiros históricos, ZIP, fundos e companhias abertas | concluída (16/10/2026), ver [docs/pipelines_cvm.md](docs/pipelines_cvm.md) |
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | concluída (16/10/2026), ver [docs/auditoria.md](docs/auditoria.md) |
-| 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | — |
+| 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | concluída (16/10/2026), ver [docs/orquestracao.md](docs/orquestracao.md) |
 | 6. Qualidade e analytics | Testes de dados, modelo dimensional, indicadores, Power BI | — |
 | 7. Produção | CI/CD, segurança, documentação, monitorização, custos, DR | — |
 
@@ -31,7 +31,8 @@ src/quality/              regras de qualidade
 src/audit/                execuções, watermarks e registo de ficheiros nas tabelas de controlo
 sql/                      DDL: control, schemas (bronze/silver), dimensions, facts, views
 notebooks/                setup, bronze, silver e gold (formato fonte do Databricks)
-scripts/                  deploy de RBAC, setup do Unity Catalog, aplicação de SQL
+scripts/                  deploy de RBAC, Unity Catalog, SQL, workspace/jobs Databricks e ADF
+pipelines/azure_data_factory/  linked service, pipelines e gatilhos do ADF (JSON)
 tests/unit/               testes sem Spark (pytest); integração com Spark em notebooks/tests/integracao.py
 docs/                     arquitetura, custos, deployment
 ```
@@ -46,6 +47,7 @@ bash scripts/deploy_rbac.sh dev
 python scripts/setup_unity_catalog.py --env dev
 python scripts/apply_sql.py --env dev --dir sql/control --dir sql/schemas --dir sql/dimensions --dir sql/facts --dir sql/views
 python scripts/deploy_workspace.py --env dev --run backfill
+python scripts/deploy_adf.py --env dev          # ADF: linked service, pipelines, gatilhos (parados)
 python -m pytest -q
 ```
 

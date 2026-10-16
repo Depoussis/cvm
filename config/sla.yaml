@@ -1,0 +1,21 @@
+# Frescura esperada dos dados (verificada por notebooks/audit/frescura.py no fim do pipeline diário do ADF).
+# idade = hoje - watermark (última data de referência confirmada na silver), em dias corridos.
+# Valores definidos a partir do calendário de publicação observado em 16/10/2026; ajustar se a fonte atrasar
+# de forma recorrente. Entidades sem regra própria usam o padrão da fonte.
+
+padrao_dias:
+  bcb_sgs: 5        # séries diárias: dias úteis, com feriados prolongados
+  bcb_ptax: 5
+  cvm: 7            # informe diário: os administradores enviam com alguns dias de atraso
+
+entidades:
+  bcb_sgs:
+    serie_4390: 45    # Selic acumulada no mês: publicada no fecho do mês
+    serie_24363: 130  # IBC-Br: julho/2026 era o último disponível em 16/10/2026 (~3,5 meses)
+  cvm: {}
+
+# Execuções: falha se a última execução com sucesso de cada pipeline for mais antiga do que isto (horas).
+execucao_max_horas:
+  bronze_bcb_sgs: 96     # cobre fim de semana prolongado (o BCB só corre em dias úteis)
+  bronze_bcb_ptax: 96
+  bronze_cvm: 96

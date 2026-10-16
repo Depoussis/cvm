@@ -28,17 +28,19 @@ from src.common.config import carregar_ambiente  # noqa: E402
 log = logging.getLogger("deploy_workspace")
 PASTAS = ["src", "config", "notebooks", "sql"]
 NOME_JOB = "findata_{env}_{fonte}"
-# fonte -> (descrição, cron em config databricks.job, tarefas: (chave, notebook, dependências, retries))
+# fonte -> (descrição, cron em config databricks.job, tarefas: (chave, notebook, dependências, retries[, parâmetros]))
 JOBS = {
     "bcb": ("Banco Central (SGS e PTAX): bronze -> silver -> gold. Ver docs/pipelines_bcb.md.", "cron", [
         ("bronze_sgs", "bronze/bcb_sgs", [], 2), ("bronze_ptax", "bronze/bcb_ptax", [], 2),
         ("silver_sgs", "silver/bcb_sgs", ["bronze_sgs"], 0), ("silver_ptax", "silver/bcb_ptax", ["bronze_ptax"], 0),
         ("gold_bcb", "gold/bcb", ["silver_sgs", "silver_ptax"], 0),
-        ("reapresentacoes", "audit/reapresentacoes", ["gold_bcb"], 0)]),
+        ("reapresentacoes", "audit/reapresentacoes", ["gold_bcb"], 0, {"fonte": "bcb"})]),
     "cvm": ("CVM (fundos e companhias abertas): bronze -> silver -> gold. Ver docs/pipelines_cvm.md.", "cron_cvm", [
         ("bronze_cvm", "bronze/cvm", [], 2), ("silver_cvm", "silver/cvm", ["bronze_cvm"], 0),
         ("gold_cvm", "gold/cvm", ["silver_cvm"], 0),
-        ("reapresentacoes", "audit/reapresentacoes", ["gold_cvm"], 0)]),
+        ("reapresentacoes", "audit/reapresentacoes", ["gold_cvm"], 0, {"fonte": "cvm"})]),
+    "frescura": ("Verifica a frescura dos dados contra config/sla.yaml (corre no fim do pipeline diário do ADF).",
+                 "cron_frescura", [("frescura", "audit/frescura", [], 0)]),
     "auditoria": ("Auditoria semanal: testes de integração e reconciliação com as fontes. Ver docs/auditoria.md.",
                   "cron_auditoria", [
         ("testes_integracao", "tests/integracao", [], 0), ("reconciliacao", "audit/reconciliacao", [], 1)]),
@@ -67,8 +69,8 @@ def publicar_codigo(w: WorkspaceClient, destino: str) -> int:
 def definicao_job(env: str, destino: str, cfg: dict, email: str, fonte: str) -> dict:
     descricao, chave_cron, tarefas = JOBS[fonte]
     job_cfg = cfg["databricks"]["job"]
-    nb = lambda caminho: jobs.NotebookTask(notebook_path=f"{destino}/notebooks/{caminho}",  # noqa: E731
-                                           source=jobs.Source.WORKSPACE)
+    nb = lambda caminho, base=None: jobs.NotebookTask(notebook_path=f"{destino}/notebooks/{caminho}",  # noqa: E731
+                                                      source=jobs.Source.WORKSPACE, base_parameters=base)
     comum = dict(timeout_seconds=job_cfg["timeout_tarefa_s"])
     if job_cfg["compute"] == "serverless":
         # Tarefas de notebook em serverless: sem cluster nem environment_key (usam o ambiente do notebook).
@@ -82,8 +84,8 @@ def definicao_job(env: str, destino: str, cfg: dict, email: str, fonte: str) -> 
             custom_tags={"ResourceClass": "SingleNode", "projeto": "findata", "ambiente": env},
             azure_attributes=AzureAttributes(availability=AzureAvailability.ON_DEMAND_AZURE)))]
         ambientes, computo = [], {"job_cluster_key": "single_node"}
-    tarefa = lambda chave, caminho, depende=(), retries=0: jobs.Task(  # noqa: E731
-        task_key=chave, notebook_task=nb(caminho), depends_on=[jobs.TaskDependency(task_key=d) for d in depende],
+    tarefa = lambda chave, caminho, depende=(), retries=0, base=None: jobs.Task(  # noqa: E731
+        task_key=chave, notebook_task=nb(caminho, base), depends_on=[jobs.TaskDependency(task_key=d) for d in depende],
         max_retries=retries, min_retry_interval_millis=300_000, **computo, **comum)
     return dict(
         name=NOME_JOB.format(env=env, fonte=fonte),
@@ -97,7 +99,7 @@ def definicao_job(env: str, destino: str, cfg: dict, email: str, fonte: str) -> 
                     jobs.JobParameterDefinition(name="data_fim", default=""),
                     jobs.JobParameterDefinition(name="entidades", default="")],
         job_clusters=clusters, environments=ambientes,
-        tasks=[tarefa(chave, nb_, dep, r) for chave, nb_, dep, r in tarefas],
+        tasks=[tarefa(*t) for t in tarefas],
         schedule=jobs.CronSchedule(quartz_cron_expression=job_cfg[chave_cron], timezone_id=job_cfg["timezone"],
                                    pause_status=jobs.PauseStatus.PAUSED),
         email_notifications=jobs.JobEmailNotifications(on_failure=[email]),

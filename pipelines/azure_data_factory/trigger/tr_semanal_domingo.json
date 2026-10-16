@@ -1,0 +1,19 @@
+{
+  "name": "tr_semanal_domingo",
+  "properties": {
+    "description": "Domingo às 06:00 de Brasília: auditoria (testes de integração e reconciliação).",
+    "type": "ScheduleTrigger",
+    "typeProperties": {
+      "recurrence": {
+        "frequency": "Week",
+        "interval": 1,
+        "startTime": "2026-10-16T00:00:00",
+        "timeZone": "E. South America Standard Time",
+        "schedule": { "weekDays": [ "Sunday" ], "hours": [ 6 ], "minutes": [ 0 ] }
+      }
+    },
+    "pipelines": [
+      { "pipelineReference": { "referenceName": "pl_findata_semanal", "type": "PipelineReference" } }
+    ]
+  }
+}

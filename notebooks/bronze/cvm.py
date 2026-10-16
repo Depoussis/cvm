@@ -161,9 +161,7 @@ for nome, ds in cfg["datasets"].items():
             estados[estado] = estados.get(estado, 0) + 1
             print(f"{nome} {alvo.periodo or ''}: {estado}")
         e.parameters["estados_ficheiros"] = estados  # contagens de linhas em `c`; estados por ficheiro aqui
-        control.concluir(spark, e, c)
-        if ds["periodicidade"] == "mensal" and estados.get("PROCESSED"):
-            control.confirmar_watermark(spark, e, "reference_month", lista[-1].periodo, None)
+        control.concluir(spark, e, c)  # o watermark (última data de competência) é confirmado pela silver
     except Exception as ex:
         control.falhar(spark, e, ex, c)
         erros[nome] = repr(ex)
