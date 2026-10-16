@@ -103,7 +103,42 @@ try:
         contagens.inserted += n
         print(f"gold.fct_fundo_diario: {n} linhas substituídas desde {inicio}")
 
+    # Facto mensal (reconstrução completa: ~800 mil linhas a partir do diário)
+    spark.sql(f"""
+        INSERT OVERWRITE {k}.gold.fct_fundo_mensal
+        WITH m AS (
+          SELECT cnpj_classe, id_subclasse, CAST(date_trunc('MONTH', dt_comptc) AS DATE) AS mes,
+                 max_by(vl_quota, dt_comptc) AS cota_fim_mes, max_by(vl_patrim_liq, dt_comptc) AS pl_fim_mes,
+                 max_by(nr_cotst, dt_comptc) AS cotistas_fim_mes,
+                 CAST(sum(captc_dia) AS DECIMAL(20,2)) AS captacao_mes, CAST(sum(resg_dia) AS DECIMAL(20,2)) AS resgate_mes,
+                 count(*) AS dias_informados
+          FROM {k}.gold.fct_fundo_diario WHERE vl_quota > 0
+          GROUP BY ALL
+        )
+        SELECT cnpj_classe, id_subclasse, mes, cota_fim_mes, pl_fim_mes, cotistas_fim_mes, captacao_mes, resgate_mes,
+               dias_informados,
+               CASE WHEN lag(mes) OVER w = add_months(mes, -1)
+                    THEN CAST(cota_fim_mes AS DOUBLE) / CAST(lag(cota_fim_mes) OVER w AS DOUBLE) - 1 END
+        FROM m
+        WINDOW w AS (PARTITION BY cnpj_classe, id_subclasse ORDER BY mes)
+    """)
+    n = spark.table(f"{k}.gold.fct_fundo_mensal").count()
+    contagens.inserted += n
+    print(f"gold.fct_fundo_mensal: {n} linhas")
+
     regras = [
+        dq.Regra("fct_fundo_mensal_chave_unica", "Uma linha por (CNPJ, subclasse, mês)", "CRITICAL",
+                 f"{k}.gold.fct_fundo_mensal",
+                 f"SELECT cnpj_classe, id_subclasse, mes, count(*) n FROM {k}.gold.fct_fundo_mensal "
+                 f"GROUP BY ALL HAVING n > 1", f"SELECT count(*) FROM {k}.gold.fct_fundo_mensal"),
+        dq.Regra("pl_nao_negativo", "Património líquido de fim de mês não negativo", "INFO",
+                 f"{k}.gold.fct_fundo_mensal",
+                 f"SELECT cnpj_classe, mes, pl_fim_mes FROM {k}.gold.fct_fundo_mensal WHERE pl_fim_mes < 0",
+                 f"SELECT count(*) FROM {k}.gold.fct_fundo_mensal"),
+        dq.Regra("rentab_mensal_extrema", "Rentabilidade mensal acima de ±50 % (provável erro de cota)", "INFO",
+                 f"{k}.gold.fct_fundo_mensal",
+                 f"SELECT cnpj_classe, id_subclasse, mes, rentab_mes FROM {k}.gold.fct_fundo_mensal "
+                 f"WHERE abs(rentab_mes) >= 0.5", f"SELECT count(*) FROM {k}.gold.fct_fundo_mensal WHERE rentab_mes IS NOT NULL"),
         dq.Regra("fct_fundo_diario_chave_unica", "Uma linha por (CNPJ, subclasse, dia)", "CRITICAL",
                  f"{k}.gold.fct_fundo_diario",
                  f"SELECT cnpj_classe, id_subclasse, data_key, count(*) n FROM {k}.gold.fct_fundo_diario "

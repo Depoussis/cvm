@@ -1,0 +1,1621 @@
+{
+ "datasets": [
+  {
+   "name": "kpi_mercado",
+   "displayName": "kpi_mercado",
+   "queryLines": [
+    "SELECT max(CASE WHEN serie_codigo = 432 THEN valor END) AS meta_selic, max(CASE WHEN serie_codigo = 24363 THEN valor END) AS ibc_br, (SELECT cotacao_venda FROM findata_dev.gold.fct_ptax_diario WHERE simbolo = 'USD' ORDER BY data_cotacao DESC LIMIT 1) AS ptax_usd, (SELECT cotacao_venda FROM findata_dev.gold.fct_ptax_diario WHERE simbolo = 'EUR' ORDER BY data_cotacao DESC LIMIT 1) AS ptax_eur FROM findata_dev.gold.vw_serie_ultimo_valor"
+   ]
+  },
+  {
+   "name": "selic",
+   "displayName": "selic",
+   "queryLines": [
+    "SELECT CAST(trunc(data_referencia, 'MM') AS DATE) AS data, CAST(max_by(valor, data_referencia) AS DOUBLE) AS valor, CASE serie_codigo WHEN 432 THEN 'Meta Selic (Copom)' ELSE 'Selic efetiva anualizada' END AS serie FROM findata_dev.gold.fct_serie_valor WHERE serie_codigo IN (432, 1178) AND data_referencia <= current_date() GROUP BY 1, 3"
+   ]
+  },
+  {
+   "name": "ptax",
+   "displayName": "ptax",
+   "queryLines": [
+    "SELECT data_cotacao AS data, simbolo, CAST(cotacao_venda AS DOUBLE) AS cotacao_venda FROM findata_dev.gold.fct_ptax_diario WHERE simbolo IN ('USD', 'EUR', 'GBP')"
+   ]
+  },
+  {
+   "name": "cambio_mensal",
+   "displayName": "cambio_mensal",
+   "queryLines": [
+    "SELECT mes, simbolo, variacao_pct FROM findata_dev.gold.vw_cambio_mensal WHERE mes >= add_months(trunc(current_date(), 'MM'), -12) AND simbolo IN ('USD', 'EUR', 'GBP', 'JPY', 'CHF')"
+   ]
+  },
+  {
+   "name": "ibc",
+   "displayName": "ibc",
+   "queryLines": [
+    "SELECT data_referencia AS mes, CAST(valor AS DOUBLE) AS ibc_br FROM findata_dev.gold.fct_serie_valor WHERE serie_codigo = 24363 AND data_referencia >= DATE'2015-01-01'"
+   ]
+  },
+  {
+   "name": "kpi_fundos",
+   "displayName": "kpi_fundos",
+   "queryLines": [
+    "SELECT fundos, pl_total_bi, cotistas, captacao_liquida_bi, mes FROM findata_dev.gold.vw_industria_fundos_mensal WHERE mes = (SELECT max(mes) FROM findata_dev.gold.vw_industria_fundos_mensal WHERE mes < trunc(current_date(), 'MM'))"
+   ]
+  },
+  {
+   "name": "industria",
+   "displayName": "industria",
+   "queryLines": [
+    "SELECT mes, pl_total_bi, captacao_liquida_bi FROM findata_dev.gold.vw_industria_fundos_mensal WHERE mes < trunc(current_date(), 'MM')"
+   ]
+  },
+  {
+   "name": "vs_selic",
+   "displayName": "vs_selic",
+   "queryLines": [
+    "SELECT mes, classificacao, pct_acima_selic, rentab_mediana_pct, selic_mes_pct, fundos FROM findata_dev.gold.vw_fundos_vs_selic WHERE classificacao IN ('Renda Fixa', 'Multimercado', 'Ações', 'Cambial') AND mes < trunc(current_date(), 'MM')"
+   ]
+  },
+  {
+   "name": "top_pl",
+   "displayName": "top_pl",
+   "queryLines": [
+    "SELECT posicao, denominacao_social AS fundo, classificacao, administrador, round(vl_patrim_liq / 1e9, 2) AS pl_bi, nr_cotst AS cotistas, dt_comptc AS data FROM findata_dev.gold.vw_fundos_maiores_pl WHERE posicao <= 20"
+   ]
+  },
+  {
+   "name": "execucoes",
+   "displayName": "execucoes",
+   "queryLines": [
+    "SELECT dia, pipeline_name AS pipeline, execution_status AS estado, execucoes, lidos, escritos, rejeitados, duracao_media_s FROM findata_dev.gold.vw_execucoes_resumo WHERE dia >= date_sub(current_date(), 14)"
+   ]
+  },
+  {
+   "name": "qualidade",
+   "displayName": "qualidade",
+   "queryLines": [
+    "SELECT ultima, table_name AS tabela, rule_name AS regra, severity AS severidade, registos_falhados FROM findata_dev.gold.vw_qualidade_resumo WHERE result = 'FAILED' AND dia >= date_sub(current_date(), 14)"
+   ]
+  },
+  {
+   "name": "reconciliacao",
+   "displayName": "reconciliacao",
+   "queryLines": [
+    "SELECT source_system AS fonte, resultado, count(*) AS entidades, sum(registos_fonte) AS registos_fonte, sum(valores_diferentes + so_na_fonte + so_na_plataforma) AS divergencias, max(executed_at) AS quando FROM findata_dev.control.reconciliation_results WHERE executed_at = (SELECT max(executed_at) FROM findata_dev.control.reconciliation_results r2 WHERE r2.source_system = reconciliation_results.source_system AND r2.entity_name = reconciliation_results.entity_name) GROUP BY ALL"
+   ]
+  },
+  {
+   "name": "frescura",
+   "displayName": "frescura",
+   "queryLines": [
+    "SELECT source_system AS fonte, entity_name AS entidade, watermark_value AS ultima_data, datediff(current_date(), to_date(watermark_value)) AS dias, last_full_reconciliation AS reconciliado FROM findata_dev.control.ingestion_watermark WHERE watermark_type = 'reference_date'"
+   ]
+  }
+ ],
+ "pages": [
+  {
+   "name": "mercado",
+   "displayName": "Mercado (BCB)",
+   "layout": [
+    {
+     "widget": {
+      "name": "t_mercado",
+      "multilineTextboxSpec": {
+       "lines": [
+        "## Juros e câmbio\n\n",
+        "Fonte: Banco Central do Brasil (SGS e PTAX). Atualizado pelo ADF nos dias úteis.\n\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 6,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "k_selic",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "kpi_mercado",
+         "fields": [
+          {
+           "name": "meta_selic",
+           "expression": "`meta_selic`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "meta_selic",
+         "displayName": "Meta Selic (% a.a.)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Meta Selic (% a.a.)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_usd",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "kpi_mercado",
+         "fields": [
+          {
+           "name": "ptax_usd",
+           "expression": "`ptax_usd`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "ptax_usd",
+         "displayName": "PTAX USD (venda)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "PTAX USD (venda)"
+       }
+      }
+     },
+     "position": {
+      "x": 2,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_eur",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "kpi_mercado",
+         "fields": [
+          {
+           "name": "ptax_eur",
+           "expression": "`ptax_eur`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "ptax_eur",
+         "displayName": "PTAX EUR (venda)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "PTAX EUR (venda)"
+       }
+      }
+     },
+     "position": {
+      "x": 4,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "l_selic",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "selic",
+         "fields": [
+          {
+           "name": "data",
+           "expression": "`data`"
+          },
+          {
+           "name": "valor",
+           "expression": "`valor`"
+          },
+          {
+           "name": "serie",
+           "expression": "`serie`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "data",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Data"
+        },
+        "y": {
+         "fieldName": "valor",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "% a.a."
+        },
+        "color": {
+         "fieldName": "serie",
+         "scale": {
+          "type": "categorical"
+         },
+         "displayName": "Série"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Selic desde 2000, fim de mês (% a.a.)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 5,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "l_ptax",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ptax",
+         "fields": [
+          {
+           "name": "data",
+           "expression": "`data`"
+          },
+          {
+           "name": "cotacao_venda",
+           "expression": "`cotacao_venda`"
+          },
+          {
+           "name": "simbolo",
+           "expression": "`simbolo`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "data",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Data"
+        },
+        "y": {
+         "fieldName": "cotacao_venda",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "R$"
+        },
+        "color": {
+         "fieldName": "simbolo",
+         "scale": {
+          "type": "categorical"
+         },
+         "displayName": "Moeda"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "PTAX de venda (R$)"
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 5,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "l_cambio",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "cambio_mensal",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "variacao_pct",
+           "expression": "`variacao_pct`"
+          },
+          {
+           "name": "simbolo",
+           "expression": "`simbolo`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "variacao_pct",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "Variação (%)"
+        },
+        "color": {
+         "fieldName": "simbolo",
+         "scale": {
+          "type": "categorical"
+         },
+         "displayName": "Moeda"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Variação mensal da PTAX de fim de mês (%), 12 meses"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 12,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "l_ibc",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ibc",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "ibc_br",
+           "expression": "`ibc_br`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "ibc_br",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "Índice"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "IBC-Br (índice)"
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 12,
+      "width": 3,
+      "height": 7
+     }
+    }
+   ]
+  },
+  {
+   "name": "fundos",
+   "displayName": "Fundos (CVM)",
+   "layout": [
+    {
+     "widget": {
+      "name": "t_fundos",
+      "multilineTextboxSpec": {
+       "lines": [
+        "## Fundos de investimento\n\n",
+        "Fonte: CVM, informe diário (classes, sem subclasses). Rentabilidade = variação da cota de fim de mês; % acima da Selic compara com a Selic acumulada no mês (SGS 4390). Só fundos com PL ≥ R$ 10 mi. **PL e captação somados incluem fundos de cotas (FIC), que aplicam noutros fundos: há dupla contagem, por isso não são o PL da indústria.**\n\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 6,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "k_pl",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "kpi_fundos",
+         "fields": [
+          {
+           "name": "pl_total_bi",
+           "expression": "`pl_total_bi`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "pl_total_bi",
+         "displayName": "PL somado (R$ bi, com dupla contagem FIC)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "PL somado (R$ bi, com dupla contagem FIC)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_fundos",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "kpi_fundos",
+         "fields": [
+          {
+           "name": "fundos",
+           "expression": "`fundos`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "fundos",
+         "displayName": "Fundos/classes com informe"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Fundos/classes com informe"
+       }
+      }
+     },
+     "position": {
+      "x": 2,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_capt",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "kpi_fundos",
+         "fields": [
+          {
+           "name": "captacao_liquida_bi",
+           "expression": "`captacao_liquida_bi`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "captacao_liquida_bi",
+         "displayName": "Captação líquida somada no mês (R$ bi)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Captação líquida somada no mês (R$ bi)"
+       }
+      }
+     },
+     "position": {
+      "x": 4,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "l_pl",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "industria",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "pl_total_bi",
+           "expression": "`pl_total_bi`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "pl_total_bi",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "R$ bi"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "PL somado dos fundos/classes (R$ bi, com dupla contagem FIC)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 5,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "b_capt",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "industria",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "captacao_liquida_bi",
+           "expression": "`captacao_liquida_bi`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "captacao_liquida_bi",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "R$ bi"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Captação líquida somada por mês (R$ bi)"
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 5,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "l_vs_selic",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "vs_selic",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "pct_acima_selic",
+           "expression": "`pct_acima_selic`"
+          },
+          {
+           "name": "classificacao",
+           "expression": "`classificacao`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "pct_acima_selic",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "% dos fundos"
+        },
+        "color": {
+         "fieldName": "classificacao",
+         "scale": {
+          "type": "categorical"
+         },
+         "displayName": "Classificação"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "% de fundos acima da Selic no mês"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 12,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "l_mediana",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "vs_selic",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "rentab_mediana_pct",
+           "expression": "`rentab_mediana_pct`"
+          },
+          {
+           "name": "classificacao",
+           "expression": "`classificacao`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "rentab_mediana_pct",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "% no mês"
+        },
+        "color": {
+         "fieldName": "classificacao",
+         "scale": {
+          "type": "categorical"
+         },
+         "displayName": "Classificação"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Rentabilidade mediana no mês (%)"
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 12,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_top",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "top_pl",
+         "fields": [
+          {
+           "name": "posicao",
+           "expression": "`posicao`"
+          },
+          {
+           "name": "fundo",
+           "expression": "`fundo`"
+          },
+          {
+           "name": "classificacao",
+           "expression": "`classificacao`"
+          },
+          {
+           "name": "administrador",
+           "expression": "`administrador`"
+          },
+          {
+           "name": "pl_bi",
+           "expression": "`pl_bi`"
+          },
+          {
+           "name": "cotistas",
+           "expression": "`cotistas`"
+          },
+          {
+           "name": "data",
+           "expression": "`data`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 1,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "posicao",
+          "displayName": "posicao",
+          "visible": true,
+          "order": 0,
+          "type": "string",
+          "displayAs": "string",
+          "title": "posicao",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "fundo",
+          "displayName": "fundo",
+          "visible": true,
+          "order": 1,
+          "type": "string",
+          "displayAs": "string",
+          "title": "fundo",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "classificacao",
+          "displayName": "classificacao",
+          "visible": true,
+          "order": 2,
+          "type": "string",
+          "displayAs": "string",
+          "title": "classificacao",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "administrador",
+          "displayName": "administrador",
+          "visible": true,
+          "order": 3,
+          "type": "string",
+          "displayAs": "string",
+          "title": "administrador",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "pl_bi",
+          "displayName": "pl_bi",
+          "visible": true,
+          "order": 4,
+          "type": "string",
+          "displayAs": "string",
+          "title": "pl_bi",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "cotistas",
+          "displayName": "cotistas",
+          "visible": true,
+          "order": 5,
+          "type": "string",
+          "displayAs": "string",
+          "title": "cotistas",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "data",
+          "displayName": "data",
+          "visible": true,
+          "order": 6,
+          "type": "string",
+          "displayAs": "string",
+          "title": "data",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "20 maiores fundos por património líquido"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 19,
+      "width": 6,
+      "height": 9
+     }
+    }
+   ]
+  },
+  {
+   "name": "operacao",
+   "displayName": "Operação e qualidade",
+   "layout": [
+    {
+     "widget": {
+      "name": "t_op",
+      "multilineTextboxSpec": {
+       "lines": [
+        "## Operação e qualidade\n\n",
+        "Execuções, regras de qualidade que falharam (14 dias), última reconciliação com as fontes e frescura dos dados.\n\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 6,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_rec",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "reconciliacao",
+         "fields": [
+          {
+           "name": "fonte",
+           "expression": "`fonte`"
+          },
+          {
+           "name": "resultado",
+           "expression": "`resultado`"
+          },
+          {
+           "name": "entidades",
+           "expression": "`entidades`"
+          },
+          {
+           "name": "registos_fonte",
+           "expression": "`registos_fonte`"
+          },
+          {
+           "name": "divergencias",
+           "expression": "`divergencias`"
+          },
+          {
+           "name": "quando",
+           "expression": "`quando`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 1,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "fonte",
+          "displayName": "fonte",
+          "visible": true,
+          "order": 0,
+          "type": "string",
+          "displayAs": "string",
+          "title": "fonte",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "resultado",
+          "displayName": "resultado",
+          "visible": true,
+          "order": 1,
+          "type": "string",
+          "displayAs": "string",
+          "title": "resultado",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "entidades",
+          "displayName": "entidades",
+          "visible": true,
+          "order": 2,
+          "type": "string",
+          "displayAs": "string",
+          "title": "entidades",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "registos_fonte",
+          "displayName": "registos_fonte",
+          "visible": true,
+          "order": 3,
+          "type": "string",
+          "displayAs": "string",
+          "title": "registos_fonte",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "divergencias",
+          "displayName": "divergencias",
+          "visible": true,
+          "order": 4,
+          "type": "string",
+          "displayAs": "string",
+          "title": "divergencias",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "quando",
+          "displayName": "quando",
+          "visible": true,
+          "order": 5,
+          "type": "string",
+          "displayAs": "string",
+          "title": "quando",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Reconciliação com a fonte (última por entidade)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 2,
+      "width": 3,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_fresc",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "frescura",
+         "fields": [
+          {
+           "name": "fonte",
+           "expression": "`fonte`"
+          },
+          {
+           "name": "entidade",
+           "expression": "`entidade`"
+          },
+          {
+           "name": "ultima_data",
+           "expression": "`ultima_data`"
+          },
+          {
+           "name": "dias",
+           "expression": "`dias`"
+          },
+          {
+           "name": "reconciliado",
+           "expression": "`reconciliado`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 1,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "fonte",
+          "displayName": "fonte",
+          "visible": true,
+          "order": 0,
+          "type": "string",
+          "displayAs": "string",
+          "title": "fonte",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "entidade",
+          "displayName": "entidade",
+          "visible": true,
+          "order": 1,
+          "type": "string",
+          "displayAs": "string",
+          "title": "entidade",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "ultima_data",
+          "displayName": "ultima_data",
+          "visible": true,
+          "order": 2,
+          "type": "string",
+          "displayAs": "string",
+          "title": "ultima_data",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "dias",
+          "displayName": "dias",
+          "visible": true,
+          "order": 3,
+          "type": "string",
+          "displayAs": "string",
+          "title": "dias",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "reconciliado",
+          "displayName": "reconciliado",
+          "visible": true,
+          "order": 4,
+          "type": "string",
+          "displayAs": "string",
+          "title": "reconciliado",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Frescura (watermarks)"
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 2,
+      "width": 3,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_exec",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "execucoes",
+         "fields": [
+          {
+           "name": "dia",
+           "expression": "`dia`"
+          },
+          {
+           "name": "pipeline",
+           "expression": "`pipeline`"
+          },
+          {
+           "name": "estado",
+           "expression": "`estado`"
+          },
+          {
+           "name": "execucoes",
+           "expression": "`execucoes`"
+          },
+          {
+           "name": "lidos",
+           "expression": "`lidos`"
+          },
+          {
+           "name": "escritos",
+           "expression": "`escritos`"
+          },
+          {
+           "name": "rejeitados",
+           "expression": "`rejeitados`"
+          },
+          {
+           "name": "duracao_media_s",
+           "expression": "`duracao_media_s`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 1,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "dia",
+          "displayName": "dia",
+          "visible": true,
+          "order": 0,
+          "type": "string",
+          "displayAs": "string",
+          "title": "dia",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "pipeline",
+          "displayName": "pipeline",
+          "visible": true,
+          "order": 1,
+          "type": "string",
+          "displayAs": "string",
+          "title": "pipeline",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "estado",
+          "displayName": "estado",
+          "visible": true,
+          "order": 2,
+          "type": "string",
+          "displayAs": "string",
+          "title": "estado",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "execucoes",
+          "displayName": "execucoes",
+          "visible": true,
+          "order": 3,
+          "type": "string",
+          "displayAs": "string",
+          "title": "execucoes",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "lidos",
+          "displayName": "lidos",
+          "visible": true,
+          "order": 4,
+          "type": "string",
+          "displayAs": "string",
+          "title": "lidos",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "escritos",
+          "displayName": "escritos",
+          "visible": true,
+          "order": 5,
+          "type": "string",
+          "displayAs": "string",
+          "title": "escritos",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "rejeitados",
+          "displayName": "rejeitados",
+          "visible": true,
+          "order": 6,
+          "type": "string",
+          "displayAs": "string",
+          "title": "rejeitados",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "duracao_media_s",
+          "displayName": "duracao_media_s",
+          "visible": true,
+          "order": 7,
+          "type": "string",
+          "displayAs": "string",
+          "title": "duracao_media_s",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Execuções (14 dias)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 8,
+      "width": 6,
+      "height": 8
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_dq",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "qualidade",
+         "fields": [
+          {
+           "name": "ultima",
+           "expression": "`ultima`"
+          },
+          {
+           "name": "tabela",
+           "expression": "`tabela`"
+          },
+          {
+           "name": "regra",
+           "expression": "`regra`"
+          },
+          {
+           "name": "severidade",
+           "expression": "`severidade`"
+          },
+          {
+           "name": "registos_falhados",
+           "expression": "`registos_falhados`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 1,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "ultima",
+          "displayName": "ultima",
+          "visible": true,
+          "order": 0,
+          "type": "string",
+          "displayAs": "string",
+          "title": "ultima",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "tabela",
+          "displayName": "tabela",
+          "visible": true,
+          "order": 1,
+          "type": "string",
+          "displayAs": "string",
+          "title": "tabela",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "regra",
+          "displayName": "regra",
+          "visible": true,
+          "order": 2,
+          "type": "string",
+          "displayAs": "string",
+          "title": "regra",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "severidade",
+          "displayName": "severidade",
+          "visible": true,
+          "order": 3,
+          "type": "string",
+          "displayAs": "string",
+          "title": "severidade",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         },
+         {
+          "fieldName": "registos_falhados",
+          "displayName": "registos_falhados",
+          "visible": true,
+          "order": 4,
+          "type": "string",
+          "displayAs": "string",
+          "title": "registos_falhados",
+          "booleanValues": [
+           "false",
+           "true"
+          ],
+          "alignContent": "left"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Regras de qualidade com falhas (INFO só regista; CRITICAL/HIGH bloqueiam a gold)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 16,
+      "width": 6,
+      "height": 8
+     }
+    }
+   ]
+  }
+ ]
+}

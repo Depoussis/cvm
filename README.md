@@ -16,7 +16,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 | 3. CVM | Catálogo, ficheiros históricos, ZIP, fundos e companhias abertas | concluída (16/10/2026), ver [docs/pipelines_cvm.md](docs/pipelines_cvm.md) |
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | concluída (16/10/2026), ver [docs/auditoria.md](docs/auditoria.md) |
 | 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | concluída (16/10/2026), ver [docs/orquestracao.md](docs/orquestracao.md) |
-| 6. Qualidade e analytics | Testes de dados, modelo dimensional, indicadores, Power BI | — |
+| 6. Qualidade e analytics | Testes de dados, modelo dimensional, indicadores, Power BI | concluída (16/10/2026), ver [docs/analytics.md](docs/analytics.md) |
 | 7. Produção | CI/CD, segurança, documentação, monitorização, custos, DR | — |
 
 ## Estrutura
@@ -48,6 +48,7 @@ python scripts/setup_unity_catalog.py --env dev
 python scripts/apply_sql.py --env dev --dir sql/control --dir sql/schemas --dir sql/dimensions --dir sql/facts --dir sql/views
 python scripts/deploy_workspace.py --env dev --run backfill
 python scripts/deploy_adf.py --env dev          # ADF: linked service, pipelines, gatilhos (parados)
+python scripts/deploy_dashboard.py --env dev    # painel AI/BI no Databricks
 python -m pytest -q
 ```
 
