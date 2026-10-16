@@ -40,6 +40,13 @@ def carregar_ambiente(env: str) -> dict[str, Any]:
     return _sobrepor_com_ambiente(cfg)
 
 
+@lru_cache(maxsize=None)
+def carregar_yaml(relativo: str) -> dict[str, Any]:
+    """Lê um ficheiro de config/ (ex.: 'sources/bcb.yaml', 'series/bcb_sgs.yaml')."""
+    with (PASTA_CONFIG / relativo).open(encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
 def nome_tabela(cfg: dict[str, Any], schema: str, tabela: str) -> str:
     """Nome totalmente qualificado no Unity Catalog, ex.: findata_dev.control.pipeline_execution."""
     return f"{cfg['unity_catalog']['catalog']}.{schema}.{tabela}"

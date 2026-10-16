@@ -1,0 +1,82 @@
+# Séries do SGS (Banco Central do Brasil) carregadas pela plataforma.
+#
+# Só entram séries confirmadas numa fonte oficial. Cada código foi verificado em 16/10/2026:
+#   - título e departamento responsável no portal de dados abertos do BCB (dadosabertos.bcb.gov.br,
+#     identificador do conjunto em `dataset_bcb`);
+#   - resposta real da API https://api.bcb.gov.br/dados/serie/bcdata.sgs.<código>/dados (periodicidade
+#     observada nas datas devolvidas).
+# A unidade de medida não é devolvida pela API e não está no título de todas as séries, por isso não é guardada.
+# Para acrescentar uma série: confirmar no portal, adicionar aqui e correr o backfill dessa série.
+#
+# Campos:
+#   codigo           código SGS
+#   nome             título oficial no portal de dados abertos
+#   responsavel      departamento do BCB indicado no portal
+#   periodicidade    diaria | mensal (observada na API)
+#   inicio_backfill  primeira data pedida no backfill (as séries podem começar antes)
+#   permite_futuro   true quando a série publica datas futuras (a meta Selic vale até à próxima reunião do Copom)
+#   revisao_dias     janela recarregada em cada incremental, para apanhar revisões da fonte
+
+series:
+  - codigo: 432
+    nome: "Taxa de juros - Meta Selic definida pelo Copom"
+    responsavel: BCB/Demab
+    dataset_bcb: 432-taxa-de-juros---meta-selic-definida-pelo-copom
+    periodicidade: diaria
+    inicio_backfill: 2000-01-01
+    permite_futuro: true
+    revisao_dias: 60
+
+  - codigo: 11
+    nome: "Taxa de juros - Selic"
+    responsavel: BCB/Demab
+    dataset_bcb: 11-taxa-de-juros---selic
+    periodicidade: diaria
+    inicio_backfill: 2000-01-01
+    permite_futuro: false
+    revisao_dias: 30
+
+  - codigo: 1178
+    nome: "Taxa de juros - Selic anualizada base 252"
+    responsavel: BCB/Demab
+    dataset_bcb: 1178-taxa-de-juros---selic-anualizada-base-252
+    periodicidade: diaria
+    inicio_backfill: 2000-01-01
+    permite_futuro: false
+    revisao_dias: 30
+
+  - codigo: 4390
+    nome: "Taxa de juros - Selic acumulada no mês"
+    responsavel: BCB/Demab
+    dataset_bcb: 4390-taxa-de-juros---selic-acumulada-no-mes
+    periodicidade: mensal
+    inicio_backfill: 2000-01-01
+    permite_futuro: false
+    revisao_dias: 120
+
+  - codigo: 1
+    nome: "Taxa de câmbio - Livre - Dólar americano (venda) - diário"
+    responsavel: BCB/Depec
+    dataset_bcb: 1-taxa-de-cambio---livre---dolar-americano-venda---diario
+    periodicidade: diaria
+    inicio_backfill: 2000-01-01
+    permite_futuro: false
+    revisao_dias: 30
+
+  - codigo: 10813
+    nome: "Taxa de câmbio - Livre - Dólar americano (compra)"
+    responsavel: BCB/Depec
+    dataset_bcb: 10813-taxa-de-cambio---livre---dolar-americano-compra
+    periodicidade: diaria
+    inicio_backfill: 2000-01-01
+    permite_futuro: false
+    revisao_dias: 30
+
+  - codigo: 24363
+    nome: "Índice de Atividade Econômica do Banco Central - IBC-Br"
+    responsavel: BCB/Depec
+    dataset_bcb: 24363-indice-de-atividade-economica-do-banco-central---ibc-br
+    periodicidade: mensal
+    inicio_backfill: 2000-01-01
+    permite_futuro: false
+    revisao_dias: 400   # o IBC-Br é revisto com frequência; recarrega cerca de 13 meses

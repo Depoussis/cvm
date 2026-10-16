@@ -14,6 +14,16 @@ azure:
 databricks:
   host: https://adb-7405612954969039.19.azuredatabricks.net
   sql_warehouse_name: Serverless Starter Warehouse
+  job:
+    # serverless: não usa a quota de vCPUs da subscrição e só cobra enquanto corre.
+    # classic: cluster de jobs single-node (exige um tipo de VM habilitado na subscrição; no Free Trial o
+    #          Databricks reporta os tipos DSv2/Dv5 como NotEnabledOnSubscription).
+    compute: serverless
+    spark_version: 16.4.x-scala2.12
+    node_type: Standard_DS3_v2
+    timeout_tarefa_s: 3600
+    cron: "0 0 20 ? * MON-FRI"    # 20:00 de Brasília, depois da PTAX de fechamento e das séries diárias
+    timezone: America/Sao_Paulo
 
 unity_catalog:
   catalog: findata_dev

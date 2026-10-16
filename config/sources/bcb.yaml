@@ -1,0 +1,28 @@
+# Fontes do Banco Central do Brasil. Endpoints e campos confirmados com pedidos reais em 16/10/2026.
+
+http:
+  timeout_s: 60
+  tentativas: 5            # retries com backoff exponencial em 429, 5xx e erros de rede
+  backoff_base_s: 2
+  pausa_entre_pedidos_s: 1 # o BCB tem firewall (WAF) que devolve 403 a rajadas de pedidos
+  user_agent: "findata-study-platform/0.1 (projeto de estudo; dados públicos)"
+
+bcb_sgs:
+  # GET .../bcdata.sgs.{codigo}/dados?formato=json&dataInicial=dd/MM/aaaa&dataFinal=dd/MM/aaaa
+  # Resposta: [{"data": "dd/MM/aaaa", "valor": "texto decimal com ponto"}]
+  url: "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados"
+  # A API recusa janelas acima de 10 anos em séries diárias ("O sistema aceita uma janela de consulta de,
+  # no máximo, 10 anos em séries de periodicidade diária"). Usamos 5 anos por pedido, para todas as séries.
+  janela_max_anos: 5
+
+bcb_ptax:
+  # OData Olinda. Datas no formato MM-dd-aaaa entre aspas simples.
+  # Resposta (value[]): paridadeCompra, paridadeVenda, cotacaoCompra, cotacaoVenda,
+  #                     dataHoraCotacao ("aaaa-MM-dd HH:mm:ss.ffffff"), tipoBoletim
+  url_moedas: "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/Moedas"
+  url_cotacoes: "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaPeriodo(moeda=@moeda,dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)"
+  janela_max_dias: 366
+  inicio_backfill: 2015-01-01
+  revisao_dias: 10
+  # Moedas pedidas. A lista oficial vem do endpoint Moedas em cada execução; códigos que lá não existam falham.
+  moedas: [USD, EUR, GBP, JPY, CHF, CAD, AUD, DKK, NOK, SEK]

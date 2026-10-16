@@ -32,6 +32,12 @@ em vez de cobrados. Há um orçamento `limite-credito-175` com alertas em 25/50/
 
 **Previsão para dev:** 10–15 €/mês com uso normal, mais o backfill único.
 
+## Jobs serverless (Fase 2)
+O job `findata_dev_bcb` corre em **serverless** (Automated Serverless Compute, 0,4136 €/DBU-hora): no Free Trial o
+Databricks reporta os tipos de VM clássicos como `NotEnabledOnSubscription`, e o serverless não usa a quota de vCPUs.
+Só há custo enquanto o job corre; não existe cluster parado. O consumo real fica em `system.billing.usage`
+(quando as system tables estão ativas) e na fatura Azure do workspace.
+
 ## Recursos que custam mesmo parados
 
 | Recurso | Custo ocioso | Mitigação |

@@ -1,6 +1,6 @@
 """Aplica os ficheiros .sql de uma pasta no SQL Warehouse do ambiente (Statement Execution API).
 
-Uso:  python scripts/apply_sql.py --env dev --dir sql/control
+Uso:  python scripts/apply_sql.py --env dev --dir sql/control [--dir sql/schemas ...]
 O warehouse liga sozinho e desliga após o auto-stop configurado (1 min em dev).
 """
 from __future__ import annotations
@@ -25,14 +25,14 @@ log = logging.getLogger("apply_sql")
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--env", default="dev")
-    ap.add_argument("--dir", required=True, help="pasta com ficheiros .sql")
+    ap.add_argument("--dir", required=True, action="append", help="pasta com ficheiros .sql (repetível, aplicadas por ordem)")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
     cfg = carregar_ambiente(args.env)
     w = WorkspaceClient(host=cfg["databricks"]["host"], auth_type="azure-cli")
     wh = next(x for x in w.warehouses.list() if x.name == cfg["databricks"]["sql_warehouse_name"])
-    instrucoes = carregar_ficheiros(RAIZ / args.dir, {"catalog": cfg["unity_catalog"]["catalog"]})
+    instrucoes = [i for d in args.dir for i in carregar_ficheiros(RAIZ / d, {"catalog": cfg["unity_catalog"]["catalog"]})]
 
     for ficheiro, sql in instrucoes:
         r = w.statement_execution.execute_statement(statement=sql, warehouse_id=wh.id, wait_timeout="50s")
