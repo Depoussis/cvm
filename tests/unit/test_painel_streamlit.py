@@ -95,3 +95,28 @@ def test_valorizacao_mais_proventos_igual_ao_ganho_total():
     for reinv in (False, True):
         r = simulador.simular(precos, prov, 1000, pd.Timestamp("2023-05-02"), reinvestir=reinv)
         assert r.valorizacao + r.proventos_recebidos == pytest.approx(r.total_hoje - r.investido)
+
+
+def test_imposto_na_venda_por_classe_isencao_e_prejuizo():
+    acao = simulador.imposto_venda("Ação", 25_181.04, 9_982.86)
+    assert acao.aliquota == 0.15 and acao.imposto == pytest.approx((25_181.04 - 9_982.86) * 0.15)
+    assert simulador.imposto_venda("Ação", 19_000, 10_000).imposto == 0          # isenção de R$ 20 mil/mês
+    assert simulador.imposto_venda("Ação", 19_000, 10_000, considerar_isencao=False).imposto == pytest.approx(1_350)
+    fii = simulador.imposto_venda("FII", 11_035.50, 9_959.25)
+    assert fii.aliquota == 0.20 and fii.imposto == pytest.approx(1_076.25 * 0.20)  # FII: 20 %, sem isenção
+    assert simulador.imposto_venda("FII", 5_000, 4_000).imposto == pytest.approx(200)
+    assert simulador.imposto_venda("ETF e fundos", 5_000, 6_000).imposto == 0      # prejuízo
+
+
+def test_reinvestimento_entra_no_custo_de_aquisicao():
+    precos = _precos([10.0, 10.0, 20.0, 20.0])
+    prov = pd.DataFrame({"data_com": pd.to_datetime(["2023-05-03"]), "tipo": ["DIVIDENDO"], "valor_por_acao": [5.0]})
+    r = simulador.simular(precos, prov, 1000, pd.Timestamp("2023-05-02"), reinvestir=True)
+    assert r.reinvestido == 500 and r.custo_aquisicao == 1500
+    assert simulador.simular(precos, prov, 1000, pd.Timestamp("2023-05-02")).custo_aquisicao == 1000
+
+
+def test_selic_liquida_pela_tabela_regressiva():
+    assert simulador.aliquota_renda_fixa(100) == 0.225 and simulador.aliquota_renda_fixa(361) == 0.175
+    assert simulador.aliquota_renda_fixa(1200) == 0.15
+    assert simulador.selic_liquida(0.511, 1262) == pytest.approx(0.511 * 0.85)

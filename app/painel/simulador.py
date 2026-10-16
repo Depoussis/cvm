@@ -20,6 +20,42 @@ import numpy as np
 import pandas as pd
 
 IR_JCP = 0.15
+# IR sobre o ganho de capital na venda (pessoa física, mercado à vista, operações comuns), em 2026:
+ALIQUOTA_VENDA = {"Ação": 0.15, "FII": 0.20, "ETF e fundos": 0.15}
+ISENCAO_ACOES_MES = 20_000.0   # vendas de ações até R$ 20 mil no mês são isentas (não vale para FII nem ETF)
+
+
+@dataclass(frozen=True)
+class ImpostoVenda:
+    valor_venda: float
+    custo: float
+    lucro: float
+    aliquota: float
+    imposto: float
+    motivo: str
+
+
+def aliquota_renda_fixa(dias: int) -> float:
+    """Tabela regressiva do IR em renda fixa (ex.: Tesouro Selic), pelo prazo da aplicação."""
+    return 0.225 if dias <= 180 else 0.20 if dias <= 360 else 0.175 if dias <= 720 else 0.15
+
+
+def selic_liquida(retorno_bruto: float, dias: int) -> float:
+    """Retorno de uma aplicação na Selic depois do IR da tabela regressiva (sem IOF nem custódia)."""
+    return retorno_bruto * (1 - aliquota_renda_fixa(dias)) if retorno_bruto > 0 else retorno_bruto
+
+
+def imposto_venda(classe: str, valor_venda: float, custo: float, considerar_isencao: bool = True) -> ImpostoVenda:
+    """IR devido se a posição fosse toda vendida hoje (DARF do mês seguinte; sem compensar prejuízos anteriores)."""
+    lucro = valor_venda - custo
+    aliquota = ALIQUOTA_VENDA.get(classe, 0.15)
+    if lucro <= 0:
+        return ImpostoVenda(valor_venda, custo, lucro, aliquota, 0.0, "prejuízo: sem imposto (pode compensar lucros futuros)")
+    if classe == "Ação" and considerar_isencao and valor_venda <= ISENCAO_ACOES_MES:
+        return ImpostoVenda(valor_venda, custo, lucro, aliquota, 0.0,
+                            "isento: venda de ações até R$ 20 mil no mês")
+    return ImpostoVenda(valor_venda, custo, lucro, aliquota, lucro * aliquota,
+                        f"{aliquota * 100:.0f} % sobre o lucro" + (" (FII não têm isenção)" if classe == "FII" else ""))
 
 
 @dataclass
@@ -39,6 +75,12 @@ class Resultado:
     eventos: pd.DataFrame         # data, fator, acoes_antes, acoes_depois, descricao
     proventos: pd.DataFrame       # data_com, data_ex, tipo, valor_por_acao, acoes, bruto, ir, liquido
     avisos: list[str] = field(default_factory=list)
+    reinvestido: float = 0.0      # proventos usados para comprar mais ações (entram no custo de aquisição)
+
+    @property
+    def custo_aquisicao(self) -> float:
+        """Base do IR: valor pago pelas ações (compra inicial + compras com proventos reinvestidos)."""
+        return self.investido + self.reinvestido
 
     @property
     def total_hoje(self) -> float:
@@ -136,6 +178,7 @@ def simular(precos: pd.DataFrame, proventos: pd.DataFrame, valor: float, data: p
         investido=investido, sobra=valor - investido, acoes_hoje=acoes, preco_hoje=float(ultimo["fechamento"]),
         data_hoje=ultimo["data"], valor_hoje=acoes * float(ultimo["fechamento"]),
         proventos_recebidos=acum, proventos_em_caixa=caixa + sum(v for _, v in a_reinvestir), serie=s,
+        reinvestido=acum - caixa - sum(v for _, v in a_reinvestir),
         eventos=pd.DataFrame(linhas_ev, columns=["data", "fator", "acoes_antes", "acoes_depois", "descricao"]),
         proventos=pd.DataFrame(linhas_prov, columns=["data_com", "tipo", "valor_por_acao", "acoes", "bruto", "ir",
                                                      "liquido", "reinvestido_a"]),

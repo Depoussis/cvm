@@ -15,7 +15,7 @@ selic = dados.tabela("selic_mes")
 
 ui.cabecalho("Simulador de investimento", "Escolha um papel, a data e o valor da compra: o simulador compra ao preço "
              "<b>da época</b>, acompanha desdobramentos, grupamentos e bonificações, soma os dividendos, JCP e "
-             "rendimentos recebidos e compara com a Selic e o Ibovespa (BOVA11).")
+             "rendimentos recebidos, desconta o IR de uma venda hoje e compara com a Selic e o Ibovespa (BOVA11).")
 
 # ---------------------------------------------------------------- escolhas
 CLASSES = {"Ações": "Ação", "FII": "FII", "ETF": "ETF e fundos"}
@@ -35,11 +35,14 @@ data_compra = c3.date_input("Data da compra", value=max(inicio, date(2023, 5, 2)
                             format="DD/MM/YYYY", key="sim_data")
 valor = c4.number_input("Valor investido (R$)", min_value=100.0, value=10_000.0, step=1_000.0, format="%.2f",
                         key="sim_valor")
-o1, o2, _ = st.columns([1.4, 1.6, 3])
+o1, o2, o3, _ = st.columns([1.4, 1.6, 2.2, 1.2])
 reinvestir = o1.toggle("Reinvestir proventos", value=False, help="Compra mais ações no pregão seguinte à data com")
 ir_jcp = o2.toggle("Descontar IR de 15 % do JCP", value=True,
                    help="O JCP é pago com imposto retido na fonte; dividendos e rendimentos de FII são isentos para "
                         "pessoa física")
+isencao = o3.toggle("Isenção de vendas até R$ 20 mil/mês", value=True, disabled=classe != "Ação",
+                    help="Só para ações: se o total vendido no mês (todas as ações) for até R$ 20 mil, o lucro é "
+                         "isento. Supõe que esta é a única venda do mês. FII (20 %) e ETF (15 %) não têm isenção.")
 
 proventos = prov[prov["ticker"] == ticker][["data_com", "tipo", "valor_por_acao"]]
 r = simulador.simular(precos, proventos, valor, pd.Timestamp(data_compra), reinvestir=reinvestir, ir_jcp=ir_jcp)
@@ -51,6 +54,12 @@ bova = simulador.referencia(cot[cot["ticker"] == "BOVA11"], r.investido, r.data_
 sel = simulador.selic_acumulada(selic, r.investido, r.data_compra, r.serie["data"])
 ret_bova = bova["valor"].iat[-1] / r.investido - 1 if len(bova) and r.investido else float("nan")
 ret_selic = sel["valor"].iat[-1] / r.investido - 1 if len(sel) and r.investido else float("nan")
+imp = simulador.imposto_venda(classe, r.valor_hoje, r.custo_aquisicao, isencao)
+total_liquido = r.total_hoje - imp.imposto
+lucro_liquido = total_liquido - r.investido
+dias = (r.data_hoje - r.data_compra).days
+anual = lambda total: (total / r.investido) ** (365.25 / dias) - 1 if dias > 30 and r.investido else float("nan")  # noqa: E731
+selic_liq = simulador.selic_liquida(ret_selic, dias)
 pc = lambda v: formato.pct(v * 100, 1, sinal=True)  # noqa: E731
 ui.kpis([
     {"rotulo": f"Compra em {formato.data(r.data_compra)}", "valor": formato.brl(r.investido),
@@ -62,10 +71,40 @@ ui.kpis([
     {"rotulo": "Proventos recebidos", "valor": formato.brl(r.proventos_recebidos), "icone": "fluxo",
      "nota": (f"{pc(r.proventos_recebidos / r.investido) if r.investido else '—'} do investido · "
               + ("reinvestidos" if reinvestir else "em dinheiro"))},
-    {"rotulo": f"Total em {formato.data(r.data_hoje)}", "valor": formato.brl(r.total_hoje), "icone": "check",
-     "nota": f"{pc(r.retorno_total)} ({pc(r.retorno_anual)} ao ano) · Selic {pc(ret_selic)} · Ibovespa {pc(ret_bova)}",
-     "tom": "pos" if r.retorno_total >= 0 else "neg"},
+    {"rotulo": f"Total líquido em {formato.data(r.data_hoje)}", "valor": formato.brl(total_liquido), "icone": "check",
+     "nota": f"depois do IR · {pc(lucro_liquido / r.investido)} ({pc(anual(total_liquido))} ao ano)",
+     "tom": "pos" if lucro_liquido >= 0 else "neg"},
 ])
+
+with ui.card("sim_resumo"):
+    ui.titulo_card("Resumo da simulação", f"Se vendesse tudo em {formato.data(r.data_hoje)} ao fecho de "
+                   f"{formato.brl(r.preco_hoje)}")
+    ir_jcp_total = float(r.proventos["ir"].sum()) if len(r.proventos) else 0.0
+    linhas = [
+        ("Valor investido", f"{formato.numero(r.acoes_compradas)} × {formato.brl(r.preco_compra)} em "
+                            f"{formato.data(r.data_compra)}", r.investido),
+        ("Valor das ações hoje", f"{formato.numero(r.acoes_hoje, 2)} × {formato.brl(r.preco_hoje)}", r.valor_hoje),
+        ("Proventos recebidos", "líquidos" + (f" (IR do JCP retido: {formato.brl(ir_jcp_total)})" if ir_jcp_total else "")
+         + (" · reinvestidos em ações" if reinvestir else ""), r.proventos_recebidos),
+        ("Total bruto", "ações hoje + proventos em dinheiro", r.total_hoje),
+        ("Lucro antes do IR", "total bruto − investido", r.total_hoje - r.investido),
+        ("IR sobre o lucro da venda", f"{imp.motivo} · base {formato.brl(imp.lucro)} (venda − custo "
+                                      f"{formato.brl(imp.custo)})", -imp.imposto),
+        ("Total líquido", "o que ficaria depois de vender e pagar o IR", total_liquido),
+        ("Lucro líquido", f"{pc(lucro_liquido / r.investido)} no período · {pc(anual(total_liquido))} ao ano",
+         lucro_liquido),
+    ]
+    tabela = pd.DataFrame(linhas, columns=["Item", "Como", "valor"])
+    tabela["Valor"] = tabela["valor"].map(formato.brl)
+    tabela["% do investido"] = [formato.pct(v / r.investido * 100, 1) if r.investido else "—" for v in tabela["valor"]]
+    st.dataframe(tabela[["Item", "Como", "Valor", "% do investido"]], hide_index=True, width="stretch",
+                 column_config={"Item": st.column_config.TextColumn(width="medium"),
+                                "Como": st.column_config.TextColumn(width="large"),
+                                "Valor": st.column_config.TextColumn(),
+                                "% do investido": st.column_config.TextColumn()})
+    ui.aviso(f"Comparação no mesmo período: <b>Selic</b> {pc(ret_selic)} bruto, {pc(selic_liq)} líquido de IR "
+             f"(tabela regressiva, {simulador.aliquota_renda_fixa(dias) * 100:.1f} %) · <b>Ibovespa (BOVA11)</b> "
+             f"{pc(ret_bova)} antes de IR. Não inclui corretagem nem compensação de prejuízos anteriores.")
 
 g1, g2 = st.columns([3, 2], gap="medium")
 with g1, ui.card("sim_evolucao"):
@@ -117,5 +156,6 @@ with e2, ui.card("sim_proventos"):
 
 ui.rodape("Simulação com dados da B3 (preços de fecho do COTAHIST desde 2021; dividendos e JCP e eventos oficiais das "
           "empresas listadas) e da CVM (rendimentos de FII = DY do mês × cota patrimonial do informe mensal, "
-          "conferidos com a B3). Não inclui corretagem, emolumentos nem IR sobre ganho de capital. Papéis com volume "
+          "conferidos com a B3). IR da venda: 15 % ações e ETF, 20 % FII, isenção de R$ 20 mil/mês só em ações; bonificações "
+          "entram com custo zero. Não inclui corretagem nem emolumentos. Papéis com volume "
           "médio ≥ R$ 300 mil/dia. Projeto de estudo, não é recomendação.")

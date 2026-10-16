@@ -288,4 +288,11 @@ Ver [simulador.md](simulador.md). Testes de 16/10/2026.
 | TP-12 | painel | KNCR11 (FII) | 105 cotas; +10,8 % de valorização + 46,5 % em rendimentos = +57,3 % (Selic +51,1 %) |
 | TP-13 | painel | Descrição dos eventos | o texto longo cortava as colunas Antes/Depois; encurtado para "Bonificação de 30 %", "Desdobramento 1:2" |
 
-Total da suite unitária: **70 testes aprovados**.
+| TU-24 | unitário | `test_imposto_na_venda_por_classe_isencao_e_prejuizo`: ações 15 % (PETR4 do exemplo), isenção até R$ 20 mil e sem ela, FII 20 % sem isenção, ETF com prejuízo = 0 | aprovado |
+| TU-25 | unitário | `test_reinvestimento_entra_no_custo_de_aquisicao`: 500 reinvestidos → custo 1 500 | aprovado |
+| TU-26 | unitário | `test_selic_liquida_pela_tabela_regressiva`: 22,5 % / 17,5 % / 15 % pelo prazo | aprovado |
+| TP-14 | painel | Resumo com IR, PETR4 | total bruto R$ 31 720,58; IR R$ 2 279,73; **total líquido R$ 29 440,85**; Selic líquida +43,4 % |
+| TP-15 | painel | Resumo com IR, KNCR11 | IR de 20 % = R$ 215,25; **total líquido R$ 15 452,67**; opção de isenção desativada (só ações) |
+| TP-16 | painel | Formato dos valores | a tabela mostrava 9982.86; passou ao formato brasileiro (R$ 9.982,86 e 100,0 %) |
+
+Total da suite unitária: **73 testes aprovados**.

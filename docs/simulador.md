@@ -44,13 +44,38 @@ As datas com coincidem com as da B3 (KNCR11: 29/05, 30/06, 31/07 e 31/08/2026). 
 cerca de 12 meses, e com registos repetidos, por isso o histórico vem da CVM. FII que informam DY = 0 à CVM (cerca
 de 40 %) ficam sem rendimentos no simulador.
 
-## Exemplos (compra de R$ 10 000 em 02/05/2023, JCP com IR, sem reinvestir)
+## IR na venda (quadro "Resumo da simulação")
 
-| Papel | Compra | Valorização | Proventos | Total | Selic | Ibovespa (BOVA11) |
-|---|---|---|---|---|---|---|
-| PETR4 | 439 × R$ 22,74 | +R$ 15 198 (+152 %) | R$ 6 540 | +217,8 % (+39,7 %/ano) | +51,1 % | +104,5 % |
-| KNCR11 | 105 × R$ 94,85 | +R$ 1 076 (+10,8 %) | R$ 4 632 | +57,3 % (+14,0 %/ano) | +51,1 % | +104,5 % |
-| CMIG4 | — | — | 19 pagamentos | — | — | — |
+O simulador mostra o que ficaria **se vendesse tudo hoje e pagasse o IR** (pessoa física, operações comuns, regras
+de 2026, `imposto_venda` em `app/painel/simulador.py`):
+
+| Classe | Alíquota sobre o lucro | Isenção |
+|---|---|---|
+| Ações | 15 % | vendas de ações até R$ 20 mil no mês (opção ligada por omissão; supõe que é a única venda do mês) |
+| FII | 20 % | nenhuma |
+| ETF | 15 % | nenhuma |
+
+- Lucro = valor de venda − custo de aquisição (compra inicial + compras com proventos reinvestidos).
+- As ações recebidas em bonificação entram com custo zero. Na realidade a empresa informa um custo por ação, o que
+  reduz um pouco o imposto.
+- Prejuízo não paga imposto (e poderia compensar lucros futuros, o que não é simulado).
+- Dividendos e rendimentos de FII são isentos; o JCP já vem com 15 % retidos (opção).
+- Para comparar, a **Selic líquida** aplica a tabela regressiva da renda fixa: 22,5 % até 180 dias, 20 % até 360,
+  17,5 % até 720 e 15 % acima disso.
+
+## Exemplos (compra de R$ 10 000 em 02/05/2023, JCP com IR, sem reinvestir, venda em 15/10/2026)
+
+| | PETR4 | KNCR11 (FII) |
+|---|---|---|
+| Compra | 439 × R$ 22,74 = R$ 9 982,86 (sobra R$ 17,14) | 105 × R$ 94,85 = R$ 9 959,25 |
+| Valor das ações hoje | 439 × R$ 57,36 = R$ 25 181,04 | 105 × R$ 105,10 = R$ 11 035,50 |
+| Proventos recebidos (líquidos) | R$ 6 539,54 (IR do JCP retido: R$ 421,75) | R$ 4 632,42 |
+| **Total bruto** | **R$ 31 720,58** (+217,8 %) | **R$ 15 667,92** (+57,3 %) |
+| IR sobre o lucro da venda | −R$ 2 279,73 (15 % de R$ 15 198,18) | −R$ 215,25 (20 % de R$ 1 076,25) |
+| **Total líquido** | **R$ 29 440,85** | **R$ 15 452,67** |
+| Lucro líquido | R$ 19 457,99 (+194,9 %; +36,8 % ao ano) | R$ 5 493,42 (+55,2 %; +13,6 % ao ano) |
+| Selic no período | +51,1 % bruto, +43,4 % líquido | igual |
+| Ibovespa (BOVA11) | +104,5 % antes de IR | igual |
 
 Na CMIG4, a bonificação de 30 % em 30/04/2024 aparece em "Eventos nas ações", e a quantidade sobe para 1 051,70.
 
