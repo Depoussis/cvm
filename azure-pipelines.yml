@@ -1,0 +1,97 @@
+# CI/CD da plataforma no Azure DevOps (organização felipecoelho05, projeto findata). Ver docs/cicd.md.
+#
+# CI  (pushes e pull requests): testes Python, Bicep, JSON do ADF e geração do painel. Não toca no Azure.
+# CD  (só main, depois do CI): SQL das tabelas → jobs Databricks → ADF → painel → teste de fumaça no Databricks.
+# A ligação ao Azure é a service connection `sc-findata-dev` (federação de identidade, sem segredos).
+# Os gatilhos do ADF e os agendamentos dos jobs não são alterados pelo deploy (ver scripts).
+
+trigger:
+  branches:
+    include: [main]
+  paths:
+    exclude: ['*.md', 'docs/**']
+
+pr:
+  branches:
+    include: [main]
+
+variables:
+  pythonVersion: '3.11'
+  ambiente: dev
+  serviceConnection: sc-findata-dev
+
+stages:
+  - stage: CI
+    displayName: Testes e validação
+    jobs:
+      - job: testes
+        displayName: Testes, Bicep e artefactos
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+          - script: |
+              python -m pip install --upgrade pip
+              pip install -r requirements-dev.txt
+            displayName: Dependências
+          - script: python -m pytest -q --junitxml=$(Agent.TempDirectory)/testes.xml
+            displayName: Testes unitários (sem Spark nem rede)
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFiles: $(Agent.TempDirectory)/testes.xml
+              testRunTitle: Testes unitários
+          - script: |
+              az bicep install
+              for f in infrastructure/bicep/main.bicep infrastructure/bicep/monitoring.bicep \
+                       infrastructure/bicep/modules/rbac.bicep; do
+                az bicep build --file "$f" --stdout > /dev/null && echo "ok $f"
+              done
+            displayName: Compilar Bicep
+
+  - stage: CD
+    displayName: Deploy (dev)
+    dependsOn: CI
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: deploy
+        displayName: Deploy no ambiente dev
+        pool:
+          vmImage: ubuntu-latest
+        environment: findata-dev
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: $(pythonVersion)
+                - script: pip install -r requirements.txt
+                  displayName: Dependências
+                - task: AzureCLI@2
+                  displayName: SQL, jobs Databricks, ADF e painel
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      set -euo pipefail
+                      python scripts/apply_sql.py --env $(ambiente) --dir sql/control --dir sql/schemas \
+                        --dir sql/dimensions --dir sql/facts --dir sql/views
+                      python scripts/deploy_workspace.py --env $(ambiente)
+                      python scripts/deploy_adf.py --env $(ambiente)
+                      python scripts/deploy_dashboard.py --env $(ambiente)
+                  env:
+                    # variáveis do pipeline (definidas no Azure DevOps, fora do repositório público)
+                    FINDATA_ALERT_EMAIL: $(alertEmail)
+                    FINDATA_RUN_AS: $(runAs)
+                - task: AzureCLI@2
+                  displayName: Teste de fumaça (testes de integração no Databricks)
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: python scripts/smoke_test.py --env $(ambiente)

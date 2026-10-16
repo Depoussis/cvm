@@ -17,7 +17,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | concluída (16/10/2026), ver [docs/auditoria.md](docs/auditoria.md) |
 | 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | concluída (16/10/2026), ver [docs/orquestracao.md](docs/orquestracao.md) |
 | 6. Qualidade e analytics | Testes de dados, modelo dimensional, indicadores, Power BI | concluída (16/10/2026), ver [docs/analytics.md](docs/analytics.md) |
-| 7. Produção | CI/CD, segurança, documentação, monitorização, custos, DR | — |
+| 7. Produção | CI/CD, segurança, documentação, monitorização, custos, DR | em curso: CI/CD no Azure DevOps ([docs/cicd.md](docs/cicd.md)) |
 
 ## Estrutura
 

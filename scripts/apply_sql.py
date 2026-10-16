@@ -26,13 +26,15 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--env", default="dev")
     ap.add_argument("--dir", required=True, action="append", help="pasta com ficheiros .sql (repetível, aplicadas por ordem)")
+    ap.add_argument("--var", action="append", default=[], help="variável extra nome=valor (ex.: sp=<id da aplicação>)")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
     cfg = carregar_ambiente(args.env)
     w = WorkspaceClient(host=cfg["databricks"]["host"], auth_type="azure-cli")
     wh = next(x for x in w.warehouses.list() if x.name == cfg["databricks"]["sql_warehouse_name"])
-    instrucoes = [i for d in args.dir for i in carregar_ficheiros(RAIZ / d, {"catalog": cfg["unity_catalog"]["catalog"]})]
+    variaveis = {"catalog": cfg["unity_catalog"]["catalog"], **dict(v.split("=", 1) for v in args.var)}
+    instrucoes = [i for d in args.dir for i in carregar_ficheiros(RAIZ / d, variaveis)]
 
     for ficheiro, sql in instrucoes:
         r = w.statement_execution.execute_statement(statement=sql, warehouse_id=wh.id, wait_timeout="50s")

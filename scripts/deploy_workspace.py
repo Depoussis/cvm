@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import os
 import logging
 import sys
 from pathlib import Path
@@ -117,12 +118,17 @@ def main() -> None:
     args.fonte = args.fonte or sorted(JOBS)
     cfg = carregar_ambiente(args.env)
     w = WorkspaceClient(host=cfg["databricks"]["host"], auth_type="azure-cli")
-    email = w.current_user.me().user_name
+    # No CD (identidade do Azure DevOps), o e-mail dos alertas e o dono das execuções vêm de variáveis do pipeline,
+    # para não ficarem no repositório; localmente usa-se o utilizador com sessão iniciada.
+    email = os.environ.get("FINDATA_ALERT_EMAIL") or w.current_user.me().user_name
+    run_as = os.environ.get("FINDATA_RUN_AS")
     destino = f"/Workspace/Shared/findata_{args.env}"
     log.info("%d ficheiros publicados em %s", publicar_codigo(w, destino), destino)
 
     for fonte in args.fonte:
         definicao = definicao_job(args.env, destino, cfg, email, fonte)
+        if run_as:
+            definicao["run_as"] = jobs.JobRunAs(user_name=run_as)
         existente = next(iter(w.jobs.list(name=definicao["name"])), None)
         if existente:
             # mantém o estado do agendamento (ativado à mão na interface) em vez de voltar a pausar
