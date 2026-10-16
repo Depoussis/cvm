@@ -12,6 +12,8 @@ Tudo confirmado com pedidos reais em 16/10/2026 (`config/datasets/cvm.yaml`):
 | Informe diário de fundos | `fi-doc-inf_diario` | `FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_AAAAMM.zip` (1 CSV) | meses desde 2021-01; ~540 mil linhas e 11 MB por mês; 2000–2020 em `DADOS/HIST/` (anuais, ainda não suportado) |
 | Cadastro de fundos, classes e subclasses | `fi-cad` | `FI/CAD/DADOS/registro_fundo_classe.zip` (3 CSV) | snapshot completo |
 | Cadastro de companhias abertas | `cia_aberta-cad` | `CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv` | snapshot completo |
+| Formulário cadastral (FCA): valores mobiliários | `cia_aberta-doc-fca` | `CIA_ABERTA/DOC/FCA/DADOS/fca_cia_aberta_AAAA.zip` (só o CSV de valores mobiliários) | liga o ticker da B3 ao CNPJ; ver [pipelines_b3.md](pipelines_b3.md) |
+| DFP (anual) e ITR (trimestral) | `cia_aberta-doc-dfp`, `cia_aberta-doc-itr` | `CIA_ABERTA/DOC/{DFP,ITR}/DADOS/*_cia_aberta_AAAA.zip` (8 CSV cada) | desde 2021; ver [fundamentos.md](fundamentos.md) |
 | Informe mensal de FII | `fii-doc-inf_mensal` | `FII/DOC/INF_MENSAL/DADOS/inf_mensal_fii_AAAA.zip` (3 CSV: geral, complemento, ativo_passivo) | um ZIP por ano desde 2021; os FII **não** entram no informe diário |
 
 O catálogo dos pacotes (`package_show`) é guardado em `bronze.cvm_catalogo_recursos` em cada execução.

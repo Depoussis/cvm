@@ -57,12 +57,25 @@ As consultas correm no SQL Warehouse serverless 2X-Small (≈ 3,20 €/h só enq
 
 ## Painel público em Streamlit
 
-As mesmas cinco páginas (mais a página Bolsa), com visual próprio (clean, claro/escuro) e mais interação: período e moedas na PTAX,
-filtro de segmento e top 5/10/15 nos rankings de FII, pesquisa de fundo por nome, ticker ou CNPJ. Código em `app/`
-(`streamlit_app.py`, `paginas/`, `painel/`), tema em `.streamlit/config.toml`.
+Publicado em **https://findata-depoussis.streamlit.app** (repositório `Depoussis/cvm`, `app/streamlit_app.py`).
+Visual clean (claro/escuro). **Navegação no topo** (`st.navigation(position="top")`), sem barra lateral:
+
+| Menu | Página | Conteúdo |
+|---|---|---|
+| Mercado | `paginas/mercado.py` | Selic, PTAX (período e moedas), câmbio mensal, IBC-Br |
+| Bolsa | `paginas/acoes.py` | ações, FII e ETF: rankings, evolução, setores, tabela com DY, P/L, P/VP e ROE, dividendos por ano |
+| Simulador | `paginas/simulador.py` | compra numa data ao preço da época: eventos, proventos, IR da venda, total líquido ([simulador.md](simulador.md)) |
+| Modelo | `paginas/modelo.py` | backtest, comparação de modelos, IC, importância das variáveis, ranking atual ([modelo_preditivo.md](modelo_preditivo.md)) |
+| Fundos ▸ Fundos de investimento | `paginas/fundos.py` | PL, captação, maiores fundos |
+| Fundos ▸ Fundos imobiliários | `paginas/fii.py` | rankings de FII (cotistas, PL, caixa, DY), segmentos |
+| Fundos ▸ Análise de fundo | `paginas/analise.py` | pesquisa por nome, ticker ou CNPJ; rentabilidade contra a Selic |
+| Plataforma ▸ Operação e qualidade | `paginas/operacao.py` | reconciliação, frescura, execuções, regras de qualidade |
+
+A faixa por baixo do menu mostra a data do snapshot e as fontes. Código em `app/` (`streamlit_app.py`, `paginas/`,
+`painel/`); tema em `.streamlit/config.toml`.
 
 **Dados:** a app não liga ao Databricks. `scripts/exportar_painel.py` corre as consultas do painel AI/BI (as mesmas
-de `deploy_dashboard.py`) mais o histórico mensal por fundo e grava `app/dados/*.parquet` (≈ 13 MB, zstd).
+de `deploy_dashboard.py`), mais o histórico mensal por fundo, as cotações e os proventos da B3 (papéis com volume ≥ R$ 300 mil/dia), os dividendos anuais e as tabelas do modelo (`ml_*`). Grava `app/dados/*.parquet` (≈ 17 MB, zstd).
 Vantagens: sem segredos no Streamlit Cloud, sem warehouse ligado a cada visita, páginas rápidas. Custo: os dados
 são um snapshot, atualizado quando se exporta e faz push.
 
@@ -77,13 +90,16 @@ git add app/dados && git commit -m "Painel: snapshot" && git push   # o Streamli
 Diferenças face ao AI/BI: a cota diária dos FI (17,7 M linhas) não vai no snapshot; a análise mostra a
 rentabilidade acumulada a partir das rentabilidades mensais, comparada com a Selic acumulada.
 
-Só no Streamlit existe a página **Bolsa** (B3, ver [pipelines_b3.md](pipelines_b3.md)), alimentada por
-`gold.vw_b3_desempenho` e pelo histórico diário ajustado dos papéis com volume médio ≥ R$ 1 mi/dia. Tem:
+Só no Streamlit existem as páginas **Bolsa**, **Simulador** e **Modelo**. A Bolsa (B3, ver
+[pipelines_b3.md](pipelines_b3.md) e [fundamentos.md](fundamentos.md)) é alimentada por `gold.vw_b3_desempenho`, pelo
+histórico diário ajustado, por `vw_b3_dividendos_anuais` e pelos fundamentos do modelo. Tem:
 - indicadores do Ibovespa (via BOVA11) e altas/baixas do dia;
-- rankings por classe (ações, FII, ETF), setor e liquidez mínima: dia, volume, 12 meses, ano e P/VP dos FII;
+- rankings por classe (ações, FII, ETF), setor e liquidez mínima: dia, volume, 12 meses, maior DY (ações) e menor
+  P/VP (FII);
 - evolução do preço em base 100 de até 6 papéis;
 - retorno mediano por setor;
-- tabela pesquisável de todos os papéis.
+- tabela pesquisável de todos os papéis, com DY 12m, P/L, P/VP e ROE nas ações;
+- dividendos e JCP por ano de cada ação (R$ por ação ajustado e DY do ano).
 
 **Publicar (uma vez):** share.streamlit.io → *Create app* → *Deploy a public app from GitHub* → repositório
 `Depoussis/cvm`, branch `main`, ficheiro `app/streamlit_app.py` → *Advanced settings*: Python 3.11 → *Deploy*.

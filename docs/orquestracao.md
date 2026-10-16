@@ -12,13 +12,21 @@
 tr_diario_dias_uteis (seg–sex 20:30 BRT)          tr_semanal_domingo (dom 06:00 BRT)
         │                                                   │
 pl_findata_diario                                   pl_findata_semanal
-  ├─ BCB  ─► pl_databricks_job(job findata_dev_bcb) ─┐        └─ Auditoria ─► pl_databricks_job(findata_dev_auditoria)
-  ├─ CVM  ─► pl_databricks_job(job findata_dev_cvm) ─┤             (testes de integração + reconciliação)
-  └─ Frescura (só se BCB e CVM tiverem sucesso) ◄────┘
-       └─ pl_databricks_job(findata_dev_frescura)
+  ├─ BCB ─► pl_databricks_job(findata_dev_bcb) ──┐    ├─ Auditoria ─► findata_dev_auditoria
+  ├─ CVM ─► pl_databricks_job(findata_dev_cvm) ──┤    │     (testes de integração + reconciliação)
+  ├─ B3  ─► pl_databricks_job(findata_dev_b3)  ──┤    └─ B3 proventos ─► findata_dev_b3_proventos
+  └─ Frescura (só se as três tiverem sucesso) ◄──┘           └─ Modelo ─► findata_dev_ml
+       └─ pl_databricks_job(findata_dev_frescura)                (features, walk-forward, ranking)
 ```
 
-Dentro de cada job Databricks: `bronze → silver → gold → reapresentações` (ver `docs/pipelines_*.md`).
+Dentro de cada job Databricks: `bronze → silver → gold (→ reapresentações)`:
+- CVM: inclui também o FCA, a DFP/ITR e a tarefa `gold_fundamentos`;
+- B3: COTAHIST, com Auto Loader na bronze e Change Data Feed na gold ([streaming.md](streaming.md));
+- B3 proventos: dividendos, JCP, eventos oficiais e número de ações ([fundamentos.md](fundamentos.md));
+- ML: `ml_features → ml_treino`, com MLflow e registo no Unity Catalog ([modelo_preditivo.md](modelo_preditivo.md)).
+
+Os IDs dos jobs vêm de `deploy_adf.py` (`job_id_bcb`, `job_id_cvm`, `job_id_b3`, `job_id_b3_proventos`,
+`job_id_ml`, `job_id_frescura`, `job_id_auditoria`).
 
 ## Parâmetros e rastreabilidade
 `pl_databricks_job` recebe `job_id`, `run_mode`, `data_inicio`, `data_fim`, `entidades` e envia ao job
@@ -66,6 +74,6 @@ Ativar o agendamento: ADF Studio → **Gerir → Gatilhos** → `tr_diario_dias_
 O `deploy_adf.py` não altera gatilhos iniciados (para não desligar o agendamento em silêncio).
 
 ## Custo
-Cada execução diária usa serverless só enquanto corre (BCB ~10 min, CVM incremental ~5 min, frescura ~1 min).
+Cada execução diária usa serverless só enquanto corre (BCB ~10 min, CVM incremental ~5 min, B3 incremental ~5 min, frescura ~1 min). Semanal: proventos ~10 min (725 pedidos à B3), modelo ~10 min, auditoria ~10 min.
 ADF: 3–4 execuções de atividade por dia mais o tempo de espera das atividades externas (cêntimos por mês).
 As duas regras de alerta de métricas custam cêntimos por mês.

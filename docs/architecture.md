@@ -1,6 +1,6 @@
 # Arquitetura
 
-Estado: **Fase 1 (fundação)**. As secções marcadas *(fase N)* descrevem o que ainda não foi implementado.
+Estado em 16/10/2026: fases 1 a 6 concluídas, mais B3, streaming, fundamentos, modelo preditivo e simulador (ver o README). O diagrama mostra o estado atual.
 
 ## Visão lógica
 
@@ -9,8 +9,12 @@ Estado: **Fase 1 (fundação)**. As secções marcadas *(fase N)* descrevem o qu
   ┌──────────────────────────────┐        ┌──────────────────────┐      ┌───────────────────────┐
   │ BCB SGS (REST JSON)          │        │ Azure Data Factory    │      │ Databricks SQL        │
   │ BCB PTAX (OData JSON)        │        │  agenda, parâmetros,  │      │ (serverless 2X-Small) │
-  │ CVM dados.cvm.gov.br (CSV/ZIP)│       │  dependências, alertas│      │ Power BI              │
-  └──────────────┬───────────────┘        └──────────┬───────────┘      └──────────▲────────────┘
+  │ CVM dados.cvm.gov.br (CSV/ZIP)│       │  dependências, alertas│      │ AI/BI dashboard       │
+  │  FI, FII, cadastros, FCA,    │        └──────────┬───────────┘      │ Streamlit Cloud       │
+  │  DFP/ITR                     │                   │                  │  (snapshot parquet)   │
+  │ B3 COTAHIST (TXT largura fixa)│                  │                  │ MLflow / modelo UC    │
+  │ B3 empresas listadas (JSON)  │                   │                  └──────────▲────────────┘
+  └──────────────┬───────────────┘                   │                             │
                  │ download (Python no Databricks)   │ dispara jobs                 │
                  ▼                                   ▼                              │
   ┌─────────────────────────── ADLS Gen2 (stfindatadev…) + Unity Catalog (findata_dev) ───────────┐
@@ -22,7 +26,15 @@ Estado: **Fase 1 (fundação)**. As secções marcadas *(fase N)* descrevem o qu
   │ quarantine/ payloads inválidos                             → volume  findata_dev.ops.quarantine│
   │ checkpoints/                                               → volume  findata_dev.ops.checkpoints│
   └────────────────────────────────────────────────────────────────────────────────────────────────┘
-        Logs de ADF, Databricks e Key Vault → Log Analytics (log-findata-dev) → alertas (fase 5)
+        Logs de ADF, Databricks e Key Vault → Log Analytics (log-findata-dev) → alertas
+
+Jobs Databricks (serverless, agendados pelo ADF): `findata_dev_bcb`, `findata_dev_cvm` (inclui FCA, DFP/ITR e
+`gold_fundamentos`), `findata_dev_b3` (COTAHIST com Auto Loader + gold por Change Data Feed),
+`findata_dev_b3_proventos` (semanal), `findata_dev_ml` (semanal), `findata_dev_frescura`, `findata_dev_auditoria`.
+Documentos por tema: [pipelines_bcb.md](pipelines_bcb.md), [pipelines_cvm.md](pipelines_cvm.md),
+[pipelines_b3.md](pipelines_b3.md), [streaming.md](streaming.md), [fundamentos.md](fundamentos.md),
+[modelo_preditivo.md](modelo_preditivo.md), [analytics.md](analytics.md), [simulador.md](simulador.md),
+[testes.md](testes.md), [conceitos.md](conceitos.md).
 ```
 
 ## Recursos físicos (dev)
