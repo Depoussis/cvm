@@ -104,3 +104,25 @@ def test_ddl_bronze():
 def test_fechar_ausentes():
     sql = fechar_ausentes_scd2("k.silver.cia", "_src", ["cd_cvm"])
     assert "LEFT ANTI JOIN _src" in sql and "t.is_current = false" in sql
+
+
+def test_nome_coluna_sem_acentos():
+    assert cvm.nome_coluna("Numero_Cotistas_Entidade_Fechada_Previdência_Complementar") == \
+        "numero_cotistas_entidade_fechada_previdencia_complementar"
+    assert cvm.nome_coluna(" CNPJ_Fundo ") == "cnpj_fundo"
+
+
+def test_anos_fii():
+    ds = CFG["datasets"]["fii_inf_mensal"]
+    hoje = date(2026, 10, 16)
+    assert cvm.anos_a_verificar("backfill", ds, hoje) == ["2021", "2022", "2023", "2024", "2025", "2026"]
+    assert cvm.anos_a_verificar("incremental", ds, hoje) == ["2025", "2026"]
+    assert cvm.anos_a_verificar("reprocess", ds, hoje, 2019, 2022) == ["2021", "2022"]
+    assert cvm.url_ano(ds["url"], "2026").endswith("inf_mensal_fii_2026.zip")
+    cols = cvm.colunas_bronze(ds["ficheiros"]["complemento"]["versoes"])
+    assert "percentual_dividend_yield_mes" in cols and all(c.isascii() for c in cols)
+
+
+def test_ddl_bronze_indica_estatisticas_das_colunas_de_cluster():
+    ddl = ddl_tabela("k.bronze.t", [f"c{i}" for i in range(40)], "x", ["_reference_period"])
+    assert "'delta.dataSkippingStatsColumns' = '_reference_period,_pipeline_run_id,_file_hash,_ingestion_timestamp'" in ddl

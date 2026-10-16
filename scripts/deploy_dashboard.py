@@ -24,9 +24,62 @@ log = logging.getLogger("deploy_dashboard")
 NOME = "Findata · Mercado, fundos e operação"
 
 
+CNPJ_SEL = "regexp_extract(:fundo, '([0-9]{14})$', 1)"
+TIPO_SEL = "regexp_extract(:fundo, ' · (FII|FI) · ', 1)"
+DATASETS_FUNDO = ["sel_ficha", "sel_rentab", "sel_pl", "sel_dy", "sel_cota"]
+
+
 def datasets(k: str) -> dict[str, str]:
     g, c = f"{k}.gold", f"{k}.control"
+    mes_fechado = "trunc(current_date(), 'MM')"
     return {
+        "lista_fundos": f"""
+            SELECT fundo FROM (
+              SELECT concat(coalesce(max_by(d.denominacao_social, m.mes), '(sem nome)'), ' · FI · ', m.cnpj_classe) AS fundo,
+                     max(m.pl_fim_mes) AS pl
+              FROM {g}.fct_fundo_mensal m LEFT JOIN {g}.dim_fundo_classe d USING (cnpj_classe)
+              WHERE m.id_subclasse = '' AND m.mes >= add_months({mes_fechado}, -3) GROUP BY m.cnpj_classe
+              HAVING pl >= 1000000
+              UNION ALL
+              SELECT concat(coalesce(max_by(nome_fundo, mes), '(sem nome)'), ' · FII · ', cnpj_classe), max(patrimonio_liquido)
+              FROM {g}.fct_fii_mensal WHERE mes >= add_months({mes_fechado}, -9) GROUP BY cnpj_classe
+            ) ORDER BY pl DESC""",
+        "sel_ficha": f"""
+            SELECT * FROM (
+              SELECT 'Fundo de investimento (FI)' AS tipo, d.denominacao_social AS nome, m.cnpj_classe AS cnpj,
+                     d.administrador, coalesce(d.classificacao, d.tipo_classe) AS classificacao,
+                     m.mes AS ultimo_mes, round(m.pl_fim_mes / 1e6, 2) AS pl_mi, m.cotistas_fim_mes AS cotistas
+              FROM {g}.fct_fundo_mensal m LEFT JOIN {g}.dim_fundo_classe d USING (cnpj_classe)
+              WHERE {TIPO_SEL} = 'FI' AND m.cnpj_classe = {CNPJ_SEL} AND m.id_subclasse = ''
+              UNION ALL
+              SELECT 'Fundo imobiliário (FII)', nome_fundo, cnpj_classe, nome_administrador, segmento_atuacao, mes,
+                     round(patrimonio_liquido / 1e6, 2), cotistas
+              FROM {g}.fct_fii_mensal WHERE {TIPO_SEL} = 'FII' AND cnpj_classe = {CNPJ_SEL}
+            ) ORDER BY ultimo_mes DESC LIMIT 1""",
+        "sel_rentab": f"""
+            WITH f AS (
+              SELECT mes, rentab_mes * 100 AS valor FROM {g}.fct_fundo_mensal
+              WHERE {TIPO_SEL} = 'FI' AND cnpj_classe = {CNPJ_SEL} AND id_subclasse = ''
+              UNION ALL
+              SELECT mes, rentab_efetiva_mes * 100 FROM {g}.fct_fii_mensal
+              WHERE {TIPO_SEL} = 'FII' AND cnpj_classe = {CNPJ_SEL}
+            )
+            SELECT mes, 'Fundo' AS serie, valor FROM f WHERE mes < {mes_fechado} AND valor IS NOT NULL
+            UNION ALL
+            SELECT data_referencia, 'Selic do mês', CAST(valor AS DOUBLE) FROM {g}.fct_serie_valor
+            WHERE serie_codigo = 4390 AND data_referencia >= (SELECT min(mes) FROM f) AND data_referencia < {mes_fechado}""",
+        "sel_pl": f"""
+            SELECT mes, round(pl_fim_mes / 1e6, 2) AS pl_mi, cotistas_fim_mes AS cotistas FROM {g}.fct_fundo_mensal
+            WHERE {TIPO_SEL} = 'FI' AND cnpj_classe = {CNPJ_SEL} AND id_subclasse = ''
+            UNION ALL
+            SELECT mes, round(patrimonio_liquido / 1e6, 2), cotistas FROM {g}.fct_fii_mensal
+            WHERE {TIPO_SEL} = 'FII' AND cnpj_classe = {CNPJ_SEL}""",
+        "sel_dy": f"""
+            SELECT mes, round(dividend_yield_mes * 100, 3) AS dy_pct, round(valor_patrimonial_cota, 2) AS cota_patrimonial
+            FROM {g}.fct_fii_mensal WHERE {TIPO_SEL} = 'FII' AND cnpj_classe = {CNPJ_SEL}""",
+        "sel_cota": f"""
+            SELECT dt_comptc AS data, CAST(vl_quota AS DOUBLE) AS cota FROM {g}.fct_fundo_diario
+            WHERE {TIPO_SEL} = 'FI' AND cnpj_classe = {CNPJ_SEL} AND id_subclasse = ''""",
         "kpi_mercado": f"""
             SELECT max(CASE WHEN serie_codigo = 432 THEN valor END) AS meta_selic,
                    max(CASE WHEN serie_codigo = 24363 THEN valor END) AS ibc_br,
@@ -66,12 +119,15 @@ def datasets(k: str) -> dict[str, str]:
             SELECT ultima, table_name AS tabela, rule_name AS regra, severity AS severidade, registos_falhados
             FROM {g}.vw_qualidade_resumo WHERE result = 'FAILED' AND dia >= date_sub(current_date(), 14)""",
         "reconciliacao": f"""
-            SELECT source_system AS fonte, resultado, count(*) AS entidades, sum(registos_fonte) AS registos_fonte,
-                   sum(valores_diferentes + so_na_fonte + so_na_plataforma) AS divergencias, max(executed_at) AS quando
-            FROM {c}.reconciliation_results
-            WHERE executed_at = (SELECT max(executed_at) FROM {c}.reconciliation_results r2
-                                 WHERE r2.source_system = reconciliation_results.source_system
-                                   AND r2.entity_name = reconciliation_results.entity_name)
+            WITH ultima AS (  -- última execução de reconciliação de cada fonte (todas as entidades/períodos dela)
+              SELECT source_system, max_by(pipeline_run_id, executed_at) AS run FROM {c}.reconciliation_results
+              GROUP BY source_system
+            )
+            SELECT r.source_system AS fonte, r.resultado, count(DISTINCT r.entity_name, r.periodo) AS entidades,
+                   sum(r.registos_fonte) AS registos_fonte,
+                   sum(r.valores_diferentes + r.so_na_fonte + r.so_na_plataforma) AS divergencias,
+                   max(r.executed_at) AS quando
+            FROM {c}.reconciliation_results r JOIN ultima u ON u.source_system = r.source_system AND u.run = r.pipeline_run_id
             GROUP BY ALL""",
         "frescura": f"""
             SELECT source_system AS fonte, entity_name AS entidade, watermark_value AS ultima_data,
@@ -99,7 +155,17 @@ def contador(nome, ds, col, titulo, pos):
 
 ROTULOS = {"data": "Data", "mes": "Mês", "valor": "% a.a.", "cotacao_venda": "R$", "variacao_pct": "Variação (%)",
            "ibc_br": "Índice", "pl_total_bi": "R$ bi", "captacao_liquida_bi": "R$ bi", "pct_acima_selic": "% dos fundos",
-           "rentab_mediana_pct": "% no mês", "serie": "Série", "simbolo": "Moeda", "classificacao": "Classificação"}
+           "rentab_mediana_pct": "% no mês", "serie": "Série", "simbolo": "Moeda", "classificacao": "Classificação",
+           "pl_mi": "PL (R$ mi)", "cotistas": "Cotistas", "dy_pct": "Dividend yield (% no mês)", "cota": "Cota (R$)",
+           "cota_patrimonial": "Cota patrimonial (R$)", "tipo": "Tipo", "nome": "Nome", "cnpj": "CNPJ",
+           "administrador": "Administrador", "ultimo_mes": "Último mês", "fonte": "Fonte", "resultado": "Resultado",
+           "entidades": "Entidades", "registos_fonte": "Registos na fonte", "divergencias": "Divergências",
+           "quando": "Quando", "entidade": "Entidade", "ultima_data": "Última data", "dias": "Dias",
+           "reconciliado": "Reconciliado em", "dia": "Dia", "pipeline": "Pipeline", "estado": "Estado",
+           "execucoes": "Execuções", "lidos": "Lidos", "escritos": "Escritos", "rejeitados": "Rejeitados",
+           "duracao_media_s": "Duração média (s)", "ultima": "Última", "tabela": "Tabela", "regra": "Regra",
+           "severidade": "Severidade", "registos_falhados": "Registos", "posicao": "#", "fundo": "Fundo",
+           "pl_bi": "PL (R$ bi)"}
 
 
 def linha(nome, ds, x, y, cor, titulo, pos, tipo="line", x_tipo="temporal"):
@@ -114,10 +180,25 @@ def linha(nome, ds, x, y, cor, titulo, pos, tipo="line", x_tipo="temporal"):
 
 
 def tabela(nome, ds, cols, titulo, pos):
-    return widget(nome, ds, cols, {"version": 1, "widgetType": "table", "encodings": {"columns": [
-        {"fieldName": c, "displayName": c, "visible": True, "order": i, "type": "string", "displayAs": "string",
-         "title": c, "booleanValues": ["false", "true"], "alignContent": "left"} for i, c in enumerate(cols)]},
+    # formato v2 (o v1 exige dezenas de propriedades por coluna; incompleto dá "Invalid widget definition")
+    return widget(nome, ds, cols, {"version": 2, "widgetType": "table", "encodings": {"columns": [
+        {"fieldName": c, "displayName": ROTULOS.get(c, c)} for c in cols]},
         "frame": {"showTitle": True, "title": titulo}}, pos)
+
+
+def filtro_fundo(nome, pos):
+    """Dropdown com pesquisa ligado ao parâmetro :fundo de todos os datasets da análise."""
+    x, y, w, h = pos
+    queries = [{"name": "opcoes", "query": {"datasetName": "lista_fundos", "fields": campos("fundo"),
+                                            "disaggregated": False}}]
+    queries += [{"name": f"param_{ds}", "query": {"datasetName": ds, "parameters": [{"name": "fundo", "keyword": "fundo"}],
+                                                  "disaggregated": False}} for ds in DATASETS_FUNDO]
+    campos_ = [{"fieldName": "fundo", "displayName": "Fundo", "queryName": "opcoes"}]
+    campos_ += [{"parameterName": "fundo", "queryName": f"param_{ds}"} for ds in DATASETS_FUNDO]
+    return {"widget": {"name": nome, "queries": queries, "spec": {
+                "version": 2, "widgetType": "filter-single-select", "encodings": {"fields": campos_},
+                "frame": {"showTitle": True, "title": "Fundo (escreve parte do nome ou o CNPJ)"}}},
+            "position": {"x": x, "y": y, "width": w, "height": h}}
 
 
 def texto(nome, linhas, pos):
@@ -126,7 +207,8 @@ def texto(nome, linhas, pos):
             "position": {"x": x, "y": y, "width": w, "height": h}}
 
 
-def painel(k: str) -> dict:
+def painel(k: str, padrao: str = "") -> dict:
+    """padrao: fundo selecionado ao abrir a página de análise."""
     mercado = [
         texto("t_mercado", ["## Juros e câmbio", "Fonte: Banco Central do Brasil (SGS e PTAX). Atualizado pelo ADF nos dias úteis."], (0, 0, 6, 2)),
         contador("k_selic", "kpi_mercado", "meta_selic", "Meta Selic (% a.a.)", (0, 2, 2, 3)),
@@ -166,12 +248,56 @@ def painel(k: str) -> dict:
         tabela("tb_dq", "qualidade", ["ultima", "tabela", "regra", "severidade", "registos_falhados"],
                "Regras de qualidade com falhas (INFO só regista; CRITICAL/HIGH bloqueiam a gold)", (0, 16, 6, 8)),
     ]
+    analise = [
+        texto("t_analise", ["## Análise de um fundo", "Escolhe um fundo de investimento (FI, informe diário) ou "
+                            "imobiliário (FII, informe mensal). A rentabilidade do FII é a efetiva do mês (inclui "
+                            "rendimentos) e compara-se com a Selic acumulada no mês. Meses incompletos ficam de fora."],
+              (0, 0, 6, 2)),
+        filtro_fundo("f_fundo", (0, 2, 6, 2)),
+        tabela("tb_ficha", "sel_ficha", ["tipo", "nome", "cnpj", "administrador", "classificacao", "ultimo_mes",
+                                         "pl_mi", "cotistas"], "Ficha", (0, 4, 6, 3)),
+        linha("l_sel_rentab", "sel_rentab", "mes", "valor", "serie", "Rentabilidade no mês vs Selic do mês (%)",
+              (0, 7, 3, 7)),
+        linha("l_sel_pl", "sel_pl", "mes", "pl_mi", None, "Património líquido (R$ mi)", (3, 7, 3, 7)),
+        linha("l_sel_cot", "sel_pl", "mes", "cotistas", None, "Cotistas", (0, 14, 3, 6)),
+        linha("b_sel_dy", "sel_dy", "mes", "dy_pct", None, "Dividend yield no mês (%), só FII", (3, 14, 3, 6), tipo="bar"),
+        linha("l_sel_cota", "sel_cota", "data", "cota", None, "Cota diária (R$), só FI", (0, 20, 6, 6)),
+    ]
+    ds_ = []
+    for n, q in datasets(k).items():
+        d = {"name": n, "displayName": n, "queryLines": [" ".join(q.split())]}
+        if n in DATASETS_FUNDO:
+            d["parameters"] = [{"displayName": "fundo", "keyword": "fundo", "dataType": "STRING",
+                                "defaultSelection": {"values": {"dataType": "STRING", "values": [{"value": padrao}]}}}]
+        ds_.append(d)
     return {
-        "datasets": [{"name": n, "displayName": n, "queryLines": [" ".join(q.split())]} for n, q in datasets(k).items()],
+        "datasets": ds_,
         "pages": [{"name": "mercado", "displayName": "Mercado (BCB)", "layout": mercado},
                   {"name": "fundos", "displayName": "Fundos (CVM)", "layout": fundos},
+                  {"name": "analise", "displayName": "Análise de fundo", "layout": analise},
                   {"name": "operacao", "displayName": "Operação e qualidade", "layout": operacao}],
     }
+
+
+def fundo_padrao(w: WorkspaceClient, warehouse_id: str, k: str) -> str:
+    """Fundo inicial da página de análise: o maior FII do grupo Itaú (administrado pela Intrag ou com Itaú no
+    nome), ou o maior FI se não houver FII."""
+    from databricks.sdk.service.sql import StatementState
+
+    sql = f"""
+        SELECT fundo FROM (
+          SELECT concat(max_by(nome_fundo, mes), ' · FII · ', cnpj_classe) AS fundo,
+                 max_by(patrimonio_liquido, mes) AS pl, 0 AS ordem
+          FROM {k}.gold.fct_fii_mensal
+          WHERE upper(nome_administrador) RLIKE 'ITA[UÚ]|INTRAG' OR upper(nome_fundo) RLIKE 'ITA[UÚ]'
+          GROUP BY cnpj_classe
+          UNION ALL
+          SELECT concat(denominacao_social, ' · FI · ', cnpj_classe), vl_patrim_liq, 1 FROM {k}.gold.vw_fundos_maiores_pl
+        ) ORDER BY ordem, pl DESC NULLS LAST LIMIT 1"""
+    r = w.statement_execution.execute_statement(statement=sql, warehouse_id=warehouse_id, wait_timeout="50s")
+    while r.status.state in (StatementState.PENDING, StatementState.RUNNING):
+        r = w.statement_execution.get_statement(r.statement_id)
+    return r.result.data_array[0][0] if r.result and r.result.data_array else ""
 
 
 def main() -> None:
@@ -182,7 +308,10 @@ def main() -> None:
     cfg = carregar_ambiente(args.env)
     w = WorkspaceClient(host=cfg["databricks"]["host"], auth_type="azure-cli")
     wh = next(x for x in w.warehouses.list() if x.name == cfg["databricks"]["sql_warehouse_name"])
-    conteudo = json.dumps(painel(cfg["unity_catalog"]["catalog"]), ensure_ascii=False, indent=1)
+    k = cfg["unity_catalog"]["catalog"]
+    padrao = fundo_padrao(w, wh.id, k)
+    log.info("fundo inicial da análise: %s", padrao)
+    conteudo = json.dumps(painel(k, padrao), ensure_ascii=False, indent=1)
     destino = RAIZ / "dashboards" / f"findata_{args.env}.lvdash.json"
     destino.parent.mkdir(exist_ok=True)
     destino.write_text(conteudo, encoding="utf-8", newline="\n")

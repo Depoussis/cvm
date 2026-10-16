@@ -7,6 +7,8 @@ from __future__ import annotations
 import fnmatch
 import io
 import posixpath
+import re
+import unicodedata
 import zipfile
 from dataclasses import dataclass
 from datetime import date
@@ -60,6 +62,27 @@ def meses_a_verificar(run_mode: str, cfg: dict[str, Any], hoje: date, inicio: st
     return lista
 
 
+def anos_a_verificar(run_mode: str, cfg: dict[str, Any], hoje: date, inicio: int | None = None,
+                     fim: int | None = None) -> list[str]:
+    """Conjuntos anuais: backfill desde inicio_backfill; incremental os últimos `revisao_anos`; reprocess inicio..fim."""
+    primeiro = int(cfg["primeiro_ano_disponivel"])
+    if run_mode in {"reprocess", "reconciliation"}:
+        if not inicio or not fim:
+            raise ValueError(f"run_mode={run_mode} exige data_inicio e data_fim")
+        anos = range(max(inicio, primeiro), fim + 1)
+    elif run_mode == "backfill":
+        anos = range(max(int(cfg["inicio_backfill"]), primeiro), hoje.year + 1)
+    elif run_mode == "incremental":
+        anos = range(max(hoje.year - int(cfg["revisao_anos"]) + 1, primeiro), hoje.year + 1)
+    else:
+        raise ValueError(f"run_mode inválido: {run_mode!r}")
+    return [str(a) for a in anos]
+
+
+def url_ano(modelo: str, aaaa: str) -> str:
+    return modelo.format(aaaa=aaaa)
+
+
 def url_mes(modelo: str, aaaamm: str) -> str:
     return modelo.format(aaaamm=aaaamm.replace("-", ""))
 
@@ -86,12 +109,18 @@ def identificar_versao(colunas: list[str], versoes: dict[str, list[str]]) -> str
     return None
 
 
+def nome_coluna(original: str) -> str:
+    """Nome da coluna na bronze: minúsculas, sem acentos, só [a-z0-9_] (ex.: 'Previdência' → 'previdencia')."""
+    ascii_ = unicodedata.normalize("NFKD", original).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9_]", "_", ascii_.strip().lower())
+
+
 def colunas_bronze(versoes: dict[str, list[str]]) -> list[str]:
-    """União das colunas de todas as versões, em minúsculas, pela ordem de primeira aparição."""
+    """União das colunas de todas as versões (nomes da bronze), pela ordem de primeira aparição."""
     vistas: dict[str, None] = {}
     for esperado in versoes.values():
         for c in esperado:
-            vistas.setdefault(c.lower(), None)
+            vistas.setdefault(nome_coluna(c), None)
     return list(vistas)
 
 

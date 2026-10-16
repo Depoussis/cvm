@@ -159,6 +159,117 @@ if p.escolhida("fi_inf_diario"):
 
 # COMMAND ----------
 
+# MAGIC %md ## Fundos imobiliários: informe mensal (SCD1)
+
+# COMMAND ----------
+
+def num(c: str, tipo: str) -> str:
+    """Texto da CVM para número; aceita notação científica (ex.: 2.5E-05)."""
+    return f"try_cast({txt(c)} AS DOUBLE)" if tipo == "DOUBLE" else f"CAST(try_cast({txt(c)} AS DOUBLE) AS {tipo})"
+
+
+def num_valido(c: str) -> str:
+    return f"({txt(c)} IS NULL OR try_cast({txt(c)} AS DOUBLE) IS NOT NULL)"
+
+
+if p.escolhida("fii_inf_mensal"):
+    bronze_c = f"{k}.bronze.cvm_fii_inf_mensal_complemento"
+    bronze_g = f"{k}.bronze.cvm_fii_inf_mensal_geral"
+    destino = f"{k}.silver.cvm_fii_mensal"
+    e = control.Execucao(k, p.run_id, "silver_cvm", FONTE, "fii_inf_mensal", "silver", p.run_mode)
+    control.iniciar(spark, e)
+    c = control.Contagens()
+    try:
+        numericas = ["total_numero_cotistas", "valor_ativo", "patrimonio_liquido", "cotas_emitidas",
+                     "valor_patrimonial_cotas", "percentual_despesas_taxa_administracao",
+                     "percentual_rentabilidade_efetiva_mes", "percentual_rentabilidade_patrimonial_mes",
+                     "percentual_dividend_yield_mes", "percentual_amortizacao_cotas_mes", "versao"]
+        valido = " AND ".join(["_corrupt_record IS NULL", f"length({cnpj('cnpj_fundo_classe')}) = 14",
+                               f"{dt('data_referencia')} IS NOT NULL"] + [num_valido(x) for x in numericas])
+        pend = sql_pendentes(bronze_c, k, FONTE, "fii_inf_mensal", "true", reprocessar)
+        spark.sql(f"SELECT *, coalesce(({valido}), false) AS _valido FROM ({pend})").createOrReplaceTempView("_fii_pend")
+        c.read = spark.table("_fii_pend").count()
+        invalidos = spark.table("_fii_pend").where("NOT _valido").drop("_valido")
+        c.rejected = invalidos.count()
+        if c.rejected:
+            invalidos.write.mode("append").json(caminho_quarentena(k, FONTE, "fii_inf_mensal", hoje, p.run_id))
+        colunas = ["versao", "data_entrega", "tipo_fundo_classe", "nome_fundo", "segmento_atuacao", "mandato",
+                   "tipo_gestao", "publico_alvo", "codigo_isin", "negociado_bolsa", "nome_administrador",
+                   "cnpj_administrador", "cotistas", "valor_ativo", "patrimonio_liquido", "cotas_emitidas",
+                   "valor_patrimonial_cota", "taxa_administracao_mes", "rentab_efetiva_mes",
+                   "rentab_patrimonial_mes", "dividend_yield_mes", "amortizacao_mes"]
+        spark.sql(f"""
+            SELECT cnpj_classe, data_referencia, {', '.join(colunas)},
+                   {expr_hash(colunas)} AS record_hash, '{p.run_id}' AS _pipeline_run_id
+            FROM (
+              SELECT {cnpj('c.cnpj_fundo_classe')} AS cnpj_classe, {dt('c.data_referencia')} AS data_referencia,
+                     CAST(try_cast({txt('c.versao')} AS DOUBLE) AS INT) AS versao,
+                     {dt('g.data_entrega')} AS data_entrega, {txt('g.tipo_fundo_classe')} AS tipo_fundo_classe,
+                     {txt('g.nome_fundo_classe')} AS nome_fundo, {txt('g.segmento_atuacao')} AS segmento_atuacao,
+                     {txt('g.mandato')} AS mandato, {txt('g.tipo_gestao')} AS tipo_gestao,
+                     {txt('g.publico_alvo')} AS publico_alvo, {txt('g.codigo_isin')} AS codigo_isin,
+                     {txt('g.mercado_negociacao_bolsa')} AS negociado_bolsa,
+                     {txt('g.nome_administrador')} AS nome_administrador,
+                     {cnpj('g.cnpj_administrador')} AS cnpj_administrador,
+                     {num('c.total_numero_cotistas', 'INT')} AS cotistas,
+                     {num('c.valor_ativo', 'DECIMAL(20,2)')} AS valor_ativo,
+                     {num('c.patrimonio_liquido', 'DECIMAL(20,2)')} AS patrimonio_liquido,
+                     {num('c.cotas_emitidas', 'DECIMAL(24,6)')} AS cotas_emitidas,
+                     {num('c.valor_patrimonial_cotas', 'DECIMAL(27,12)')} AS valor_patrimonial_cota,
+                     {num('c.percentual_despesas_taxa_administracao', 'DOUBLE')} AS taxa_administracao_mes,
+                     {num('c.percentual_rentabilidade_efetiva_mes', 'DOUBLE')} AS rentab_efetiva_mes,
+                     {num('c.percentual_rentabilidade_patrimonial_mes', 'DOUBLE')} AS rentab_patrimonial_mes,
+                     {num('c.percentual_dividend_yield_mes', 'DOUBLE')} AS dividend_yield_mes,
+                     {num('c.percentual_amortizacao_cotas_mes', 'DOUBLE')} AS amortizacao_mes,
+                     c._ingestion_timestamp, c._record_hash
+              FROM _fii_pend c
+              LEFT JOIN {bronze_g} g
+                ON g._file_hash = c._file_hash AND g.cnpj_fundo_classe = c.cnpj_fundo_classe
+               AND g.data_referencia = c.data_referencia AND g.versao = c.versao
+              WHERE c._valido
+            )
+            -- reenvios: fica a versão mais alta; na mesma versão, a carga mais recente
+            QUALIFY row_number() OVER (PARTITION BY cnpj_classe, data_referencia
+                                       ORDER BY versao DESC, _ingestion_timestamp DESC, _record_hash) = 1
+        """).createOrReplaceTempView("_fii_src")
+        n_validos = spark.table("_fii_src").count()
+        c.inserted, c.updated = executar_merge(spark, merge_scd1(
+            destino, "_fii_src", ["cnpj_classe", "data_referencia"], colunas))
+        c.unchanged = n_validos - c.inserted - c.updated
+        da_execucao = f"SELECT * FROM {destino} WHERE _pipeline_run_id = '{p.run_id}'"
+        regras = [
+            dq.Regra("chave_unica", "Uma linha por (CNPJ, mês)", "CRITICAL", destino,
+                     f"SELECT cnpj_classe, data_referencia, count(*) n FROM {destino} GROUP BY ALL HAVING n > 1",
+                     f"SELECT count(*) FROM {destino}"),
+            dq.Regra("formato_api", "CNPJ, data e números convertíveis; linha com o número certo de campos", "HIGH",
+                     bronze_c, "SELECT * FROM _fii_pend WHERE NOT _valido", "SELECT count(*) FROM _fii_pend"),
+            dq.Regra("complemento_sem_geral", "Informe sem a linha correspondente no ficheiro geral (nome, segmento)",
+                     "INFO", destino,
+                     f"SELECT cnpj_classe, data_referencia FROM ({da_execucao}) WHERE nome_fundo IS NULL",
+                     f"SELECT count(*) FROM ({da_execucao})"),
+            dq.Regra("percentual_suspeito", "Rentabilidade ou DY acima de ±50 % no mês (provável unidade errada)",
+                     "INFO", destino,
+                     f"SELECT cnpj_classe, data_referencia, rentab_efetiva_mes, dividend_yield_mes FROM ({da_execucao}) "
+                     f"WHERE abs(rentab_efetiva_mes) > 0.5 OR abs(dividend_yield_mes) > 0.5",
+                     f"SELECT count(*) FROM ({da_execucao})"),
+        ]
+        resultados = dq.avaliar(spark, regras)
+        dq.gravar(spark, k, p.run_id, resultados)
+        criticas = [r.regra.nome for r in resultados if not r.passou and r.regra.severidade == "CRITICAL"]
+        maximo = spark.sql(f"SELECT max(data_referencia) FROM {destino}").first()[0]
+        if maximo and not criticas:
+            control.confirmar_watermark(spark, e, "reference_date", maximo.isoformat(), None)
+        control.concluir(spark, e, c)
+        print(f"fii_inf_mensal: lidos={c.read} novos={c.inserted} alterados={c.updated} iguais={c.unchanged} "
+              f"rejeitados={c.rejected} watermark={maximo} falhas={[r.regra.nome for r in resultados if not r.passou]}")
+        if criticas:
+            raise RuntimeError(f"regras críticas falharam: {criticas}")
+    except Exception as ex:
+        control.falhar(spark, e, ex, c)
+        erros["fii_inf_mensal"] = repr(ex)
+
+# COMMAND ----------
+
 # MAGIC %md ## Cadastros (SCD2)
 
 # COMMAND ----------

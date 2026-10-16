@@ -1,6 +1,133 @@
 {
  "datasets": [
   {
+   "name": "lista_fundos",
+   "displayName": "lista_fundos",
+   "queryLines": [
+    "SELECT fundo FROM ( SELECT concat(coalesce(max_by(d.denominacao_social, m.mes), '(sem nome)'), ' · FI · ', m.cnpj_classe) AS fundo, max(m.pl_fim_mes) AS pl FROM findata_dev.gold.fct_fundo_mensal m LEFT JOIN findata_dev.gold.dim_fundo_classe d USING (cnpj_classe) WHERE m.id_subclasse = '' AND m.mes >= add_months(trunc(current_date(), 'MM'), -3) GROUP BY m.cnpj_classe HAVING pl >= 1000000 UNION ALL SELECT concat(coalesce(max_by(nome_fundo, mes), '(sem nome)'), ' · FII · ', cnpj_classe), max(patrimonio_liquido) FROM findata_dev.gold.fct_fii_mensal WHERE mes >= add_months(trunc(current_date(), 'MM'), -9) GROUP BY cnpj_classe ) ORDER BY pl DESC"
+   ]
+  },
+  {
+   "name": "sel_ficha",
+   "displayName": "sel_ficha",
+   "queryLines": [
+    "SELECT * FROM ( SELECT 'Fundo de investimento (FI)' AS tipo, d.denominacao_social AS nome, m.cnpj_classe AS cnpj, d.administrador, coalesce(d.classificacao, d.tipo_classe) AS classificacao, m.mes AS ultimo_mes, round(m.pl_fim_mes / 1e6, 2) AS pl_mi, m.cotistas_fim_mes AS cotistas FROM findata_dev.gold.fct_fundo_mensal m LEFT JOIN findata_dev.gold.dim_fundo_classe d USING (cnpj_classe) WHERE regexp_extract(:fundo, ' · (FII|FI) · ', 1) = 'FI' AND m.cnpj_classe = regexp_extract(:fundo, '([0-9]{14})$', 1) AND m.id_subclasse = '' UNION ALL SELECT 'Fundo imobiliário (FII)', nome_fundo, cnpj_classe, nome_administrador, segmento_atuacao, mes, round(patrimonio_liquido / 1e6, 2), cotistas FROM findata_dev.gold.fct_fii_mensal WHERE regexp_extract(:fundo, ' · (FII|FI) · ', 1) = 'FII' AND cnpj_classe = regexp_extract(:fundo, '([0-9]{14})$', 1) ) ORDER BY ultimo_mes DESC LIMIT 1"
+   ],
+   "parameters": [
+    {
+     "displayName": "fundo",
+     "keyword": "fundo",
+     "dataType": "STRING",
+     "defaultSelection": {
+      "values": {
+       "dataType": "STRING",
+       "values": [
+        {
+         "value": "KINEA RENDIMENTOS IMOBILIARIOS FII RESPONSABILIDADE LIMITADA · FII · 16706958000132"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "sel_rentab",
+   "displayName": "sel_rentab",
+   "queryLines": [
+    "WITH f AS ( SELECT mes, rentab_mes * 100 AS valor FROM findata_dev.gold.fct_fundo_mensal WHERE regexp_extract(:fundo, ' · (FII|FI) · ', 1) = 'FI' AND cnpj_classe = regexp_extract(:fundo, '([0-9]{14})$', 1) AND id_subclasse = '' UNION ALL SELECT mes, rentab_efetiva_mes * 100 FROM findata_dev.gold.fct_fii_mensal WHERE regexp_extract(:fundo, ' · (FII|FI) · ', 1) = 'FII' AND cnpj_classe = regexp_extract(:fundo, '([0-9]{14})$', 1) ) SELECT mes, 'Fundo' AS serie, valor FROM f WHERE mes < trunc(current_date(), 'MM') AND valor IS NOT NULL UNION ALL SELECT data_referencia, 'Selic do mês', CAST(valor AS DOUBLE) FROM findata_dev.gold.fct_serie_valor WHERE serie_codigo = 4390 AND data_referencia >= (SELECT min(mes) FROM f) AND data_referencia < trunc(current_date(), 'MM')"
+   ],
+   "parameters": [
+    {
+     "displayName": "fundo",
+     "keyword": "fundo",
+     "dataType": "STRING",
+     "defaultSelection": {
+      "values": {
+       "dataType": "STRING",
+       "values": [
+        {
+         "value": "KINEA RENDIMENTOS IMOBILIARIOS FII RESPONSABILIDADE LIMITADA · FII · 16706958000132"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "sel_pl",
+   "displayName": "sel_pl",
+   "queryLines": [
+    "SELECT mes, round(pl_fim_mes / 1e6, 2) AS pl_mi, cotistas_fim_mes AS cotistas FROM findata_dev.gold.fct_fundo_mensal WHERE regexp_extract(:fundo, ' · (FII|FI) · ', 1) = 'FI' AND cnpj_classe = regexp_extract(:fundo, '([0-9]{14})$', 1) AND id_subclasse = '' UNION ALL SELECT mes, round(patrimonio_liquido / 1e6, 2), cotistas FROM findata_dev.gold.fct_fii_mensal WHERE regexp_extract(:fundo, ' · (FII|FI) · ', 1) = 'FII' AND cnpj_classe = regexp_extract(:fundo, '([0-9]{14})$', 1)"
+   ],
+   "parameters": [
+    {
+     "displayName": "fundo",
+     "keyword": "fundo",
+     "dataType": "STRING",
+     "defaultSelection": {
+      "values": {
+       "dataType": "STRING",
+       "values": [
+        {
+         "value": "KINEA RENDIMENTOS IMOBILIARIOS FII RESPONSABILIDADE LIMITADA · FII · 16706958000132"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "sel_dy",
+   "displayName": "sel_dy",
+   "queryLines": [
+    "SELECT mes, round(dividend_yield_mes * 100, 3) AS dy_pct, round(valor_patrimonial_cota, 2) AS cota_patrimonial FROM findata_dev.gold.fct_fii_mensal WHERE regexp_extract(:fundo, ' · (FII|FI) · ', 1) = 'FII' AND cnpj_classe = regexp_extract(:fundo, '([0-9]{14})$', 1)"
+   ],
+   "parameters": [
+    {
+     "displayName": "fundo",
+     "keyword": "fundo",
+     "dataType": "STRING",
+     "defaultSelection": {
+      "values": {
+       "dataType": "STRING",
+       "values": [
+        {
+         "value": "KINEA RENDIMENTOS IMOBILIARIOS FII RESPONSABILIDADE LIMITADA · FII · 16706958000132"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "sel_cota",
+   "displayName": "sel_cota",
+   "queryLines": [
+    "SELECT dt_comptc AS data, CAST(vl_quota AS DOUBLE) AS cota FROM findata_dev.gold.fct_fundo_diario WHERE regexp_extract(:fundo, ' · (FII|FI) · ', 1) = 'FI' AND cnpj_classe = regexp_extract(:fundo, '([0-9]{14})$', 1) AND id_subclasse = ''"
+   ],
+   "parameters": [
+    {
+     "displayName": "fundo",
+     "keyword": "fundo",
+     "dataType": "STRING",
+     "defaultSelection": {
+      "values": {
+       "dataType": "STRING",
+       "values": [
+        {
+         "value": "KINEA RENDIMENTOS IMOBILIARIOS FII RESPONSABILIDADE LIMITADA · FII · 16706958000132"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
    "name": "kpi_mercado",
    "displayName": "kpi_mercado",
    "queryLines": [
@@ -81,7 +208,7 @@
    "name": "reconciliacao",
    "displayName": "reconciliacao",
    "queryLines": [
-    "SELECT source_system AS fonte, resultado, count(*) AS entidades, sum(registos_fonte) AS registos_fonte, sum(valores_diferentes + so_na_fonte + so_na_plataforma) AS divergencias, max(executed_at) AS quando FROM findata_dev.control.reconciliation_results WHERE executed_at = (SELECT max(executed_at) FROM findata_dev.control.reconciliation_results r2 WHERE r2.source_system = reconciliation_results.source_system AND r2.entity_name = reconciliation_results.entity_name) GROUP BY ALL"
+    "WITH ultima AS ( -- última execução de reconciliação de cada fonte (todas as entidades/períodos dela) SELECT source_system, max_by(pipeline_run_id, executed_at) AS run FROM findata_dev.control.reconciliation_results GROUP BY source_system ) SELECT r.source_system AS fonte, r.resultado, count(DISTINCT r.entity_name, r.periodo) AS entidades, sum(r.registos_fonte) AS registos_fonte, sum(r.valores_diferentes + r.so_na_fonte + r.so_na_plataforma) AS divergencias, max(r.executed_at) AS quando FROM findata_dev.control.reconciliation_results r JOIN ultima u ON u.source_system = r.source_system AND u.run = r.pipeline_run_id GROUP BY ALL"
    ]
   },
   {
@@ -907,107 +1034,37 @@
        }
       ],
       "spec": {
-       "version": 1,
+       "version": 2,
        "widgetType": "table",
        "encodings": {
         "columns": [
          {
           "fieldName": "posicao",
-          "displayName": "posicao",
-          "visible": true,
-          "order": 0,
-          "type": "string",
-          "displayAs": "string",
-          "title": "posicao",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "#"
          },
          {
           "fieldName": "fundo",
-          "displayName": "fundo",
-          "visible": true,
-          "order": 1,
-          "type": "string",
-          "displayAs": "string",
-          "title": "fundo",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Fundo"
          },
          {
           "fieldName": "classificacao",
-          "displayName": "classificacao",
-          "visible": true,
-          "order": 2,
-          "type": "string",
-          "displayAs": "string",
-          "title": "classificacao",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Classificação"
          },
          {
           "fieldName": "administrador",
-          "displayName": "administrador",
-          "visible": true,
-          "order": 3,
-          "type": "string",
-          "displayAs": "string",
-          "title": "administrador",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Administrador"
          },
          {
           "fieldName": "pl_bi",
-          "displayName": "pl_bi",
-          "visible": true,
-          "order": 4,
-          "type": "string",
-          "displayAs": "string",
-          "title": "pl_bi",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "PL (R$ bi)"
          },
          {
           "fieldName": "cotistas",
-          "displayName": "cotistas",
-          "visible": true,
-          "order": 5,
-          "type": "string",
-          "displayAs": "string",
-          "title": "cotistas",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Cotistas"
          },
          {
           "fieldName": "data",
-          "displayName": "data",
-          "visible": true,
-          "order": 6,
-          "type": "string",
-          "displayAs": "string",
-          "title": "data",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Data"
          }
         ]
        },
@@ -1022,6 +1079,536 @@
       "y": 19,
       "width": 6,
       "height": 9
+     }
+    }
+   ]
+  },
+  {
+   "name": "analise",
+   "displayName": "Análise de fundo",
+   "layout": [
+    {
+     "widget": {
+      "name": "t_analise",
+      "multilineTextboxSpec": {
+       "lines": [
+        "## Análise de um fundo\n\n",
+        "Escolhe um fundo de investimento (FI, informe diário) ou imobiliário (FII, informe mensal). A rentabilidade do FII é a efetiva do mês (inclui rendimentos) e compara-se com a Selic acumulada no mês. Meses incompletos ficam de fora.\n\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 6,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "f_fundo",
+      "queries": [
+       {
+        "name": "opcoes",
+        "query": {
+         "datasetName": "lista_fundos",
+         "fields": [
+          {
+           "name": "fundo",
+           "expression": "`fundo`"
+          }
+         ],
+         "disaggregated": false
+        }
+       },
+       {
+        "name": "param_sel_ficha",
+        "query": {
+         "datasetName": "sel_ficha",
+         "parameters": [
+          {
+           "name": "fundo",
+           "keyword": "fundo"
+          }
+         ],
+         "disaggregated": false
+        }
+       },
+       {
+        "name": "param_sel_rentab",
+        "query": {
+         "datasetName": "sel_rentab",
+         "parameters": [
+          {
+           "name": "fundo",
+           "keyword": "fundo"
+          }
+         ],
+         "disaggregated": false
+        }
+       },
+       {
+        "name": "param_sel_pl",
+        "query": {
+         "datasetName": "sel_pl",
+         "parameters": [
+          {
+           "name": "fundo",
+           "keyword": "fundo"
+          }
+         ],
+         "disaggregated": false
+        }
+       },
+       {
+        "name": "param_sel_dy",
+        "query": {
+         "datasetName": "sel_dy",
+         "parameters": [
+          {
+           "name": "fundo",
+           "keyword": "fundo"
+          }
+         ],
+         "disaggregated": false
+        }
+       },
+       {
+        "name": "param_sel_cota",
+        "query": {
+         "datasetName": "sel_cota",
+         "parameters": [
+          {
+           "name": "fundo",
+           "keyword": "fundo"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "filter-single-select",
+       "encodings": {
+        "fields": [
+         {
+          "fieldName": "fundo",
+          "displayName": "Fundo",
+          "queryName": "opcoes"
+         },
+         {
+          "parameterName": "fundo",
+          "queryName": "param_sel_ficha"
+         },
+         {
+          "parameterName": "fundo",
+          "queryName": "param_sel_rentab"
+         },
+         {
+          "parameterName": "fundo",
+          "queryName": "param_sel_pl"
+         },
+         {
+          "parameterName": "fundo",
+          "queryName": "param_sel_dy"
+         },
+         {
+          "parameterName": "fundo",
+          "queryName": "param_sel_cota"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Fundo (escreve parte do nome ou o CNPJ)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 2,
+      "width": 6,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_ficha",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "sel_ficha",
+         "fields": [
+          {
+           "name": "tipo",
+           "expression": "`tipo`"
+          },
+          {
+           "name": "nome",
+           "expression": "`nome`"
+          },
+          {
+           "name": "cnpj",
+           "expression": "`cnpj`"
+          },
+          {
+           "name": "administrador",
+           "expression": "`administrador`"
+          },
+          {
+           "name": "classificacao",
+           "expression": "`classificacao`"
+          },
+          {
+           "name": "ultimo_mes",
+           "expression": "`ultimo_mes`"
+          },
+          {
+           "name": "pl_mi",
+           "expression": "`pl_mi`"
+          },
+          {
+           "name": "cotistas",
+           "expression": "`cotistas`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "tipo",
+          "displayName": "Tipo"
+         },
+         {
+          "fieldName": "nome",
+          "displayName": "Nome"
+         },
+         {
+          "fieldName": "cnpj",
+          "displayName": "CNPJ"
+         },
+         {
+          "fieldName": "administrador",
+          "displayName": "Administrador"
+         },
+         {
+          "fieldName": "classificacao",
+          "displayName": "Classificação"
+         },
+         {
+          "fieldName": "ultimo_mes",
+          "displayName": "Último mês"
+         },
+         {
+          "fieldName": "pl_mi",
+          "displayName": "PL (R$ mi)"
+         },
+         {
+          "fieldName": "cotistas",
+          "displayName": "Cotistas"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Ficha"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 4,
+      "width": 6,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "l_sel_rentab",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "sel_rentab",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "valor",
+           "expression": "`valor`"
+          },
+          {
+           "name": "serie",
+           "expression": "`serie`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "valor",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "% a.a."
+        },
+        "color": {
+         "fieldName": "serie",
+         "scale": {
+          "type": "categorical"
+         },
+         "displayName": "Série"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Rentabilidade no mês vs Selic do mês (%)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 7,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "l_sel_pl",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "sel_pl",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "pl_mi",
+           "expression": "`pl_mi`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "pl_mi",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "PL (R$ mi)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Património líquido (R$ mi)"
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 7,
+      "width": 3,
+      "height": 7
+     }
+    },
+    {
+     "widget": {
+      "name": "l_sel_cot",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "sel_pl",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "cotistas",
+           "expression": "`cotistas`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "cotistas",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "Cotistas"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Cotistas"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 14,
+      "width": 3,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "b_sel_dy",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "sel_dy",
+         "fields": [
+          {
+           "name": "mes",
+           "expression": "`mes`"
+          },
+          {
+           "name": "dy_pct",
+           "expression": "`dy_pct`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "mes",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Mês"
+        },
+        "y": {
+         "fieldName": "dy_pct",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "Dividend yield (% no mês)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Dividend yield no mês (%), só FII"
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 14,
+      "width": 3,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "l_sel_cota",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "sel_cota",
+         "fields": [
+          {
+           "name": "data",
+           "expression": "`data`"
+          },
+          {
+           "name": "cota",
+           "expression": "`cota`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "data",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Data"
+        },
+        "y": {
+         "fieldName": "cota",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "Cota (R$)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Cota diária (R$), só FI"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 20,
+      "width": 6,
+      "height": 6
      }
     }
    ]
@@ -1086,93 +1673,33 @@
        }
       ],
       "spec": {
-       "version": 1,
+       "version": 2,
        "widgetType": "table",
        "encodings": {
         "columns": [
          {
           "fieldName": "fonte",
-          "displayName": "fonte",
-          "visible": true,
-          "order": 0,
-          "type": "string",
-          "displayAs": "string",
-          "title": "fonte",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Fonte"
          },
          {
           "fieldName": "resultado",
-          "displayName": "resultado",
-          "visible": true,
-          "order": 1,
-          "type": "string",
-          "displayAs": "string",
-          "title": "resultado",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Resultado"
          },
          {
           "fieldName": "entidades",
-          "displayName": "entidades",
-          "visible": true,
-          "order": 2,
-          "type": "string",
-          "displayAs": "string",
-          "title": "entidades",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Entidades"
          },
          {
           "fieldName": "registos_fonte",
-          "displayName": "registos_fonte",
-          "visible": true,
-          "order": 3,
-          "type": "string",
-          "displayAs": "string",
-          "title": "registos_fonte",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Registos na fonte"
          },
          {
           "fieldName": "divergencias",
-          "displayName": "divergencias",
-          "visible": true,
-          "order": 4,
-          "type": "string",
-          "displayAs": "string",
-          "title": "divergencias",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Divergências"
          },
          {
           "fieldName": "quando",
-          "displayName": "quando",
-          "visible": true,
-          "order": 5,
-          "type": "string",
-          "displayAs": "string",
-          "title": "quando",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Quando"
          }
         ]
        },
@@ -1224,79 +1751,29 @@
        }
       ],
       "spec": {
-       "version": 1,
+       "version": 2,
        "widgetType": "table",
        "encodings": {
         "columns": [
          {
           "fieldName": "fonte",
-          "displayName": "fonte",
-          "visible": true,
-          "order": 0,
-          "type": "string",
-          "displayAs": "string",
-          "title": "fonte",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Fonte"
          },
          {
           "fieldName": "entidade",
-          "displayName": "entidade",
-          "visible": true,
-          "order": 1,
-          "type": "string",
-          "displayAs": "string",
-          "title": "entidade",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Entidade"
          },
          {
           "fieldName": "ultima_data",
-          "displayName": "ultima_data",
-          "visible": true,
-          "order": 2,
-          "type": "string",
-          "displayAs": "string",
-          "title": "ultima_data",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Última data"
          },
          {
           "fieldName": "dias",
-          "displayName": "dias",
-          "visible": true,
-          "order": 3,
-          "type": "string",
-          "displayAs": "string",
-          "title": "dias",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Dias"
          },
          {
           "fieldName": "reconciliado",
-          "displayName": "reconciliado",
-          "visible": true,
-          "order": 4,
-          "type": "string",
-          "displayAs": "string",
-          "title": "reconciliado",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Reconciliado em"
          }
         ]
        },
@@ -1360,121 +1837,41 @@
        }
       ],
       "spec": {
-       "version": 1,
+       "version": 2,
        "widgetType": "table",
        "encodings": {
         "columns": [
          {
           "fieldName": "dia",
-          "displayName": "dia",
-          "visible": true,
-          "order": 0,
-          "type": "string",
-          "displayAs": "string",
-          "title": "dia",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Dia"
          },
          {
           "fieldName": "pipeline",
-          "displayName": "pipeline",
-          "visible": true,
-          "order": 1,
-          "type": "string",
-          "displayAs": "string",
-          "title": "pipeline",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Pipeline"
          },
          {
           "fieldName": "estado",
-          "displayName": "estado",
-          "visible": true,
-          "order": 2,
-          "type": "string",
-          "displayAs": "string",
-          "title": "estado",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Estado"
          },
          {
           "fieldName": "execucoes",
-          "displayName": "execucoes",
-          "visible": true,
-          "order": 3,
-          "type": "string",
-          "displayAs": "string",
-          "title": "execucoes",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Execuções"
          },
          {
           "fieldName": "lidos",
-          "displayName": "lidos",
-          "visible": true,
-          "order": 4,
-          "type": "string",
-          "displayAs": "string",
-          "title": "lidos",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Lidos"
          },
          {
           "fieldName": "escritos",
-          "displayName": "escritos",
-          "visible": true,
-          "order": 5,
-          "type": "string",
-          "displayAs": "string",
-          "title": "escritos",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Escritos"
          },
          {
           "fieldName": "rejeitados",
-          "displayName": "rejeitados",
-          "visible": true,
-          "order": 6,
-          "type": "string",
-          "displayAs": "string",
-          "title": "rejeitados",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Rejeitados"
          },
          {
           "fieldName": "duracao_media_s",
-          "displayName": "duracao_media_s",
-          "visible": true,
-          "order": 7,
-          "type": "string",
-          "displayAs": "string",
-          "title": "duracao_media_s",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Duração média (s)"
          }
         ]
        },
@@ -1526,79 +1923,29 @@
        }
       ],
       "spec": {
-       "version": 1,
+       "version": 2,
        "widgetType": "table",
        "encodings": {
         "columns": [
          {
           "fieldName": "ultima",
-          "displayName": "ultima",
-          "visible": true,
-          "order": 0,
-          "type": "string",
-          "displayAs": "string",
-          "title": "ultima",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Última"
          },
          {
           "fieldName": "tabela",
-          "displayName": "tabela",
-          "visible": true,
-          "order": 1,
-          "type": "string",
-          "displayAs": "string",
-          "title": "tabela",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Tabela"
          },
          {
           "fieldName": "regra",
-          "displayName": "regra",
-          "visible": true,
-          "order": 2,
-          "type": "string",
-          "displayAs": "string",
-          "title": "regra",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Regra"
          },
          {
           "fieldName": "severidade",
-          "displayName": "severidade",
-          "visible": true,
-          "order": 3,
-          "type": "string",
-          "displayAs": "string",
-          "title": "severidade",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Severidade"
          },
          {
           "fieldName": "registos_falhados",
-          "displayName": "registos_falhados",
-          "visible": true,
-          "order": 4,
-          "type": "string",
-          "displayAs": "string",
-          "title": "registos_falhados",
-          "booleanValues": [
-           "false",
-           "true"
-          ],
-          "alignContent": "left"
+          "displayName": "Registos"
          }
         ]
        },

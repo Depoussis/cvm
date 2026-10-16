@@ -126,6 +126,17 @@ try:
     contagens.inserted += n
     print(f"gold.fct_fundo_mensal: {n} linhas")
 
+    # Fundos imobiliários (informe mensal)
+    spark.sql(f"""
+        INSERT OVERWRITE {k}.gold.fct_fii_mensal
+        SELECT cnpj_classe, data_referencia, CAST(date_format(data_referencia, 'yyyyMMdd') AS INT), nome_fundo,
+               segmento_atuacao, nome_administrador, cotistas, patrimonio_liquido, valor_patrimonial_cota,
+               rentab_efetiva_mes, rentab_patrimonial_mes, dividend_yield_mes, versao
+        FROM {k}.silver.cvm_fii_mensal""")
+    n = spark.table(f"{k}.gold.fct_fii_mensal").count()
+    contagens.inserted += n
+    print(f"gold.fct_fii_mensal: {n} linhas")
+
     regras = [
         dq.Regra("fct_fundo_mensal_chave_unica", "Uma linha por (CNPJ, subclasse, mês)", "CRITICAL",
                  f"{k}.gold.fct_fundo_mensal",

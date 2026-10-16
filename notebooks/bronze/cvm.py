@@ -7,7 +7,7 @@
 # MAGIC    extraídos, a codificação é detetada e o cabeçalho é validado contra o contrato. Cabeçalho desconhecido →
 # MAGIC    quarentena e falha. Conteúdo com o mesmo sha256 de uma versão já processada → `DUPLICATE`.
 # MAGIC
-# MAGIC Entidades (parâmetro `entidades`): `catalogo`, `fi_inf_diario`, `fi_registro`, `cia_aberta_cad`.
+# MAGIC Entidades (parâmetro `entidades`): `catalogo`, `fi_inf_diario`, `fi_registro`, `cia_aberta_cad`, `fii_inf_mensal`.
 
 # COMMAND ----------
 
@@ -80,6 +80,10 @@ if p.escolhida("catalogo"):
 # COMMAND ----------
 
 def alvos(nome: str, ds: dict) -> list[cvm.Alvo]:
+    if ds["periodicidade"] == "anual":
+        anos = cvm.anos_a_verificar(p.run_mode, ds, hoje, p.data_inicio.year if p.data_inicio else None,
+                                    p.data_fim.year if p.data_fim else None)
+        return [cvm.Alvo(nome, cvm.url_ano(ds["url"], a), a) for a in anos]
     if ds["periodicidade"] == "mensal":
         ini = f"{p.data_inicio:%Y-%m}" if p.data_inicio else None
         fim = f"{p.data_fim:%Y-%m}" if p.data_fim else None
@@ -118,7 +122,7 @@ def processar(alvo: cvm.Alvo, ds: dict, c: control.Contagens, ja: set[str], forc
         tabela = f"{p.catalogo}.bronze.{f['tabela_bronze']}"
         cols_tabela = cvm.colunas_bronze(f["versoes"])
         csv_loader.garantir_tabela(spark, tabela, cols_tabela, f"CVM {alvo.dataset}/{chave}: como recebido (texto)",
-                                   ["_reference_period"] if ds["periodicidade"] == "mensal" else [])
+                                   ["_reference_period"] if ds["periodicidade"] in {"mensal", "anual"} else [])
         for nome_csv, dados in csvs:
             codificacao = cvm.detectar_codificacao(dados)
             colunas = cvm.cabecalho(dados, codificacao, cfg["csv"]["separador"])

@@ -12,6 +12,7 @@ Tudo confirmado com pedidos reais em 16/10/2026 (`config/datasets/cvm.yaml`):
 | Informe diário de fundos | `fi-doc-inf_diario` | `FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_AAAAMM.zip` (1 CSV) | meses desde 2021-01; ~540 mil linhas e 11 MB por mês; 2000–2020 em `DADOS/HIST/` (anuais, ainda não suportado) |
 | Cadastro de fundos, classes e subclasses | `fi-cad` | `FI/CAD/DADOS/registro_fundo_classe.zip` (3 CSV) | snapshot completo |
 | Cadastro de companhias abertas | `cia_aberta-cad` | `CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv` | snapshot completo |
+| Informe mensal de FII | `fii-doc-inf_mensal` | `FII/DOC/INF_MENSAL/DADOS/inf_mensal_fii_AAAA.zip` (3 CSV: geral, complemento, ativo_passivo) | um ZIP por ano desde 2021; os FII **não** entram no informe diário |
 
 O catálogo dos pacotes (`package_show`) é guardado em `bronze.cvm_catalogo_recursos` em cada execução.
 
@@ -34,6 +35,10 @@ O catálogo dos pacotes (`package_show`) é guardado em `bronze.cvm_catalogo_rec
   **Pressuposto da plataforma (não é regra da CVM):** fica a linha do regime novo (`CLASSE*`). As regras INFO
   `duplicado_na_fonte_valores_iguais` e `duplicado_na_fonte_valores_diferentes` registam os casos com amostra,
   e a bronze guarda as duas linhas. Rever com a CVM antes de usar estes dias em análises sensíveis.
+- **FII:** cabeçalhos iguais de 2021 a 2026; coluna `Versao` com reenvios do mesmo mês (até 6), fica a mais alta;
+  números por vezes em notação científica (`2.5E-05`); percentuais publicados como fração (0,0057 = 0,57 %);
+  uma coluna com acento (`..._Previdência_...`), por isso os nomes na bronze são convertidos para ASCII.
+  1 171 informes com rentabilidade ou DY acima de ±50 % no mês (regra INFO `percentual_suspeito`).
 - **Cota zero:** ~2 mil informes por bimestre têm `VL_QUOTA = 0` (regra INFO `cota_positiva`).
 
 ## Tabelas
@@ -44,6 +49,8 @@ O catálogo dos pacotes (`package_show`) é guardado em `bronze.cvm_catalogo_rec
 | bronze | `cvm_fi_inf_diario`, `cvm_fi_registro_fundo`, `cvm_fi_registro_classe`, `cvm_fi_registro_subclasse`, `cvm_cia_aberta_cad` | — | append, texto, colunas do contrato + `_schema_version`, `_corrupt_record` |
 | bronze | `cvm_catalogo_recursos` | — | append por execução |
 | silver | `cvm_fi_informe_diario` | (cnpj_classe, id_subclasse, dt_comptc) | SCD1, tipos do dicionário CVM |
+| silver | `cvm_fii_mensal` | (cnpj_classe, data_referencia) | SCD1, versão mais alta do informe |
+| gold | `fct_fii_mensal` | (cnpj_classe, mes) | 62 903 linhas, 1 655 FII (2021-01 a 2026-09) |
 | silver | `cvm_fundo`, `cvm_fundo_gestor`, `cvm_fundo_classe`, `cvm_companhia` | ver DDL | SCD2; chaves ausentes do snapshot fecham a versão atual |
 | gold | `dim_fundo_classe`, `dim_companhia` | cnpj_classe / cd_cvm | `INSERT OVERWRITE` |
 | gold | `fct_fundo_diario` | (cnpj_classe, id_subclasse, data_key) | `INSERT … REPLACE WHERE` desde o 1.º mês alterado |

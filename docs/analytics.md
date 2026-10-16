@@ -41,7 +41,11 @@ da Selic; ações, 35,9 %.
 1. **Mercado (BCB):** Meta Selic, PTAX USD/EUR, Selic desde 2000, PTAX diária, variação mensal do câmbio, IBC-Br.
 2. **Fundos (CVM):** PL e captação somados, % de fundos acima da Selic e rentabilidade mediana por classificação,
    20 maiores fundos.
-3. **Operação e qualidade:** reconciliação, frescura, execuções e regras de qualidade com falhas.
+3. **Análise de fundo:** dropdown com pesquisa (≈ 26 mil FI e FII com dados recentes, formato `nome · FI|FII · CNPJ`)
+   ligado ao parâmetro `:fundo` de cinco datasets: ficha, rentabilidade no mês vs Selic do mês, PL e cotistas,
+   dividend yield (FII) e cota diária (FI). Abre no maior FII do grupo Itaú (Kinea Rendimentos Imobiliários,
+   administrado pela Intrag).
+4. **Operação e qualidade:** reconciliação (última execução por fonte), frescura, execuções e regras com falhas.
 
 As consultas correm no SQL Warehouse serverless 2X-Small (≈ 3,20 €/h só enquanto ligado; auto-stop 1 min).
 

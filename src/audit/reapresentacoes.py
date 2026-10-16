@@ -15,6 +15,9 @@ TABELAS_SCD1 = {
     "silver.cvm_fi_informe_diario": (["cnpj_classe", "id_subclasse", "dt_comptc"],
                                      ["tp_fundo_classe", "vl_total", "vl_quota", "vl_patrim_liq", "captc_dia",
                                       "resg_dia", "nr_cotst"]),
+    "silver.cvm_fii_mensal": (["cnpj_classe", "data_referencia"],
+                              ["versao", "cotistas", "patrimonio_liquido", "valor_patrimonial_cota",
+                               "rentab_efetiva_mes", "dividend_yield_mes"]),
 }
 DIGITOS_VERSAO = 12  # o watermark é texto; versões com zeros à esquerda comparam bem como texto
 

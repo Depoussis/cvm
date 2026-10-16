@@ -7,12 +7,13 @@
 # mesma tabela (colunas que não existem numa versão ficam NULL) e `_schema_version` indica a versão.
 #
 # Codificação: detetada por ficheiro (UTF-8; se falhar, ISO-8859-1). Observado: informe diário em UTF-8,
-# cadastros em ISO-8859-1.
+# cadastros em ISO-8859-1; FII: ativo_passivo em UTF-8, geral e complemento em ISO-8859-1.
+# Nomes de coluna na bronze: minúsculas e sem acentos (ex.: ..._Previdência_... → ..._previdencia_...).
 
 ckan:
   url_package_show: "https://dados.cvm.gov.br/api/3/action/package_show"
   # pacotes cujo catálogo de recursos é guardado em bronze.cvm_catalogo_recursos
-  pacotes: [fi-doc-inf_diario, fi-cad, cia_aberta-cad]
+  pacotes: [fi-doc-inf_diario, fi-cad, cia_aberta-cad, fii-doc-inf_mensal]
 
 csv:
   separador: ";"
@@ -88,6 +89,64 @@ datasets:
                FAX, EMAIL, TP_RESP, RESP, DT_INI_RESP, LOGRADOURO_RESP, COMPL_RESP, BAIRRO_RESP, MUN_RESP, UF_RESP,
                PAIS_RESP, CEP_RESP, DDD_TEL_RESP, TEL_RESP, DDD_FAX_RESP, FAX_RESP, EMAIL_RESP, CNPJ_AUDITOR,
                AUDITOR]
+
+  fii_inf_mensal:
+    pacote_ckan: fii-doc-inf_mensal
+    descricao: "Informe mensal estruturado dos fundos imobiliários (PL, cota patrimonial, cotistas, rentabilidade, DY)"
+    # Um ZIP por ano com 3 CSV. O fundo pode reenviar o informe de um mês (coluna Versao): fica a versão mais alta.
+    url: "https://dados.cvm.gov.br/dados/FII/DOC/INF_MENSAL/DADOS/inf_mensal_fii_{aaaa}.zip"
+    periodicidade: anual
+    primeiro_ano_disponivel: 2021
+    inicio_backfill: 2021
+    revisao_anos: 2                 # o ano corrente e o anterior (reenvios chegam com atraso)
+    ficheiros:
+      geral:
+        padrao_nome: "inf_mensal_fii_geral_*.csv"
+        tabela_bronze: cvm_fii_inf_mensal_geral
+        versoes:
+          v1:   # igual de 2021 a 2026
+            [Tipo_Fundo_Classe, CNPJ_Fundo_Classe, Data_Referencia, Versao, Data_Entrega, Nome_Fundo_Classe,
+             Data_Funcionamento, Publico_Alvo, Codigo_ISIN, Quantidade_Cotas_Emitidas, Fundo_Exclusivo,
+             Cotistas_Vinculo_Familiar, Mandato, Segmento_Atuacao, Tipo_Gestao, Prazo_Duracao, Data_Prazo_Duracao,
+             Encerramento_Exercicio_Social, Mercado_Negociacao_Bolsa, Mercado_Negociacao_MBO, Mercado_Negociacao_MB,
+             Entidade_Administradora_BVMF, Entidade_Administradora_CETIP, Nome_Administrador, CNPJ_Administrador,
+             Logradouro, Numero, Complemento, Bairro, Cidade, Estado, CEP, Telefone1, Telefone2, Telefone3, Site,
+             Email]
+      complemento:
+        padrao_nome: "inf_mensal_fii_complemento_*.csv"
+        tabela_bronze: cvm_fii_inf_mensal_complemento
+        versoes:
+          v1:   # igual de 2021 a 2026
+            [CNPJ_Fundo_Classe, Data_Referencia, Versao, Data_Informacao_Numero_Cotistas, Total_Numero_Cotistas,
+             Numero_Cotistas_Pessoa_Fisica, Numero_Cotistas_Pessoa_Juridica_Nao_Financeira,
+             Numero_Cotistas_Banco_Comercial, Numero_Cotistas_Corretora_Distribuidora,
+             Numero_Cotistas_Outras_Pessoas_Juridicas_Financeira, Numero_Cotistas_Investidores_Nao_Residentes,
+             Numero_Cotistas_Entidade_Aberta_Previdencia_Complementar,
+             Numero_Cotistas_Entidade_Fechada_Previdência_Complementar,
+             Numero_Cotistas_Regime_Proprio_Previdencia_Servidores_Publicos,
+             Numero_Cotistas_Sociedade_Seguradora_Resseguradora,
+             Numero_Cotistas_Sociedade_Capitalizacao_Arrendamento_Mercantil, Numero_Cotistas_FII,
+             Numero_Cotistas_Outros_Fundos, Numero_Cotistas_Distribuidores_Fundo, Numero_Cotistas_Outros_Tipos,
+             Valor_Ativo, Patrimonio_Liquido, Cotas_Emitidas, Valor_Patrimonial_Cotas,
+             Percentual_Despesas_Taxa_Administracao, Percentual_Despesas_Agente_Custodiante,
+             Percentual_Rentabilidade_Efetiva_Mes, Percentual_Rentabilidade_Patrimonial_Mes,
+             Percentual_Dividend_Yield_Mes, Percentual_Amortizacao_Cotas_Mes]
+      ativo_passivo:
+        padrao_nome: "inf_mensal_fii_ativo_passivo_*.csv"
+        tabela_bronze: cvm_fii_inf_mensal_ativo_passivo
+        versoes:
+          v1:   # igual de 2021 a 2026
+            [CNPJ_Fundo_Classe, Data_Referencia, Versao, Total_Necessidades_Liquidez, Disponibilidades,
+             Titulos_Publicos, Titulos_Privados, Fundos_Renda_Fixa, Total_Investido, Direitos_Bens_Imoveis, Terrenos,
+             Imoveis_Renda_Acabados, Imoveis_Renda_Construcao, Imoveis_Venda_Acabados, Imoveis_Venda_Construcao,
+             Outros_Direitos_Reais, Acoes, Debentures, Bonus_Subscricao, Certificados_Deposito_Valores_Mobiliarios,
+             Cedulas_Debentures, Fundo_Acoes, FIP, FII, FDIC, Outras_Cotas_FI, Notas_Promissorias,
+             Acoes_Sociedades_Atividades_FII, Cotas_Sociedades_Atividades_FII, CEPAC, CRI, CRI_CRA,
+             Letras_Hipotecarias, LCI, LCI_LCA, LIG, Outros_Valores_Mobliarios, Valores_Receber,
+             Contas_Receber_Aluguel, Contas_Receber_Venda_Imoveis, Outros_Valores_Receber, Rendimentos_Distribuir,
+             Taxa_Administracao_Pagar, Taxa_Performance_Pagar, Obrigacoes_Aquisicao_Imoveis,
+             Adiantamento_Venda_Imoveis, Adiantamento_Alugueis, Obrigacoes_Securitizacao_Recebiveis,
+             Instrumentos_Financeiros_Derivativos, Provisoes_Contigencias, Outros_Valores_Pagar, Total_Passivo]
 
 # Colunas com dados pessoais (nomes, CPF, contactos de pessoas) que ficam só na bronze, com acesso restrito,
 # e nunca passam para silver/gold.

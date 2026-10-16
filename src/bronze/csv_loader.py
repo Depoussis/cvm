@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 from src.bronze.writer import Origem
+from src.ingestion.cvm.files import nome_coluna
 
 AUDITORIA = [
     ("_schema_version", "STRING"), ("_source_file_name", "STRING"), ("_source_encoding", "STRING"),
@@ -22,8 +23,12 @@ def ddl_tabela(tabela: str, colunas: list[str], comentario: str, cluster_por: li
             raise ValueError(f"nome de coluna inesperado: {c!r}")
     corpo = ",\n  ".join([f"`{c}` STRING" for c in colunas] + [f"{n} {t}" for n, t in AUDITORIA])
     cluster = f"\nCLUSTER BY ({', '.join(cluster_por)})" if cluster_por else ""
+    # O Delta só recolhe estatísticas das primeiras 32 colunas; o clustering exige estatísticas das colunas de
+    # cluster, que aqui vêm depois das colunas de negócio (ex.: FII geral tem 37). Indica-se quais recolher.
+    stats = ",".join(dict.fromkeys(cluster_por + ["_pipeline_run_id", "_file_hash", "_ingestion_timestamp"]))
     return (f"CREATE TABLE IF NOT EXISTS {tabela} (\n  {corpo}\n)\nUSING DELTA{cluster}\n"
-            f"COMMENT '{comentario.replace(chr(39), '')}'")
+            f"COMMENT '{comentario.replace(chr(39), '')}'\n"
+            f"TBLPROPERTIES ('delta.dataSkippingStatsColumns' = '{stats}')")
 
 
 def garantir_tabela(spark, tabela: str, colunas: list[str], comentario: str, cluster_por: list[str]) -> None:
@@ -43,10 +48,10 @@ def carregar_csv(spark, caminho_csv: str, tabela: str, colunas_ficheiro: list[st
     df = (spark.read.option("header", True).option("sep", separador).option("encoding", codificacao)
           .option("quote", '"').option("escape", '"')
           .option("mode", "PERMISSIVE").option("columnNameOfCorruptRecord", "_corrupt_record")
-          .schema(", ".join([f"`{c}` STRING" for c in colunas_ficheiro] + ["_corrupt_record STRING"]))
+          .schema(", ".join([f"`c{i}` STRING" for i in range(len(colunas_ficheiro))] + ["_corrupt_record STRING"]))
           .csv(caminho_csv))
-    df = df.toDF(*[c.lower() for c in colunas_ficheiro], "_corrupt_record")
-    negocio = [c.lower() for c in colunas_ficheiro]
+    negocio = [nome_coluna(c) for c in colunas_ficheiro]
+    df = df.toDF(*negocio, "_corrupt_record")
     df = (df.withColumn("_record_hash", F.sha2(F.concat_ws("||", *[F.coalesce(F.col(c), F.lit("∅")) for c in negocio]), 256))
             .withColumn("_schema_version", F.lit(versao))
             .withColumn("_source_file_name", F.lit(caminho_csv.rsplit("/", 1)[-1]))
