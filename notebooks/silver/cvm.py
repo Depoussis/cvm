@@ -113,6 +113,11 @@ if p.escolhida("fi_inf_diario"):
         c.unchanged = n_validos - c.inserted - c.updated
 
         da_execucao = f"SELECT * FROM {destino} WHERE _pipeline_run_id = '{p.run_id}'"
+        sql_dup = (f"SELECT {cnpj('coalesce(cnpj_fundo_classe, cnpj_fundo)')} AS cnpj_classe, "
+                   f"coalesce({txt('id_subclasse')}, '') AS id_subclasse, dt_comptc, _file_hash, "
+                   f"collect_set(coalesce(tp_fundo_classe, tp_fundo)) AS tipos, count(*) AS n, "
+                   f"count(DISTINCT vl_total, vl_quota, vl_patrim_liq, captc_dia, resg_dia, nr_cotst) AS versoes "
+                   f"FROM _inf_pend WHERE _valido GROUP BY 1, 2, 3, 4 HAVING n > 1")
         total_exec = f"SELECT count(*) FROM ({da_execucao})"
         regras = [
             dq.Regra("chave_unica", "Uma linha por (CNPJ, subclasse, data)", "CRITICAL", destino,
@@ -122,13 +127,14 @@ if p.escolhida("fi_inf_diario"):
                      "HIGH", bronze, "SELECT * FROM _inf_pend WHERE NOT _valido", "SELECT count(*) FROM _inf_pend"),
             dq.Regra("data_nao_futura", "Data de competência não posterior a hoje", "HIGH", destino,
                      f"SELECT * FROM ({da_execucao}) WHERE dt_comptc > current_date()", total_exec),
-            dq.Regra("duplicado_na_fonte", "Mesmo (CNPJ, subclasse, data) mais de uma vez nos ficheiros recebidos",
-                     "INFO", bronze,
-                     f"SELECT {cnpj('coalesce(cnpj_fundo_classe, cnpj_fundo)')} AS cnpj_classe, "
-                     f"coalesce({txt('id_subclasse')}, '') AS id_subclasse, dt_comptc, _file_hash, "
-                     f"collect_set(coalesce(tp_fundo_classe, tp_fundo)) AS tipos, count(*) AS n "
-                     f"FROM _inf_pend WHERE _valido GROUP BY 1, 2, 3, 4 HAVING n > 1",
-                     "SELECT count(*) FROM _inf_pend"),
+            # Mesmo (CNPJ, subclasse, data) repetido no mesmo ficheiro (FI e CLASSES - FIF na transição RCVM 175).
+            # Fica a linha do regime novo (ver QUALIFY acima); separa-se o caso em que os valores também diferem,
+            # porque aí a escolha é um pressuposto da plataforma e não uma regra da CVM.
+            dq.Regra("duplicado_na_fonte_valores_iguais", "Chave repetida no ficheiro com os mesmos valores", "INFO",
+                     bronze, f"{sql_dup} AND versoes = 1", "SELECT count(*) FROM _inf_pend"),
+            dq.Regra("duplicado_na_fonte_valores_diferentes",
+                     "Chave repetida no ficheiro com valores diferentes; mantida a linha CLASSE* (pressuposto)", "INFO",
+                     bronze, f"{sql_dup} AND versoes > 1", "SELECT count(*) FROM _inf_pend"),
             # Plausibilidade: só regista (a CVM publica o que os administradores enviam)
             dq.Regra("cota_positiva", "Valor da cota maior que zero", "INFO", destino,
                      f"SELECT cnpj_classe, id_subclasse, dt_comptc, vl_quota FROM ({da_execucao}) WHERE vl_quota <= 0",

@@ -22,7 +22,7 @@ def test_dividir_ignora_ponto_e_virgula_em_strings_e_comentarios():
     assert dividir_instrucoes(sql) == ["CREATE TABLE a (x STRING COMMENT 'a;b')", "SELECT 1"]
 
 
-def test_ddl_de_controlo_tem_as_quatro_tabelas():
+def test_ddl_de_controlo_tem_as_tabelas_de_controlo_e_auditoria():
     instr = [s for _, s in carregar_ficheiros(RAIZ / "sql" / "control", {"catalog": "findata_dev"})]
     criadas = {s.split()[5] for s in instr if s.upper().startswith("CREATE TABLE IF NOT EXISTS")}
     assert criadas == {
@@ -30,5 +30,7 @@ def test_ddl_de_controlo_tem_as_quatro_tabelas():
         "findata_dev.control.ingestion_watermark",
         "findata_dev.control.data_quality_results",
         "findata_dev.control.source_file_registry",
+        "findata_dev.control.reapresentacoes",
+        "findata_dev.control.reconciliation_results",
     }
     assert all("${" not in s for s in instr)

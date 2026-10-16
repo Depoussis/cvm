@@ -28,9 +28,12 @@ O catálogo dos pacotes (`package_show`) é guardado em `bronze.cvm_catalogo_rec
   e agrega mercados/custodiantes por ordem alfabética, para ter uma linha por chave.
 - **Republicação:** a CVM volta a publicar meses recentes (o `Last-Modified` muda). O incremental verifica o ETag dos
   últimos 12 meses e só descarrega o que mudou; conteúdo igual a uma versão já processada fica `DUPLICATE`.
-- **Fundo publicado duas vezes no mesmo dia:** na transição para a RCVM 175, ~39 mil informes (2024-10 a 2025-08,
-  pico de 13,7 mil em 2025-06) aparecem como `FI` e como `CLASSES - FIF` para o mesmo CNPJ e data, com os mesmos
-  valores. A silver fica com o tipo novo; a regra INFO `duplicado_na_fonte` regista os casos.
+- **Fundo publicado duas vezes no mesmo dia:** na transição para a RCVM 175, 39 583 chaves (CNPJ, subclasse, data)
+  de 2024-01 a 2026-07 aparecem duas vezes no mesmo ficheiro, como `FI` e como `CLASSES - FIF` (pico de 13,7 mil em
+  2025-06). Em 30 922 os valores são iguais; em **8 661 os valores diferem** (ex.: cota 1,1903 vs 1,1982).
+  **Pressuposto da plataforma (não é regra da CVM):** fica a linha do regime novo (`CLASSE*`). As regras INFO
+  `duplicado_na_fonte_valores_iguais` e `duplicado_na_fonte_valores_diferentes` registam os casos com amostra,
+  e a bronze guarda as duas linhas. Rever com a CVM antes de usar estes dias em análises sensíveis.
 - **Cota zero:** ~2 mil informes por bimestre têm `VL_QUOTA = 0` (regra INFO `cota_positiva`).
 
 ## Tabelas
@@ -69,7 +72,7 @@ telefone e endereço do responsável. Essas colunas (lista em `dados_pessoais` n
 | chave única e preenchida (silver e gold) | CRITICAL |
 | CNPJ com 14 dígitos, data e números convertíveis sem perda, número certo de campos (senão quarentena) | HIGH |
 | data de competência não futura | HIGH |
-| cota > 0, cotistas ≥ 0, cobertura do cadastro, duplicado na fonte | INFO |
+| cota > 0, cotistas ≥ 0, cobertura do cadastro, duplicados na fonte (valores iguais / diferentes) | INFO |
 
 ## Operação
 

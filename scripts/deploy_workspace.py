@@ -33,10 +33,15 @@ JOBS = {
     "bcb": ("Banco Central (SGS e PTAX): bronze -> silver -> gold. Ver docs/pipelines_bcb.md.", "cron", [
         ("bronze_sgs", "bronze/bcb_sgs", [], 2), ("bronze_ptax", "bronze/bcb_ptax", [], 2),
         ("silver_sgs", "silver/bcb_sgs", ["bronze_sgs"], 0), ("silver_ptax", "silver/bcb_ptax", ["bronze_ptax"], 0),
-        ("gold_bcb", "gold/bcb", ["silver_sgs", "silver_ptax"], 0)]),
+        ("gold_bcb", "gold/bcb", ["silver_sgs", "silver_ptax"], 0),
+        ("reapresentacoes", "audit/reapresentacoes", ["gold_bcb"], 0)]),
     "cvm": ("CVM (fundos e companhias abertas): bronze -> silver -> gold. Ver docs/pipelines_cvm.md.", "cron_cvm", [
         ("bronze_cvm", "bronze/cvm", [], 2), ("silver_cvm", "silver/cvm", ["bronze_cvm"], 0),
-        ("gold_cvm", "gold/cvm", ["silver_cvm"], 0)]),
+        ("gold_cvm", "gold/cvm", ["silver_cvm"], 0),
+        ("reapresentacoes", "audit/reapresentacoes", ["gold_cvm"], 0)]),
+    "auditoria": ("Auditoria semanal: testes de integração e reconciliação com as fontes. Ver docs/auditoria.md.",
+                  "cron_auditoria", [
+        ("testes_integracao", "tests/integracao", [], 0), ("reconciliacao", "audit/reconciliacao", [], 1)]),
 }
 
 
