@@ -34,11 +34,15 @@ class ClienteHttp:
         self.pausa = cfg_http["pausa_entre_pedidos_s"]
         self.sessao = sessao or requests.Session()
         self.sessao.headers["User-Agent"] = cfg_http["user_agent"]
-        self.sessao.headers["Accept"] = "application/json"
         self._dormir = dormir
         self._ultimo = 0.0
 
-    def get(self, url: str, params: dict[str, str] | None = None, aceitar: frozenset[int] = frozenset()) -> Resposta:
+    def head(self, url: str) -> Resposta:
+        """HEAD com retries: devolve ETag/Last-Modified sem descarregar o ficheiro (conteúdo vazio)."""
+        return self.get(url, metodo="HEAD", aceitar=frozenset({404}))
+
+    def get(self, url: str, params: dict[str, str] | None = None, aceitar: frozenset[int] = frozenset(),
+            metodo: str = "GET") -> Resposta:
         """GET com retries. `aceitar`: estados não-200 devolvidos ao chamador (ex.: 404 = sem dados no SGS)."""
         for tentativa in range(1, self.tentativas + 1):
             espera = self.pausa - (time.monotonic() - self._ultimo)
@@ -46,7 +50,7 @@ class ClienteHttp:
                 self._dormir(espera)
             self._ultimo = time.monotonic()
             try:
-                r = self.sessao.get(url, params=params, timeout=self.timeout)
+                r = self.sessao.request(metodo, url, params=params, timeout=self.timeout)
             except (requests.ConnectionError, requests.Timeout) as e:
                 motivo = f"{type(e).__name__}: {e}"
             else:

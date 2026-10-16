@@ -13,7 +13,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 |---|---|---|
 | 1. Fundação | Infraestrutura, ADLS, RBAC, Unity Catalog, repositório, tabelas de controlo | concluída (16/10/2026) |
 | 2. Banco Central | SGS e PTAX: histórico e incremental, bronze/silver/gold | concluída (16/10/2026), ver [docs/pipelines_bcb.md](docs/pipelines_bcb.md) |
-| 3. CVM | Catálogo, ficheiros históricos, ZIP, fundos e companhias abertas | — |
+| 3. CVM | Catálogo, ficheiros históricos, ZIP, fundos e companhias abertas | concluída (16/10/2026), ver [docs/pipelines_cvm.md](docs/pipelines_cvm.md) |
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | — |
 | 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | — |
 | 6. Qualidade e analytics | Testes de dados, modelo dimensional, indicadores, Power BI | — |
@@ -25,7 +25,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 infrastructure/bicep/     main.bicep, módulos e parâmetros por ambiente
 config/environments/      configuração por ambiente (sem segredos)
 src/common/               configuração, HTTP com retries, raw, janelas, utilitários SQL
-src/ingestion/            clientes das APIs (bcb_sgs, bcb_ptax)
+src/ingestion/            clientes das APIs (bcb_sgs, bcb_ptax) e ficheiros CVM (contrato, ZIP, codificação)
 src/bronze|silver|scd/    escrita bronze, MERGE SCD1/SCD2
 src/quality/              regras de qualidade
 src/audit/                execuções, watermarks e registo de ficheiros nas tabelas de controlo

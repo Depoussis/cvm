@@ -103,7 +103,7 @@ class _Sessao:
     def __init__(self, estados):
         self.estados, self.headers, self.pedidos = list(estados), {}, 0
 
-    def get(self, url, params=None, timeout=None):
+    def request(self, metodo, url, params=None, timeout=None):
         self.pedidos += 1
         return _Resp(self.estados.pop(0))
 

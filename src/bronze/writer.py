@@ -9,6 +9,7 @@ from datetime import date, datetime
 from typing import Any
 
 from src.audit.control import agora_utc
+from src.ingestion.cvm.files import data_http
 
 
 def hash_registo(registo: dict[str, Any]) -> str:
@@ -58,6 +59,17 @@ def hashes_processados(spark, catalogo: str, source_system: str, entity: str) ->
     return {r[0] for r in linhas}
 
 
+def ultimo_registo(spark, catalogo: str, source_url: str) -> dict[str, Any] | None:
+    """Última versão registada de um URL (para comparar ETag/Last-Modified antes de descarregar)."""
+    linhas = spark.sql(f"""
+        SELECT source_etag, source_last_modified, file_hash_sha256, processing_status
+        FROM {catalogo}.control.source_file_registry
+        WHERE source_url = :u AND processing_status IN ('PROCESSED', 'DUPLICATE')
+        ORDER BY received_at DESC LIMIT 1
+    """, args={"u": source_url}).collect()
+    return linhas[0].asDict() if linhas else None
+
+
 def linha_registo(origem: Origem, run_id: str, status: str, detalhe: str | None, periodo: str | None) -> dict[str, Any]:
     ts = agora_utc()
     return {
@@ -65,7 +77,7 @@ def linha_registo(origem: Origem, run_id: str, status: str, detalhe: str | None,
         "source_system": origem.source_system, "entity_name": origem.entity, "source_url": origem.url,
         "source_file_name": origem.stored_path.rsplit("/", 1)[-1], "stored_path": origem.stored_path,
         "file_hash_sha256": origem.file_hash, "file_size_bytes": origem.size,
-        "source_last_modified": None, "source_etag": origem.etag, "reference_period": periodo,
+        "source_last_modified": data_http(origem.last_modified), "source_etag": origem.etag, "reference_period": periodo,
         "received_at": ts, "pipeline_run_id": run_id, "processing_status": status, "status_detail": detalhe,
         "version_number": 1, "updated_at": ts,
     }

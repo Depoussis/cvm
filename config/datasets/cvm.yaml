@@ -1,0 +1,97 @@
+# Conjuntos de dados da CVM (https://dados.cvm.gov.br). Tudo confirmado com pedidos reais em 16/10/2026:
+# identificadores CKAN (package_show), URLs dos ficheiros, codificação e cabeçalhos dos CSV.
+#
+# Contrato de colunas: cada ficheiro tem uma ou mais versões de cabeçalho conhecidas. Um cabeçalho que não
+# coincide com nenhuma versão vai para a quarentena e faz a execução falhar (deteção de schema drift).
+# Na bronze, as colunas ficam com o nome original em minúsculas, todas como texto; as versões partilham a
+# mesma tabela (colunas que não existem numa versão ficam NULL) e `_schema_version` indica a versão.
+#
+# Codificação: detetada por ficheiro (UTF-8; se falhar, ISO-8859-1). Observado: informe diário em UTF-8,
+# cadastros em ISO-8859-1.
+
+ckan:
+  url_package_show: "https://dados.cvm.gov.br/api/3/action/package_show"
+  # pacotes cujo catálogo de recursos é guardado em bronze.cvm_catalogo_recursos
+  pacotes: [fi-doc-inf_diario, fi-cad, cia_aberta-cad]
+
+csv:
+  separador: ";"
+
+datasets:
+  fi_inf_diario:
+    pacote_ckan: fi-doc-inf_diario
+    descricao: "Informe diário dos fundos de investimento (cota, PL, captação, resgate, cotistas)"
+    # Um ZIP por mês com um CSV. Meses de 2021-01 em diante estão em DADOS/; 2000-2020 em DADOS/HIST/ (anuais),
+    # ainda não suportados.
+    url: "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{aaaamm}.zip"
+    periodicidade: mensal
+    primeiro_mes_disponivel: 2021-01
+    inicio_backfill: 2024-01        # ~540 mil linhas por mês; antecipar com cuidado (custo e tempo)
+    revisao_meses: 12               # a CVM republica meses recentes; verificamos ETag/hash destes
+    ficheiros:
+      inf_diario:
+        padrao_nome: "inf_diario_fi_*.csv"
+        tabela_bronze: cvm_fi_inf_diario
+        versoes:
+          v1:   # observado em 2021-01
+            [TP_FUNDO, CNPJ_FUNDO, DT_COMPTC, VL_TOTAL, VL_QUOTA, VL_PATRIM_LIQ, CAPTC_DIA, RESG_DIA, NR_COTST]
+          v2:   # observado em 2023-12, 2025-01 e 2026-09 (adaptação à RCVM 175: classes e subclasses)
+            [TP_FUNDO_CLASSE, CNPJ_FUNDO_CLASSE, ID_SUBCLASSE, DT_COMPTC, VL_TOTAL, VL_QUOTA, VL_PATRIM_LIQ,
+             CAPTC_DIA, RESG_DIA, NR_COTST]
+
+  fi_registro:
+    pacote_ckan: fi-cad
+    descricao: "Cadastro de fundos, classes e subclasses (RCVM 175)"
+    url: "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/registro_fundo_classe.zip"
+    periodicidade: snapshot
+    ficheiros:
+      registro_fundo:
+        padrao_nome: "registro_fundo.csv"
+        tabela_bronze: cvm_fi_registro_fundo
+        versoes:
+          v1: [ID_Registro_Fundo, CNPJ_Fundo, Codigo_CVM, Data_Registro, Data_Constituicao, Tipo_Fundo,
+               Denominacao_Social, Data_Cancelamento, Situacao, Data_Inicio_Situacao, Data_Adaptacao_RCVM175,
+               Data_Inicio_Exercicio_Social, Data_Fim_Exercicio_Social, Patrimonio_Liquido,
+               Data_Patrimonio_Liquido, Diretor, CNPJ_Administrador, Administrador, Tipo_Pessoa_Gestor,
+               CPF_CNPJ_Gestor, Gestor]
+      registro_classe:
+        padrao_nome: "registro_classe.csv"
+        tabela_bronze: cvm_fi_registro_classe
+        versoes:
+          v1: [ID_Registro_Fundo, ID_Registro_Classe, CNPJ_Classe, Codigo_CVM, Data_Registro, Data_Constituicao,
+               Data_Inicio, Tipo_Classe, Denominacao_Social, Situacao, Data_Inicio_Situacao, Classificacao,
+               Indicador_Desempenho, Classe_Cotas, Classificacao_Anbima, Tributacao_Longo_Prazo,
+               Entidade_Investimento, Permitido_Aplicacao_CemPorCento_Exterior, Classe_ESG, Forma_Condominio,
+               Exclusivo, Publico_Alvo, Patrimonio_Liquido, Data_Patrimonio_Liquido, CNPJ_Auditor, Auditor,
+               CNPJ_Custodiante, Custodiante, CNPJ_Controlador, Controlador]
+      registro_subclasse:
+        padrao_nome: "registro_subclasse.csv"
+        tabela_bronze: cvm_fi_registro_subclasse
+        versoes:
+          v1: [ID_Registro_Classe, ID_Subclasse, Codigo_CVM, Data_Constituicao, Data_Inicio, Denominacao_Social,
+               Situacao, Data_Inicio_Situacao, Forma_Condominio, Exclusivo, Publico_Alvo, Previdenciario,
+               Exclusivo_INR, Exclusivo_Previdencia_Complementar]
+
+  cia_aberta_cad:
+    pacote_ckan: cia_aberta-cad
+    descricao: "Cadastro das companhias abertas"
+    url: "https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv"
+    periodicidade: snapshot
+    ficheiros:
+      cad_cia_aberta:
+        padrao_nome: "cad_cia_aberta.csv"
+        tabela_bronze: cvm_cia_aberta_cad
+        versoes:
+          v1: [CNPJ_CIA, DENOM_SOCIAL, DENOM_COMERC, DT_REG, DT_CONST, DT_CANCEL, MOTIVO_CANCEL, SIT, DT_INI_SIT,
+               CD_CVM, SETOR_ATIV, TP_MERC, CATEG_REG, DT_INI_CATEG, SIT_EMISSOR, DT_INI_SIT_EMISSOR,
+               CONTROLE_ACIONARIO, TP_ENDER, LOGRADOURO, COMPL, BAIRRO, MUN, UF, PAIS, CEP, DDD_TEL, TEL, DDD_FAX,
+               FAX, EMAIL, TP_RESP, RESP, DT_INI_RESP, LOGRADOURO_RESP, COMPL_RESP, BAIRRO_RESP, MUN_RESP, UF_RESP,
+               PAIS_RESP, CEP_RESP, DDD_TEL_RESP, TEL_RESP, DDD_FAX_RESP, FAX_RESP, EMAIL_RESP, CNPJ_AUDITOR,
+               AUDITOR]
+
+# Colunas com dados pessoais (nomes, CPF, contactos de pessoas) que ficam só na bronze, com acesso restrito,
+# e nunca passam para silver/gold.
+dados_pessoais:
+  cvm_fi_registro_fundo: [diretor, cpf_cnpj_gestor]   # CPF quando Tipo_Pessoa_Gestor = PF
+  cvm_cia_aberta_cad: [resp, email_resp, ddd_tel_resp, tel_resp, ddd_fax_resp, fax_resp, logradouro_resp,
+                       compl_resp, bairro_resp, mun_resp, uf_resp, pais_resp, cep_resp]

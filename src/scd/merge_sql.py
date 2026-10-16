@@ -54,3 +54,14 @@ def merge_scd2(destino: str, origem: str, chaves: list[str], colunas: list[str])
             f"WHEN MATCHED AND t.record_hash <> u.record_hash THEN UPDATE SET "
             f"t.is_current = false, t.valid_to = current_timestamp()\n"
             f"WHEN NOT MATCHED THEN INSERT ({ins_c}) VALUES ({ins_v})")
+
+
+def fechar_ausentes_scd2(destino: str, origem: str, chaves: list[str]) -> str:
+    """Para fontes em snapshot completo: fecha as versões atuais cujas chaves já não aparecem na origem."""
+    sel = ", ".join(f"a.{_ident(k)}" for k in chaves)
+    anti = " AND ".join(f"a.{_ident(k)} <=> s.{_ident(k)}" for k in chaves)
+    on = " AND ".join(f"t.{_ident(k)} <=> x.{_ident(k)}" for k in chaves)
+    return (f"MERGE INTO {destino} t USING (\n"
+            f"  SELECT {sel} FROM {destino} a LEFT ANTI JOIN {origem} s ON {anti} WHERE a.is_current\n"
+            f") x ON {on} AND t.is_current\n"
+            f"WHEN MATCHED THEN UPDATE SET t.is_current = false, t.valid_to = current_timestamp()")

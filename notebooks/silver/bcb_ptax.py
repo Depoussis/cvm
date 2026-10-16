@@ -34,7 +34,7 @@ from src.silver.common import caminho_quarentena, executar_merge, quarentena, sq
 FONTE = "bcb_ptax"
 cfg = carregar_yaml("sources/bcb.yaml")["bcb_ptax"]
 hoje = date.today()
-REGEX_NUM = r"^-?[0-9]+(\.[0-9]{1,8})?$"
+REGEX_NUM = r"^-?[0-9]+([.][0-9]{1,8})?$"
 BOLETINS = ("Abertura", "Intermediário", "Fechamento")
 NUMERICAS = ["paridade_compra", "paridade_venda", "cotacao_compra", "cotacao_venda"]
 erros = {}

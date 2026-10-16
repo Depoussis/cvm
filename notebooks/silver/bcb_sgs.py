@@ -41,7 +41,7 @@ series = [s for s in series if p.escolhida(s.entidade)]
 bronze = f"{p.catalogo}.bronze.bcb_sgs_valores"
 destino = f"{p.catalogo}.silver.bcb_sgs_valores"
 hoje = date.today()
-REGEX_VALOR = r"^-?[0-9]+(\.[0-9]{1,8})?$"  # cabe em DECIMAL(24,8) sem arredondar
+REGEX_VALOR = r"^-?[0-9]+([.][0-9]{1,8})?$"  # cabe em DECIMAL(24,8) sem arredondar
 
 # COMMAND ----------
 
