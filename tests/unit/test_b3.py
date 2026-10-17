@@ -101,10 +101,21 @@ def test_calculo_gold_reutilizado_pela_carga_incremental_e_pela_verificacao():
     assert "NOT LIKE 'IBO%'" in sql
     # eventos oficiais da B3 têm prioridade sobre a heurística
     assert "cat.silver.b3_evento_acao" in sql and "WHEN fator_oficial IS NOT NULL THEN fator_oficial" in sql
-    assert "1.0 / (1.0 + CAST(o.fator AS DOUBLE) / 100.0)" in sql      # desdobramento/bonificação em %
-    assert "1.0 / CAST(o.fator AS DOUBLE)" in sql                      # grupamento em fração
+    assert "1.0 / (1.0 + fator / 100.0)" in sql      # desdobramento/bonificação em %
+    assert "1.0 / fator" in sql                      # grupamento em fração
     dif = sql_diferencas("cat")
     assert "FULL OUTER JOIN cat.gold.fct_cotacao_diaria" in dif and "FROM cat.silver.b3_cotacao_diaria" in dif
+
+
+def test_bonificacoes_complementares_entram_como_eventos_oficiais():
+    from src.gold.cotacoes import bonificacoes_complementares, sql_fator_oficial
+    linhas = bonificacoes_complementares()
+    # bonificação de 10 % do Itaú (data com 17/03/2025) que a API da B3 não lista
+    assert {"emissor": "ITUB", "data_com": date(2025, 3, 17), "percentual": 10} in linhas
+    assert len({(b["emissor"], b["data_com"]) for b in linhas}) == len(linhas)
+    sql = sql_fator_oficial("cat")
+    assert "('ITUB', DATE'2025-03-17', 10.0)" in sql
+    assert "LEFT ANTI JOIN" in sql      # se a B3 publicar o mesmo evento, vale o oficial
 
 
 def test_proventos_urls_numeros_e_datas():
@@ -114,6 +125,9 @@ def test_proventos_urls_numeros_e_datas():
     u = pv.url_dinheiro("PETROBRAS", 2)
     assert json.loads(base64.b64decode(u.rsplit("/", 1)[1])) == {
         "language": "pt-br", "pageNumber": 2, "pageSize": 120, "tradingName": "PETROBRAS"}
+    # com a barra a API devolve 0 registos (Ambev, Klabin, Light...): validação contra o Yahoo, 17/10/2026
+    u = pv.url_dinheiro("AMBEV S/A", 1)
+    assert json.loads(base64.b64decode(u.rsplit("/", 1)[1]))["tradingName"] == "AMBEV SA"
     assert pv.url_complemento("PETR").endswith(base64.b64encode(b'{"issuingCompany":"PETR","language":"pt-br"}').decode())
     assert pv.numero("0,67407131") == Decimal("0.67407131")
     assert pv.numero("1.234,5") == Decimal("1234.5")

@@ -6,27 +6,52 @@ Fator de evento de cada pregão (preço depois = preço antes x fator, sem varia
   desdobramento f % → 1 / (1 + f/100); bonificação f % → 1 / (1 + f/100); grupamento f (fração) → 1 / f. Vários
   eventos com a mesma data ex multiplicam-se (ex.: desdobramento 9900 % + grupamento 0,01 = 1). Data ex = primeiro
   pregão do papel depois da data com.
+- **Bonificações em falta na API da B3** (config/datasets/b3_eventos_complementares.yaml) entram como eventos
+  oficiais de todas as ações do emissor.
 - **Restantes papéis (FII, ETF, ações sem dados oficiais):** heurística sobre a própria série (variação do fecho perto
   de um fator inteiro no pregão em que muda o número de distribuição).
 """
 from __future__ import annotations
+
+from src.common.config import carregar_yaml
 
 # tolerância relativa ao comparar preços ajustados calculados por caminhos diferentes (vírgula flutuante)
 TOLERANCIA = 1e-9
 EVENTOS_OFICIAIS = ("DESDOBRAMENTO", "GRUPAMENTO", "BONIFICACAO")
 
 
+def bonificacoes_complementares() -> list[dict]:
+    """Bonificações que a B3 não publica na API (config/datasets/b3_eventos_complementares.yaml)."""
+    linhas = carregar_yaml("datasets/b3_eventos_complementares.yaml").get("bonificacoes") or []
+    for b in linhas:
+        if not (len(str(b["emissor"])) == 4 and float(b["percentual"]) > 0):
+            raise ValueError(f"bonificação complementar inválida: {b}")
+    return linhas
+
+
 def sql_fator_oficial(k: str) -> str:
-    """Fator de preço de cada evento oficial, por ticker e data com."""
+    """Fator de preço de cada evento oficial (B3 mais as bonificações complementares), por ticker e data com."""
     tipos = ", ".join(f"'{t}'" for t in EVENTOS_OFICIAIS)
+    valores = ", ".join(f"('{b['emissor']}', DATE'{b['data_com']}', {float(b['percentual'])})"
+                        for b in bonificacoes_complementares()) or "(NULL, NULL, NULL)"
+    b3 = f"""
+  SELECT a.ticker, o.data_com, o.tipo_evento, CAST(o.fator AS DOUBLE) AS fator
+  FROM {k}.silver.b3_evento_acao o
+  JOIN {k}.gold.dim_ativo_b3 a ON a.isin = o.isin
+  WHERE o.tipo_evento IN ({tipos}) AND o.fator > 0"""
     return f"""
-SELECT a.ticker, o.data_com,
-       exp(sum(ln(CASE WHEN o.tipo_evento = 'GRUPAMENTO' THEN 1.0 / CAST(o.fator AS DOUBLE)
-                       ELSE 1.0 / (1.0 + CAST(o.fator AS DOUBLE) / 100.0) END))) AS fator_oficial
-FROM {k}.silver.b3_evento_acao o
-JOIN {k}.gold.dim_ativo_b3 a ON a.isin = o.isin
-WHERE o.tipo_evento IN ({tipos}) AND o.fator > 0
-GROUP BY a.ticker, o.data_com"""
+SELECT ticker, data_com,
+       exp(sum(ln(CASE WHEN tipo_evento = 'GRUPAMENTO' THEN 1.0 / fator
+                       ELSE 1.0 / (1.0 + fator / 100.0) END))) AS fator_oficial
+FROM ({b3}
+  UNION ALL
+  -- complementares: todas as ações e units do emissor; ignoradas se a B3 já tiver evento nessa data com
+  SELECT a.ticker, c.data_com, 'BONIFICACAO' AS tipo_evento, CAST(c.percentual AS DOUBLE) AS fator
+  FROM (VALUES {valores}) AS c(emissor, data_com, percentual)
+  JOIN {k}.gold.dim_ativo_b3 a ON substr(a.ticker, 1, 4) = c.emissor AND a.classe_ativo = 'Ação'
+  LEFT ANTI JOIN ({b3}) o ON o.ticker = a.ticker AND o.data_com = c.data_com
+) eventos
+GROUP BY ticker, data_com"""
 
 
 def sql_cobertura_oficial(k: str) -> str:

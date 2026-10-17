@@ -65,7 +65,8 @@ ADLS Gen2 · Key Vault · Log Analytics / Azure Monitor · Bicep · GitHub Actio
 | Proventos B3 | dividendos e JCP desde 2007, eventos oficiais (desdobramentos, bonificações) |
 | Séries do Banco Central | 9 séries SGS desde 2000, PTAX desde 2015 |
 | Índices B3 e Tesouro Direto | 4 índices desde 2015; 177 mil preços/taxas desde 2004 |
-| Testes | 84 testes unitários (pytest) + 63 casos de integração documentados |
+| Testes | 85 testes unitários (pytest) + 63 casos de integração documentados |
+| Validação externa | ~770 mil linhas comparadas com IBGE, Copom, Yahoo Finance e ficheiros originais ([relatório](docs/validacao_dados.md)) |
 | Modelo (37 meses fora da amostra) | AUC 0,556, IC 0,11 (t = 5,5); carteira top 10 +46,6 % vs universo +9,4 % |
 | Custo | ~19 € em cargas iniciais; recorrente esperado 6–10 €/mês ([custos](docs/cost_estimation.md)) |
 
@@ -142,4 +143,5 @@ python -m pytest -q
 
 [Arquitetura](docs/architecture.md) · [Conceitos](docs/conceitos.md) (Delta, Auto Loader, marca d'água, SCD,
 point-in-time) · [Testes](docs/testes.md) · [Orquestração](docs/orquestracao.md) · [Auditoria](docs/auditoria.md) ·
-[Custos](docs/cost_estimation.md) · [CI/CD](docs/cicd.md) · [Deployment](docs/deployment.md)
+[Custos](docs/cost_estimation.md) · [CI/CD](docs/cicd.md) · [Deployment](docs/deployment.md) ·
+[Validação contra fontes externas](docs/validacao_dados.md)

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS ${catalog}.silver.b3_provento (
   data_com           DATE           NOT NULL COMMENT 'Último dia com direito ao provento',
   data_aprovacao     DATE,
   valor_por_acao     DECIMAL(24, 11) NOT NULL,
+  parcela            INT            NOT NULL COMMENT 'Linhas iguais na fonte = parcelas do mesmo provento (1, 2, ...)',
   fecho_data_com     DECIMAL(18, 6) COMMENT 'Fecho na data com, segundo a B3',
   provento_pct_preco DOUBLE         COMMENT 'Valor / fecho na data com, em % (segundo a B3)',
   cotacao_por_acoes  INT            COMMENT 'Lote de cotação a que o valor se refere (normalmente 1)',
@@ -16,7 +17,7 @@ CREATE TABLE IF NOT EXISTS ${catalog}.silver.b3_provento (
   _inserted_at       TIMESTAMP      NOT NULL,
   _updated_at        TIMESTAMP      NOT NULL,
   _pipeline_run_id   STRING         NOT NULL,
-  CONSTRAINT pk_b3_provento PRIMARY KEY (emissor, tipo_acao, tipo_provento, data_com, valor_por_acao) NOT ENFORCED
+  CONSTRAINT pk_b3_provento PRIMARY KEY (emissor, tipo_acao, tipo_provento, data_com, valor_por_acao, parcela) NOT ENFORCED
 )
 USING DELTA
 CLUSTER BY (emissor, data_com)

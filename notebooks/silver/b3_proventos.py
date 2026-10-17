@@ -100,12 +100,15 @@ if p.escolhida("proventos") or p.escolhida("b3_provento"):
                {dt('data_com')} AS data_com, {dt('data_aprovacao')} AS data_aprovacao,
                {num('valor')} AS valor_por_acao, CAST({num('fecho_data_com')} AS DECIMAL(18, 6)) AS fecho_data_com,
                CAST({num('provento_pct_preco')} AS DOUBLE) AS provento_pct_preco,
-               CAST({num('cotacao_por_acoes')} AS INT) AS cotacao_por_acoes, trim(nome_pregao_pedido) AS nome_pregao
-        FROM _pend WHERE _valido
-        -- a mesma deliberação pode aparecer repetida na fonte; data de aprovação diferente = outra linha
-        QUALIFY row_number() OVER (PARTITION BY emissor, tipo_acao, tipo_provento, data_com, valor_por_acao
-                                   ORDER BY data_aprovacao DESC NULLS LAST) = 1""",
-        ["emissor", "tipo_acao", "tipo_provento", "data_com", "valor_por_acao"],
+               CAST({num('cotacao_por_acoes')} AS INT) AS cotacao_por_acoes, trim(nome_pregao_pedido) AS nome_pregao,
+               -- linhas iguais na fonte são parcelas do mesmo provento (ex.: Petrobras, data com 25/04/2024:
+               -- 2 x R$ 0,55015787, pagas em maio e junho). Confirmado contra o Yahoo Finance em 17/10/2026
+               -- (docs/validacao_dados.md): guardar só uma perdia parte do valor.
+               row_number() OVER (PARTITION BY emissor, upper(trim(tipo_acao)), upper(trim(tipo_provento)),
+                                               {dt('data_com')}, {num('valor')}
+                                  ORDER BY {dt('data_aprovacao')} DESC NULLS LAST, _source_url) AS parcela
+        FROM _pend WHERE _valido""",
+        ["emissor", "tipo_acao", "tipo_provento", "data_com", "valor_por_acao", "parcela"],
         [dq.Regra("valor_positivo", "Provento por ação maior que zero", "INFO", f"{k}.silver.b3_provento",
                   f"SELECT * FROM {k}.silver.b3_provento WHERE valor_por_acao <= 0",
                   f"SELECT count(*) FROM {k}.silver.b3_provento"),

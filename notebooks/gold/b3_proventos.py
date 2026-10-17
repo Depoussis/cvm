@@ -42,7 +42,7 @@ WITH papel AS (
   FROM {k}.gold.dim_ativo_b3 WHERE classe_ativo = 'Ação'
 ),
 acoes AS (
-  SELECT pa.ticker, s.emissor, s.tipo_acao, s.tipo_provento, s.data_com, s.data_aprovacao, s.valor_por_acao
+  SELECT pa.ticker, s.emissor, s.tipo_acao, s.tipo_provento, s.data_com, s.data_aprovacao, s.valor_por_acao, s.parcela
   FROM {k}.silver.b3_provento s
   JOIN papel pa ON pa.emissor = s.emissor AND pa.tipo_acao = s.tipo_acao
 ),
@@ -53,7 +53,8 @@ fii AS (
          (SELECT max(c.data_pregao) FROM {k}.gold.fct_cotacao_diaria c
           WHERE c.ticker = a.ticker AND trunc(c.data_pregao, 'MM') = m.data_referencia) AS data_com,
          CAST(NULL AS DATE) AS data_aprovacao,
-         CAST(m.dividend_yield_mes * CAST(m.valor_patrimonial_cota AS DOUBLE) AS DECIMAL(24, 11)) AS valor_por_acao
+         CAST(m.dividend_yield_mes * CAST(m.valor_patrimonial_cota AS DOUBLE) AS DECIMAL(24, 11)) AS valor_por_acao,
+         1 AS parcela
   FROM {k}.silver.cvm_fii_mensal m
   JOIN {k}.gold.dim_ativo_b3 a ON a.cnpj_emissor = m.cnpj_classe AND a.classe_ativo = 'FII'
   WHERE m.dividend_yield_mes > 0 AND m.dividend_yield_mes < 0.5 AND m.valor_patrimonial_cota > 0
@@ -61,10 +62,12 @@ fii AS (
 p AS (SELECT * FROM acoes UNION ALL SELECT * FROM fii WHERE data_com IS NOT NULL),
 c AS (SELECT ticker, data_pregao, preco_fechamento, fator_evento FROM {k}.gold.fct_cotacao_diaria)
 SELECT p.ticker, p.emissor, p.tipo_acao, p.tipo_provento, p.data_com,
-       (SELECT min(c.data_pregao) FROM c WHERE c.ticker = p.ticker AND c.data_pregao > p.data_com),
+       -- só com histórico de cotações até à data com: antes dele, o "primeiro pregão depois" seria o início da série
+       CASE WHEN (SELECT min(c.data_pregao) FROM c WHERE c.ticker = p.ticker) <= p.data_com
+            THEN (SELECT min(c.data_pregao) FROM c WHERE c.ticker = p.ticker AND c.data_pregao > p.data_com) END,
        p.data_aprovacao, p.valor_por_acao,
        (SELECT max_by(c.preco_fechamento, c.data_pregao) FROM c WHERE c.ticker = p.ticker AND c.data_pregao <= p.data_com),
-       NULL, NULL, NULL
+       NULL, NULL, NULL, p.parcela
 FROM p
 """
 
@@ -93,8 +96,8 @@ try:
 
     fct = f"{k}.gold.fct_provento"
     regras = [
-        dq.Regra("fct_provento_chave_unica", "Uma linha por (ticker, tipo, data com, valor)", "CRITICAL", fct,
-                 f"SELECT ticker, tipo_provento, data_com, valor_por_acao, count(*) n FROM {fct} GROUP BY ALL HAVING n > 1",
+        dq.Regra("fct_provento_chave_unica", "Uma linha por (ticker, tipo, data com, valor, parcela)", "CRITICAL", fct,
+                 f"SELECT ticker, tipo_provento, data_com, valor_por_acao, parcela, count(*) n FROM {fct} GROUP BY ALL HAVING n > 1",
                  f"SELECT count(*) FROM {fct}"),
         dq.Regra("provento_sem_ticker", "Proventos de emissores ativos sem ticker correspondente (espécie desconhecida)",
                  "INFO", f"{k}.silver.b3_provento",

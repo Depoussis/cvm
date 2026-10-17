@@ -52,7 +52,9 @@ negócios esporádicos. Fica na silver e é excluída da gold, porque não é um
 
 > **Atualização (16/10/2026):** nas ações, o fator passou a vir dos **eventos oficiais da B3**: desdobramentos,
 > grupamentos e também bonificações, que a heurística não tratava. A comparação mostrou que a heurística tinha
-> falhado 38 de 105 eventos desde 2021 e todas as bonificações. Ver [fundamentos.md](fundamentos.md). A heurística
+> falhado 38 de 105 eventos desde 2021 e todas as bonificações. Em 17/10/2026 a validação externa mostrou que a
+> própria API da B3 omite 17 bonificações (ex.: Itaú 10 % em 03/2025); entram por
+> `config/datasets/b3_eventos_complementares.yaml` ([validacao_dados.md](validacao_dados.md)). Ver [fundamentos.md](fundamentos.md). A heurística
 > descrita abaixo continua a ser usada em FII e ETF.
 
 #### Heurística (FII, ETF e ações sem dados oficiais)

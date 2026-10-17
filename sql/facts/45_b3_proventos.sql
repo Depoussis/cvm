@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS ${catalog}.gold.fct_provento (
   yield_evento            DOUBLE          COMMENT 'valor_por_acao / fecho_data_com (fração)',
   fator_posterior         DOUBLE          COMMENT 'Produto dos fatores de desdobramento/grupamento depois da data com',
   valor_ajustado          DOUBLE          COMMENT 'valor_por_acao x fator_posterior: comparável com o preço atual',
-  CONSTRAINT pk_fct_provento PRIMARY KEY (ticker, tipo_provento, data_com, valor_por_acao) NOT ENFORCED
+  parcela                 INT             NOT NULL COMMENT 'Parcelas iguais do mesmo provento (1, 2, ...), FII sempre 1',
+  CONSTRAINT pk_fct_provento PRIMARY KEY (ticker, tipo_provento, data_com, valor_por_acao, parcela) NOT ENFORCED
 )
 USING DELTA
 CLUSTER BY (ticker, data_com)

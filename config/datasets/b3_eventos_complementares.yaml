@@ -1,0 +1,30 @@
+# Bonificações que a API pública da B3 (GetListedSupplementCompany, campo stockDividends) não lista, encontradas pela
+# validação contra fontes externas (scripts/validar_fontes.py, verificação "eventos"; ver docs/validacao_dados.md).
+#
+# Critério para entrar aqui: (1) o Yahoo Finance regista o evento na data ex; (2) no COTAHIST da B3 todas as classes
+# do emissor caem nesse pregão perto do fator (sem o evento a variação ficaria perto de zero). Sem a correção, o
+# simulador e o modelo veem uma queda falsa de 4 % a 23 % nesse dia.
+#
+# emissor: raiz de 4 letras do ticker (aplica-se a todas as ações e units do emissor)
+# data_com: último pregão com direito (o evento entra no pregão seguinte)
+# percentual: ações novas por cada 100 (fator de preço = 1 / (1 + percentual / 100)), como a B3 publica
+# Se a B3 passar a publicar o mesmo evento (mesmo emissor e data com), vale o oficial e esta linha é ignorada.
+# Depois de mudar este ficheiro: correr gold_b3 em modo reprocess e depois gold_b3_proventos.
+bonificacoes:
+  - {emissor: ALUP, data_com: 2023-04-17, percentual: 4}
+  - {emissor: ALUP, data_com: 2024-04-19, percentual: 4}
+  - {emissor: BBDC, data_com: 2021-04-16, percentual: 10}
+  - {emissor: CMIG, data_com: 2021-04-30, percentual: 11.4970}
+  - {emissor: CMIG, data_com: 2022-04-29, percentual: 30}
+  - {emissor: GGBR, data_com: 2023-03-21, percentual: 5}
+  - {emissor: ITSA, data_com: 2021-12-20, percentual: 5}
+  - {emissor: ITSA, data_com: 2022-11-10, percentual: 10}
+  - {emissor: ITSA, data_com: 2023-11-27, percentual: 5}
+  - {emissor: ITSA, data_com: 2024-12-02, percentual: 5}
+  - {emissor: ITUB, data_com: 2025-03-17, percentual: 10}
+  - {emissor: KLBN, data_com: 2024-05-06, percentual: 10}
+  - {emissor: LREN, data_com: 2021-11-04, percentual: 10}
+  - {emissor: POMO, data_com: 2024-03-07, percentual: 20}
+  - {emissor: RADL, data_com: 2023-05-19, percentual: 4}
+  - {emissor: SLCE, data_com: 2021-12-30, percentual: 10}
+  - {emissor: SLCE, data_com: 2023-05-08, percentual: 10}

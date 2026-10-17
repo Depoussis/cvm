@@ -39,8 +39,10 @@ def url_complemento(emissor: str) -> str:
 
 
 def url_dinheiro(nome_pregao: str, pagina: int, tamanho: int = 120) -> str:
+    # a API não encontra nomes com barra ("AMBEV S/A" devolve 0 registos, "AMBEV SA" devolve o histórico), como o
+    # site da B3, que a retira antes de pedir
     return f"{BASE}/GetListedCashDividends/" + _b64(
-        {"language": "pt-br", "pageNumber": pagina, "pageSize": tamanho, "tradingName": nome_pregao})
+        {"language": "pt-br", "pageNumber": pagina, "pageSize": tamanho, "tradingName": nome_pregao.replace("/", "")})
 
 
 def numero(texto: str | None) -> Decimal | None:
