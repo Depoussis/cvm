@@ -43,7 +43,7 @@ pagina = st.navigation({
 m = dados.meta()
 quando = formato.data_hora(pd.Timestamp(m["exportado_em"])) if m.get("exportado_em") else "—"
 html(f'<div class="faixa-snapshot">Atualizado em <b>{escape(quando)}</b> · Fontes: Banco Central (SGS, PTAX), '
-     "B3 (cotações e proventos) e CVM (informes, cadastros, DFP/ITR) · Projeto de estudo · "
+     "B3 (cotações, proventos e índices), CVM (informes, cadastros, DFP/ITR) e Tesouro Direto · Projeto de estudo · "
      "Tema claro/escuro: menu ⋮ → Settings</div>")
 
 pagina.run()

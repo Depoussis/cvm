@@ -54,3 +54,36 @@ Só há custo enquanto o job corre; não existe cluster parado. O consumo real f
   foi reduzido no setup.
 - **Cluster interativo sem auto-termination:** usar sempre auto-termination de 15–20 min.
 - **Quota de 4 vCPU:** impede escalar acidentalmente, o que também limita o custo.
+
+## Custo real até 16/10/2026 (Azure Cost Management)
+
+Consulta: `POST /subscriptions/<id>/providers/Microsoft.CostManagement/query` (ActualCost, agrupado por grupo de
+recursos e serviço). Orçamento `limite-credito-175`: **19,26 € gastos de 175 €**.
+
+| Grupo de recursos | Serviço | Custo |
+|---|---|---|
+| rg-findata-dev | Azure Databricks (jobs serverless + SQL Warehouse) | 18,78 € |
+| rg-findata-dev | Storage | 0,23 € (+ 0,39 € em 16/10) |
+| rg-dbw-findata-dev-managed | Storage gerido do Databricks | 0,12 € |
+| rg-findata-dev | NAT Gateway | 0,04 € (sem recurso NAT no grupo: cobrança de rede do serverless; vigiar) |
+| rg-findata-dev | Data Factory | 0,01 € |
+
+O Databricks domina e é quase todo de **cargas iniciais e desenvolvimento**: backfill da CVM (17,9 M linhas), seis
+anos de COTAHIST, proventos, DFP/ITR, treinos do modelo e as consultas do SQL Warehouse durante os testes. A Cost
+Management agrega por dia de faturação, por isso quase tudo aparece em 16/10.
+
+## Custo recorrente esperado (depois das cargas iniciais)
+
+| Peça | Uso | Estimativa |
+|---|---|---|
+| Jobs diários (BCB ~10 min, CVM ~5, B3 ~5, Mercado ~3, frescura ~1) | serverless, dias úteis | 2–4 €/mês |
+| Jobs semanais (proventos ~10 min, modelo ~10, auditoria ~10) | serverless, domingos | 1–2 €/mês |
+| Exportação do painel (GitHub Action) | ~1 min de SQL Warehouse 2X-Small + auto-stop de 1 min | ~0,10 €/dia útil, ~2–3 €/mês |
+| ADF, Key Vault, Log Analytics, storage | | < 1 €/mês |
+| GitHub Actions e Streamlit Community Cloud | repositório público | 0 € |
+
+**Total esperado: 6–10 €/mês.** O crédito do Free Trial chega para vários meses. Para confirmar, repetir a consulta
+acima ao fim de uma semana sem cargas manuais, ou ver *Cost Management → Cost analysis* agrupado por serviço.
+
+O consumo por job (DBU) está em `system.billing.usage`, mas ler essa tabela exige que um administrador da conta
+Databricks dê `USE SCHEMA` em `system.billing`. Não está concedido em dev.

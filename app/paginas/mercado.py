@@ -82,7 +82,7 @@ if "indices_b3" in linhas_snapshot:
         a, b = st.columns([3, 2])
         nomes = dict(zip(ind["indice"], ind["nome_indice"]))
         escolha = a.pills("Índices", list(nomes), default=["IBOV", "IFIX"], selection_mode="multi", key="m_indices",
-                          format_func=lambda x: f"{x} · {nomes[x]}" if x != "IBOV" else "IBOV · Ibovespa",
+                          help=" · ".join(f"{c_}: {n_}" for c_, n_ in nomes.items()),
                           label_visibility="collapsed") or ["IBOV"]
         p = b.segmented_control("Período", list(PERIODOS), default="3A", key="p_indices", label_visibility="collapsed")
         s = recortar(ind[ind["indice"].isin(escolha)], "data", PERIODOS[p or "Tudo"]).copy()
@@ -97,10 +97,11 @@ if "indices_b3" in linhas_snapshot:
             def var(desde):  # noqa: E306
                 base = g_[g_.index <= desde]
                 return (g_.iloc[-1] / base.iloc[-1] - 1) * 100 if len(base) else float("nan")
-            linhas.append({"Índice": f"{cod} · {nomes[cod]}", "Pontos": g_.iloc[-1],
+            linhas.append({"Índice": cod, "Pontos": g_.iloc[-1],
                            "Dia": (g_.iloc[-1] / g_.iloc[-2] - 1) * 100 if len(g_) > 1 else float("nan"),
                            "No ano": var(pd.Timestamp(ult.year - 1, 12, 31)),
                            "12 meses": var(ult - pd.DateOffset(years=1)), "5 anos": var(ult - pd.DateOffset(years=5))})
+        st.caption(" · ".join(f"{c_}: {n_}" for c_, n_ in nomes.items()))
         st.dataframe(pd.DataFrame(linhas), hide_index=True, width="stretch",
                      column_config={"Pontos": st.column_config.NumberColumn(format="%.0f"),
                                     **{c: st.column_config.NumberColumn(format="%+.1f")

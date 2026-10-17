@@ -79,31 +79,27 @@ with ui.card("ml_vivo"):
         t = viv.copy()
         t["estado"] = [("concluído" if c_ else f"em curso ({p_}/{modelo_vivo.HORIZONTE})")
                        for c_, p_ in zip(t["concluido"], t["pregoes"])]
-        for c_ in ("ret_top", "ret_universo", "ret_bova11", "excesso", "acerto"):
-            t[c_] = t[c_] * 100
-        st.dataframe(t[["data_ref", "estado", "ret_top", "ret_universo", "ret_bova11", "excesso", "acerto", "ic",
-                        "modelo"]], hide_index=True, width="stretch",
-                     column_config={
-                         "data_ref": st.column_config.DateColumn("Ranking de", format="DD/MM/YYYY"),
-                         "estado": st.column_config.TextColumn("Estado"),
-                         "ret_top": st.column_config.NumberColumn("Top 10 (%)", format="%+.2f"),
-                         "ret_universo": st.column_config.NumberColumn("Universo (%)", format="%+.2f"),
-                         "ret_bova11": st.column_config.NumberColumn("BOVA11 (%)", format="%+.2f"),
-                         "excesso": st.column_config.NumberColumn("Top 10 − universo (p.p.)", format="%+.2f"),
-                         "acerto": st.column_config.NumberColumn("Acerto (%)", format="%.0f"),
-                         "ic": st.column_config.NumberColumn("IC", format="%+.3f"),
-                         "modelo": st.column_config.TextColumn("Modelo")})
+        # texto formatado: sem pregões ainda não há retorno, e "—" lê-se melhor do que um número vazio
+        num = lambda v, casas=2, sinal=True: (formato.pct(v * 100, casas, sinal=sinal)  # noqa: E731
+                                              if pd.notna(v) else "—")
+        tabela = pd.DataFrame({
+            "Ranking de": t["data_ref"].map(formato.data), "Estado": t["estado"],
+            "Top 10": t["ret_top"].map(num), "Universo": t["ret_universo"].map(num),
+            "BOVA11": t["ret_bova11"].map(num), "Top 10 − universo": t["excesso"].map(num),
+            "Acerto": t["acerto"].map(lambda v: num(v, 0, False)),
+            "IC": t["ic"].map(lambda v: formato.numero(v, 3) if pd.notna(v) else "—"), "Modelo": t["modelo"]})
+        st.dataframe(tabela, hide_index=True, width="stretch")
         datas_rk = list(viv["data_ref"])
         escolha = st.selectbox("Ver as ações de um ranking", datas_rk, format_func=formato.data, key="ml_vivo_data")
         sel = acomp[(acomp["data_ref"] == escolha) & acomp["posicao"].notna()].sort_values("posicao")
         st.dataframe(sel[["posicao", "ticker", "setor", "score", "pregoes", "ret"]].assign(
-                         score=lambda x: x["score"] * 100, ret=lambda x: x["ret"] * 100),
+                         score=lambda x: x["score"] * 100, ret=lambda x: pd.to_numeric(x["ret"], errors="coerce").map(num)),
                      hide_index=True, width="stretch", height=300,
                      column_config={"posicao": st.column_config.NumberColumn("#", width="small"),
                                     "ticker": "Ticker", "setor": "Setor",
                                     "score": st.column_config.NumberColumn("Probabilidade (%)", format="%.1f"),
                                     "pregoes": st.column_config.NumberColumn("Pregões"),
-                                    "ret": st.column_config.NumberColumn("Retorno até agora (%)", format="%+.2f")})
+                                    "ret": st.column_config.TextColumn("Retorno até agora")})
 
 c1, c2 = st.columns([3, 2], gap="medium")
 with c1, ui.card("ml_acumulado"):

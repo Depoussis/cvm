@@ -119,29 +119,29 @@ comp = []
 if tem_cdi:
     cdi = carteira.indice_mensal(indices, "cdi")
     cdi_bruto, cdi_liq = carteira.renda_fixa_liquida(c.aportes, cdi, c.data_hoje)
-    comp.append(("CDI (mesmos aportes)", "líquido de IR pela tabela regressiva de cada aporte", cdi_liq))
+    comp.append(("CDI", "líquido de IR pela tabela regressiva de cada aporte", cdi_liq))
     selic_idx = carteira.indice_mensal(indices, "selic")
     comp.append(("Selic / Tesouro Selic", "líquido de IR, sem custódia",
                  carteira.renda_fixa_liquida(c.aportes, selic_idx, c.data_hoje)[1]))
 if bova_serie is not None and len(bova_serie):
     bova_final = float(bova_serie["valor"].iat[-1])
     imp_bova = simulador.imposto_venda("ETF e fundos", bova_final, aportado)
-    comp.append(("Ibovespa (BOVA11, mesmos aportes)", "líquido do IR de 15 % na venda", bova_final - imp_bova.imposto))
+    comp.append(("BOVA11", "ETF do Ibovespa, líquido do IR de 15 % na venda", bova_final - imp_bova.imposto))
 td_serie = None
 if titulo_td:
     td_serie, _, td_liq, td_avisos = carteira.tesouro_mesmos_aportes(c.aportes, td[td["titulo"] == titulo_td], datas,
                                                                      c.data_hoje)
-    comp.append((f"{titulo_td} (mesmos aportes)", "preço de recompra hoje, líquido de IR regressivo", td_liq))
+    comp.append((titulo_td, "preço de recompra hoje, líquido de IR regressivo", td_liq))
     for a_ in td_avisos:
         ui.aviso(f"{titulo_td}: {a_}")
 ind = dados.tabela("indices_b3") if "indices_b3" in linhas_snapshot else pd.DataFrame()
-for cod, rotulo in (("IBOV", "Ibovespa (índice oficial)"), ("IFIX", "IFIX (índice oficial)")):
+for cod, rotulo in (("IBOV", "Ibovespa (índice)"), ("IFIX", "IFIX (índice)")):
     s_ = ind[ind["indice"] == cod].set_index("data")["fechamento"] if len(ind) else pd.Series(dtype=float)
     if len(s_):
         v_ = float(carteira.aplicar_fluxos(c.aportes, pd.Series([c.data_hoje]), s_, mensal=False)["valor"].iat[0])
-        comp.append((f"{rotulo}, mesmos aportes", "retorno total, sem custos nem IR (não é investível diretamente)", v_))
+        comp.append((rotulo, "índice oficial de retorno total, sem custos nem IR (não é investível)", v_))
 if tem_ipca:
-    comp.append(("Só a inflação (IPCA)", "o que manteria o poder de compra dos aportes", corrigido))
+    comp.append(("Só a inflação (IPCA)", "aportes corrigidos: o que manteria o poder de compra", corrigido))
 
 with ui.card("cart_resumo"):
     ui.titulo_card("Resumo", f"Se vendesse tudo em {formato.data(c.data_hoje)}")
@@ -161,7 +161,7 @@ with ui.card("cart_resumo"):
         linhas.append(("Ganho real", "total líquido − aportes corrigidos pelo IPCA", ganho_real))
     tabela = pd.DataFrame(linhas, columns=["Item", "Como", "valor"])
     tabela["Valor"] = tabela["valor"].map(formato.brl)
-    st.dataframe(tabela[["Item", "Como", "Valor"]], hide_index=True, width="stretch",
+    st.dataframe(tabela[["Item", "Como", "Valor"]], hide_index=True, width="stretch", height=36 * (len(tabela) + 1) + 3,
                  column_config={"Item": st.column_config.TextColumn(width="medium"),
                                 "Como": st.column_config.TextColumn(width="large")})
 
@@ -183,9 +183,10 @@ with g2, ui.card("cart_comparacao"):
     comp_df = pd.DataFrame([("Esta carteira", "", c.total_liquido)] + comp, columns=["alternativa", "como", "valor"])
     comp_df["vs aportado"] = [pc(v / aportado - 1) for v in comp_df["valor"]]
     comp_df["Valor"] = comp_df["valor"].map(formato.brl)
-    st.dataframe(comp_df[["alternativa", "Valor", "vs aportado", "como"]], hide_index=True, width="stretch",
-                 column_config={"alternativa": st.column_config.TextColumn("Alternativa", width="medium"),
-                                "como": st.column_config.TextColumn("Como")})
+    st.dataframe(comp_df[["alternativa", "Valor", "vs aportado"]], hide_index=True, width="stretch",
+                 height=36 * (len(comp_df) + 1) + 3,
+                 column_config={"alternativa": st.column_config.TextColumn("Alternativa (mesmos aportes)")})
+    st.caption(" · ".join(f"{a}: {c_}" for a, c_, _ in comp))
 
 with ui.card("cart_posicoes"):
     ui.titulo_card("Posições por papel", "Quanto foi para cada papel e quanto vale hoje")
