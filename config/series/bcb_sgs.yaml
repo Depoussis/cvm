@@ -80,3 +80,21 @@ series:
     inicio_backfill: 2000-01-01
     permite_futuro: false
     revisao_dias: 400   # o IBC-Br é revisto com frequência; recarrega cerca de 13 meses
+
+  - codigo: 433
+    nome: "Índice nacional de preços ao consumidor-amplo (IPCA)"
+    responsavel: BCB/Depec (fonte IBGE)
+    dataset_bcb: 433-indice-nacional-de-precos-ao-consumidor-amplo-ipca
+    periodicidade: mensal
+    inicio_backfill: 2000-01-01
+    permite_futuro: false
+    revisao_dias: 120
+
+  - codigo: 4391
+    nome: "Taxa de juros - CDI acumulada no mês"
+    responsavel: BCB/Demab
+    dataset_bcb: 4391-taxa-de-juros---cdi-acumulada-no-mes
+    periodicidade: mensal
+    inicio_backfill: 2000-01-01
+    permite_futuro: false
+    revisao_dias: 120   # o mês corrente vem parcial e é recarregado até fechar

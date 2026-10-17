@@ -64,7 +64,8 @@ Visual clean (claro/escuro). **Navegação no topo** (`st.navigation(position="t
 |---|---|---|
 | Mercado | `paginas/mercado.py` | Selic, PTAX (período e moedas), câmbio mensal, IBC-Br |
 | Bolsa | `paginas/acoes.py` | ações, FII e ETF: rankings, evolução, setores, tabela com DY, P/L, P/VP e ROE, dividendos por ano |
-| Simulador | `paginas/simulador.py` | compra numa data ao preço da época: eventos, proventos, IR da venda, total líquido ([simulador.md](simulador.md)) |
+| Simulador ▸ Um papel | `paginas/simulador.py` | compra numa data ao preço da época: eventos, proventos, IR da venda, total líquido ([simulador.md](simulador.md)) |
+| Simulador ▸ Carteira com aportes | `paginas/carteira.py` | vários papéis com pesos, aportes mensais, TIR, ganho acima do IPCA, CDI e BOVA11 com os mesmos aportes ([simulador.md](simulador.md#carteira-com-aportes-menu-simulador--carteira-com-aportes)) |
 | Modelo | `paginas/modelo.py` | backtest, comparação de modelos, IC, importância das variáveis, ranking atual ([modelo_preditivo.md](modelo_preditivo.md)) |
 | Fundos ▸ Fundos de investimento | `paginas/fundos.py` | PL, captação, maiores fundos |
 | Fundos ▸ Fundos imobiliários | `paginas/fii.py` | rankings de FII (cotistas, PL, caixa, DY), segmentos |

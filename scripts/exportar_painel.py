@@ -67,6 +67,14 @@ def extras(k: str) -> dict[str, str]:
             FROM {g}.vw_fii_ranking""",
         "selic_mes": f"""SELECT data_referencia AS mes, CAST(valor AS DOUBLE) AS selic_mes_pct
                          FROM {g}.fct_serie_valor WHERE serie_codigo = 4390""",
+        # taxas mensais em % para o simulador de carteira: Selic (4390), CDI (4391) e IPCA (433)
+        "indices_mes": f"""SELECT data_referencia AS mes,
+                                  max(CASE WHEN serie_codigo = 4390 THEN CAST(valor AS DOUBLE) END) AS selic,
+                                  max(CASE WHEN serie_codigo = 4391 THEN CAST(valor AS DOUBLE) END) AS cdi,
+                                  max(CASE WHEN serie_codigo = 433 THEN CAST(valor AS DOUBLE) END) AS ipca
+                           FROM {g}.fct_serie_valor WHERE serie_codigo IN (4390, 4391, 433)
+                             AND data_referencia >= DATE'2015-01-01'
+                           GROUP BY data_referencia""",
         # B3: desempenho de todos os papéis com negócios recentes e o histórico diário dos que têm volume médio
         # >= R$ 300 mil/dia (gráfico de evolução e simulador; o fator de evento muda a quantidade de ações)
         "b3_desempenho": f"SELECT * FROM {g}.vw_b3_desempenho",
@@ -111,17 +119,23 @@ def consultar(w: WorkspaceClient, warehouse_id: str, sql: str) -> pa.Table:
     partes = []
     chunk = r.result
     while chunk is not None:
+        prox = chunk.next_chunk_index
         for link in chunk.external_links or []:
             # o link é um SAS temporário do armazenamento: não leva o token do Databricks
             corpo = requests.get(link.external_link, timeout=120)
             corpo.raise_for_status()
             partes.append(pa.ipc.open_stream(corpo.content).read_all())
-        prox = chunk.next_chunk_index
+            # com EXTERNAL_LINKS o índice da parte seguinte pode vir só no link, não no resultado
+            prox = link.next_chunk_index if link.next_chunk_index is not None else prox
         chunk = w.statement_execution.get_statement_result_chunk_n(r.statement_id, prox) if prox is not None else None
     if not partes:  # resultado vazio: monta a tabela a partir do esquema
         nomes = [c.name for c in r.manifest.schema.columns]
         return pa.table({n: pa.array([], pa.string()) for n in nomes})
-    return _decimais_para_double(pa.concat_tables(partes))
+    t = _decimais_para_double(pa.concat_tables(partes))
+    esperado = r.manifest.total_row_count if r.manifest else None
+    if esperado is not None and t.num_rows != esperado:   # nunca publicar um snapshot incompleto
+        raise RuntimeError(f"resultado incompleto: {t.num_rows} de {esperado} linhas")
+    return t
 
 
 def main() -> None:

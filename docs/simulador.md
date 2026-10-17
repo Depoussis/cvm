@@ -82,5 +82,42 @@ Na CMIG4, a bonificação de 30 % em 30/04/2024 aparece em "Eventos nas ações"
 ## Limitações
 
 - Preços desde 2021-01 (início do COTAHIST carregado). Papéis com volume médio ≥ R$ 300 mil/dia.
-- Não inclui corretagem, emolumentos, IR sobre ganho de capital nem o leilão das frações de bonificações.
+- Não inclui corretagem, emolumentos, compensação de prejuízos de meses anteriores nem o leilão das frações de
+  bonificações.
 - Subscrições (direito de comprar ações novas) não são simuladas.
+
+## Carteira com aportes (menu Simulador → "Carteira com aportes")
+
+Vários papéis com pesos, um aporte inicial e um aporte mensal. Código em `app/painel/carteira.py` e
+`app/paginas/carteira.py`, testes em `tests/unit/test_painel_streamlit.py`.
+
+| Regra | Como |
+|---|---|
+| Aportes | data inicial e o mesmo dia de cada mês (último dia nos meses curtos), até ao último pregão |
+| Divisão | cada aporte × peso de cada papel (pesos normalizados para 100 %) |
+| Compra | cada parte é um lote do simulador de um papel: quantidade inteira ao fecho do primeiro pregão na data ou depois; eventos e proventos como acima |
+| Sobra | o que não chega para 1 unidade fica em caixa e entra no aporte seguinte desse papel |
+| IR na venda | por classe (ações, FII, ETF), com lucros e prejuízos do mesmo mês compensados dentro da classe; a isenção de R$ 20 mil vale para o total vendido em ações |
+| TIR | taxa anual que iguala os aportes, cada um na sua data, ao total líquido de hoje (rentabilidade ponderada pelo dinheiro) |
+| Ganho real | total líquido − aportes corrigidos pelo IPCA (SGS 433) até ao último mês divulgado; o IPCA de um mês só sai no seguinte, por isso cada data usa o índice até ao mês anterior |
+| CDI e Selic | cada aporte aplicado no CDI (SGS 4391) ou na Selic (SGS 4390) do mês seguinte em diante, IR pela tabela regressiva **do prazo de cada aporte** |
+| Ibovespa | cada aporte em BOVA11 (preço ajustado) na mesma data, IR de 15 % sobre o lucro na venda |
+
+Os índices são exportados em `indices_mes` (taxas mensais em %, desde 2015). O mês corrente de Selic e CDI vem
+parcial do BCB e é recarregado até fechar (`revisao_dias: 120`).
+
+### Exemplo (R$ 10 000 em 02/05/2023 + R$ 1 000 por mês, 20 % em PETR4, ITUB4, WEGE3, KNCR11 e BOVA11)
+
+42 aportes até 02/10/2026, R$ 51 000 aportados, valores de 14/10/2026, proventos em dinheiro, JCP com IR:
+
+| | Valor |
+|---|---|
+| Total bruto (papéis + proventos + caixa) | R$ 79 935,92 |
+| IR na venda: ações / ETF / FII | R$ 2 237,63 / R$ 908,63 / R$ 76,31 |
+| **Total líquido** | **R$ 76 713,34** (lucro R$ 25 713,34, TIR +20,8 % ao ano) |
+| Aportes corrigidos pelo IPCA | R$ 55 822,18 → **ganho real R$ 20 891,16** |
+| CDI com os mesmos aportes, líquido | R$ 63 575,81 |
+| BOVA11 com os mesmos aportes, líquido | R$ 77 151,79 |
+
+Desempenho: a simulação de um lote percorre os pregões com listas Python (não `.at` do pandas). Assim, 5 papéis × 42
+aportes = 210 lotes correm em ~3 s, e o resultado fica em cache por combinação de escolhas.

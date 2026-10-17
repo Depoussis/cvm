@@ -11,9 +11,9 @@ on:
     - cron: "0 2 * * 2-6"    # 23:00 de Brasília, seg–sex, depois do pl_findata_diario das 20:30
     - cron: "0 11 * * 0"     # domingo 08:00 de Brasília, depois do pl_findata_semanal (proventos e modelo)
   workflow_dispatch:
-  push:                      # testa o próprio workflow quando é alterado
+  push:                      # republica quando o workflow ou a exportação mudam
     branches: [main]
-    paths: [".github/workflows/exportar_painel.yml"]
+    paths: [".github/workflows/exportar_painel.yml", "scripts/exportar_painel.py"]
 
 permissions:
   id-token: write    # token OIDC para o Azure

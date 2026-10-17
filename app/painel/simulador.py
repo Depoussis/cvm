@@ -132,29 +132,35 @@ def simular(precos: pd.DataFrame, proventos: pd.DataFrame, valor: float, data: p
         avisos.append(f"O valor não chega para 1 ação a {preco_compra:,.2f}.")
     investido = acoes * preco_compra
 
-    prov = proventos[proventos["data_com"] >= compra["data"]].sort_values("data_com").reset_index(drop=True)
+    prov = proventos[proventos["data_com"] >= compra["data"]].sort_values("data_com")
+    # listas em vez de .at/.loc do pandas: o ciclo corre uma vez por pregão e a carteira simula dezenas de lotes
+    prov_datas, prov_tipos = prov["data_com"].tolist(), prov["tipo"].astype(str).tolist()
+    prov_valores = prov["valor_por_acao"].astype(float).tolist()
     prov_i, linhas_prov, linhas_ev, serie = 0, [], [], []
     acum = caixa = 0.0
     a_reinvestir = []      # (data_com, valor) aguardam o pregão seguinte
     def creditar(ate: pd.Timestamp, inclusive: bool) -> None:
         nonlocal prov_i, acum, caixa
-        while prov_i < len(prov) and (prov.at[prov_i, "data_com"] <= ate if inclusive else prov.at[prov_i, "data_com"] < ate):
-            x = prov.loc[prov_i]
-            bruto = acoes * float(x["valor_por_acao"])
-            ir = bruto * IR_JCP if ir_jcp and str(x["tipo"]).startswith("JRS") else 0.0
+        while prov_i < len(prov_datas) and (prov_datas[prov_i] <= ate if inclusive else prov_datas[prov_i] < ate):
+            bruto = acoes * prov_valores[prov_i]
+            ir = bruto * IR_JCP if ir_jcp and prov_tipos[prov_i].startswith("JRS") else 0.0
             liquido = bruto - ir
             acum += liquido
-            linhas_prov.append({"data_com": x["data_com"], "tipo": x["tipo"], "valor_por_acao": float(x["valor_por_acao"]),
-                                "acoes": acoes, "bruto": bruto, "ir": ir, "liquido": liquido})
+            linhas_prov.append({"data_com": prov_datas[prov_i], "tipo": prov_tipos[prov_i],
+                                "valor_por_acao": prov_valores[prov_i], "acoes": acoes, "bruto": bruto, "ir": ir,
+                                "liquido": liquido})
             if reinvestir:
-                a_reinvestir.append((x["data_com"], liquido))
+                a_reinvestir.append((prov_datas[prov_i], liquido))
             else:
                 caixa += liquido
             prov_i += 1
 
     acoes_iniciais = acoes
-    for j in range(i0, len(p)):
-        d, fecho, fator = p.at[j, "data"], float(p.at[j, "fechamento"]), float(p.at[j, "fator_evento"] or 1.0)
+    p_datas, p_fechos = p["data"].tolist(), p["fechamento"].astype(float).tolist()
+    p_fatores = p["fator_evento"].fillna(1.0).astype(float).tolist()
+    i0 = p.index.get_loc(i0)
+    for j in range(i0, len(p_datas)):
+        d, fecho, fator = p_datas[j], p_fechos[j], p_fatores[j] or 1.0
         creditar(d, inclusive=False)   # data com num dia sem pregão: vale a posição antes do evento deste pregão
         if j > i0 and abs(fator - 1) > 1e-12:              # evento entra neste pregão (data ex)
             antes = acoes
