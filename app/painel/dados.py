@@ -1,47 +1,110 @@
 """Leitura do snapshot exportado da camada gold (scripts/exportar_painel.py).
 
-Os ficheiros ficam em app/dados/. Colunas de data chegam como ``datetime.date`` e são convertidas para
-``datetime64`` aqui, para os gráficos e filtros não terem de o fazer.
+Dois sítios possíveis, usa-se o mais recente:
+- app/dados/: o snapshot que vem com o repositório (fallback, e o que se usa em desenvolvimento);
+- o branch ``painel-dados`` do GitHub, que a Action .github/workflows/exportar_painel.yml substitui a cada
+  exportação. A app consulta o ``_meta.json`` remoto de 30 em 30 minutos e, se for mais novo, descarrega o snapshot
+  para uma pasta temporária. ``FINDATA_DADOS_URL=""`` desliga a leitura remota.
+
+Colunas de data chegam como ``datetime.date`` e são convertidas para ``datetime64`` aqui, para os gráficos e filtros
+não terem de o fazer.
 """
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
+import shutil
+import tempfile
+import threading
+import urllib.request
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-PASTA = Path(__file__).resolve().parents[1] / "dados"
+LOCAL = Path(__file__).resolve().parents[1] / "dados"
+REMOTO = os.environ.get("FINDATA_DADOS_URL", "https://raw.githubusercontent.com/Depoussis/cvm/painel-dados")
+CACHE = Path(tempfile.gettempdir()) / "findata_dados"
 COLUNAS_DATA = {"mes", "data", "dia", "ultimo_mes", "data_com"}
+log = logging.getLogger(__name__)
+_trinco = threading.Lock()
+
+
+def _exportado_em(pasta: Path) -> str:
+    try:
+        return json.loads((pasta / "_meta.json").read_text(encoding="utf-8")).get("exportado_em", "")
+    except (OSError, ValueError):
+        return ""
+
+
+def _baixar(url: str) -> bytes:
+    with urllib.request.urlopen(url, timeout=60) as r:  # noqa: S310 (URL fixa do repositório)
+        return r.read()
+
+
+def _sincronizar() -> Path:
+    """Descarrega o snapshot remoto se for mais novo do que o local e devolve a pasta a usar."""
+    melhor = max([LOCAL, CACHE], key=_exportado_em)
+    if not REMOTO:
+        return melhor
+    try:
+        meta_remoto = json.loads(_baixar(f"{REMOTO}/_meta.json"))
+        if meta_remoto.get("exportado_em", "") <= _exportado_em(melhor):
+            return melhor
+        novo = CACHE.with_name(CACHE.name + ".novo")
+        shutil.rmtree(novo, ignore_errors=True)
+        novo.mkdir(parents=True)
+        for nome in meta_remoto["linhas"]:
+            (novo / f"{nome}.parquet").write_bytes(_baixar(f"{REMOTO}/{nome}.parquet"))
+        (novo / "_meta.json").write_text(json.dumps(meta_remoto), encoding="utf-8")   # por último: marca completo
+        shutil.rmtree(CACHE, ignore_errors=True)
+        novo.rename(CACHE)
+        log.info("snapshot remoto de %s descarregado", meta_remoto["exportado_em"])
+        return CACHE
+    except Exception as ex:  # noqa: BLE001 (sem rede ou branch ausente: fica o snapshot local)
+        log.warning("snapshot remoto indisponível: %s", ex)
+        return melhor
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _pasta_ativa() -> str:
+    with _trinco:
+        return str(_sincronizar())
+
+
+def pasta() -> Path:
+    return Path(_pasta_ativa())
 
 
 def _versao(caminho: Path) -> float:
-    """Data de modificação do ficheiro: entra na chave da cache para um snapshot novo (git pull no Streamlit Cloud)
-    ser lido sem reiniciar a app."""
+    """Data de modificação do ficheiro: entra na chave da cache para um snapshot novo ser lido sem reiniciar a app."""
     return caminho.stat().st_mtime if caminho.exists() else 0.0
 
 
 @st.cache_data(show_spinner=False)
-def _ler_tabela(nome: str, versao: float) -> pd.DataFrame:
-    df = pd.read_parquet(PASTA / f"{nome}.parquet")
+def _ler_tabela(caminho: str, versao: float) -> pd.DataFrame:
+    df = pd.read_parquet(caminho)
     for c in COLUNAS_DATA & set(df.columns):
         df[c] = pd.to_datetime(df[c])
     return df
 
 
 def tabela(nome: str) -> pd.DataFrame:
-    return _ler_tabela(nome, _versao(PASTA / f"{nome}.parquet"))
+    caminho = pasta() / f"{nome}.parquet"
+    return _ler_tabela(str(caminho), _versao(caminho))
 
 
 @st.cache_data(show_spinner=False)
-def _ler_meta(versao: float) -> dict:
-    caminho = PASTA / "_meta.json"
-    return json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else {}
+def _ler_meta(caminho: str, versao: float) -> dict:
+    c = Path(caminho)
+    return json.loads(c.read_text(encoding="utf-8")) if c.exists() else {}
 
 
 def meta() -> dict:
-    return _ler_meta(_versao(PASTA / "_meta.json"))
+    caminho = pasta() / "_meta.json"
+    return _ler_meta(str(caminho), _versao(caminho))
 
 
 def linha(nome: str) -> pd.Series:
@@ -51,7 +114,7 @@ def linha(nome: str) -> pd.Series:
 
 
 def catalogo_fundos() -> pd.DataFrame:
-    return _catalogo_fundos(_versao(PASTA / "_meta.json"))
+    return _catalogo_fundos(_versao(pasta() / "_meta.json"))
 
 
 @st.cache_data(show_spinner=False)

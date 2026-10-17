@@ -11,6 +11,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "app"))
 from painel import dados, formato  # noqa: E402
 
 
+def test_snapshot_remoto_so_substitui_se_for_mais_novo(tmp_path, monkeypatch):
+    import json
+
+    local, cache = tmp_path / "local", tmp_path / "cache"
+    local.mkdir()
+    (local / "_meta.json").write_text(json.dumps({"exportado_em": "2026-10-16T20:00:00+00:00", "linhas": {}}))
+    remoto = {"_meta.json": json.dumps({"exportado_em": "2026-10-17T02:05:00+00:00", "linhas": {"ptax": 1}}).encode(),
+              "ptax.parquet": b"PAR1"}
+    monkeypatch.setattr(dados, "LOCAL", local)
+    monkeypatch.setattr(dados, "CACHE", cache)
+    monkeypatch.setattr(dados, "REMOTO", "https://exemplo")
+    monkeypatch.setattr(dados, "_baixar", lambda url: remoto[url.rsplit("/", 1)[1]])
+    assert dados._sincronizar() == cache and (cache / "ptax.parquet").read_bytes() == b"PAR1"
+
+    remoto["_meta.json"] = json.dumps({"exportado_em": "2026-10-15T00:00:00+00:00", "linhas": {}}).encode()
+    assert dados._sincronizar() == cache                     # remoto mais antigo: fica o que já está
+
+    def sem_rede(url):
+        raise OSError("sem rede")
+    monkeypatch.setattr(dados, "_baixar", sem_rede)
+    monkeypatch.setattr(dados, "CACHE", tmp_path / "vazia")
+    assert dados._sincronizar() == local                     # falha: usa o snapshot do repositório
+
+
 def test_numeros_no_padrao_brasileiro():
     assert formato.numero(1234567.891, 2) == "1.234.567,89"
     assert formato.pct(1.5) == "1,50 %"

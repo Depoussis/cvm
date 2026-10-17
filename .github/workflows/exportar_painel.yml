@@ -1,0 +1,65 @@
+# Exporta o snapshot do painel Streamlit (scripts/exportar_painel.py) e publica-o no branch painel-dados.
+# O Streamlit Cloud lê esse branch (app/painel/dados.py), por isso o main não recebe 17 MB de parquet por dia.
+#
+# Autenticação sem segredos: o GitHub emite um token OIDC que o Entra ID troca por um token da aplicação
+# findata-painel-github (credencial federada só para repo:Depoussis/cvm:ref:refs/heads/main). Essa identidade só
+# tem leitura no catálogo (sql/grants_painel/) e CAN_USE no SQL Warehouse. Ver docs/analytics.md.
+name: Exportar painel
+
+on:
+  schedule:
+    - cron: "0 2 * * 2-6"    # 23:00 de Brasília, seg–sex, depois do pl_findata_diario das 20:30
+    - cron: "0 11 * * 0"     # domingo 08:00 de Brasília, depois do pl_findata_semanal (proventos e modelo)
+  workflow_dispatch:
+  push:                      # testa o próprio workflow quando é alterado
+    branches: [main]
+    paths: [".github/workflows/exportar_painel.yml"]
+
+permissions:
+  id-token: write    # token OIDC para o Azure
+  contents: write    # push do branch painel-dados
+
+concurrency:
+  group: exportar-painel
+  cancel-in-progress: false
+
+env:
+  AZURE_CLIENT_ID: 40452b47-a510-4a92-8108-89cc2f8a908e   # findata-painel-github (identificador, não é segredo)
+  AZURE_TENANT_ID: 84d8c417-9aa6-4451-bac3-7430e18b2b93
+
+jobs:
+  exportar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Dependências
+        run: pip install -r requirements.txt pyarrow==26.0.0
+
+      - name: Login no Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Exportar da camada gold
+        run: python scripts/exportar_painel.py --env dev
+
+      - name: Publicar no branch painel-dados
+        working-directory: app/dados
+        run: |
+          git init -q -b painel-dados
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Snapshot do painel $(jq -r .exportado_em _meta.json)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" painel-dados
+          echo "### Snapshot publicado" >> "$GITHUB_STEP_SUMMARY"
+          jq -r '"Exportado em \(.exportado_em)", (.linhas | to_entries[] | "- \(.key): \(.value) linhas")' _meta.json >> "$GITHUB_STEP_SUMMARY"

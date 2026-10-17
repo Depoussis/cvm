@@ -77,13 +77,44 @@ A faixa por baixo do menu mostra a data do snapshot e as fontes. Código em `app
 **Dados:** a app não liga ao Databricks. `scripts/exportar_painel.py` corre as consultas do painel AI/BI (as mesmas
 de `deploy_dashboard.py`), mais o histórico mensal por fundo, as cotações e os proventos da B3 (papéis com volume ≥ R$ 300 mil/dia), os dividendos anuais e as tabelas do modelo (`ml_*`). Grava `app/dados/*.parquet` (≈ 17 MB, zstd).
 Vantagens: sem segredos no Streamlit Cloud, sem warehouse ligado a cada visita, páginas rápidas. Custo: os dados
-são um snapshot, atualizado quando se exporta e faz push.
+são um snapshot, atualizado uma vez por dia útil.
 
+### Atualização automática
+
+```
+ADF pl_findata_diario (20:30)  →  GitHub Action "Exportar painel" (23:00 seg–sex, dom 08:00)
+                                    exportar_painel.py → push -f do branch painel-dados (só os parquet)
+                                  →  Streamlit (app/painel/dados.py) consulta o _meta.json remoto de 30 em 30 min
+                                     e descarrega o snapshot se for mais novo; se falhar, usa app/dados/
+```
+
+- **Workflow:** `.github/workflows/exportar_painel.yml`, também corre à mão (Actions → Exportar painel → Run
+  workflow). O resumo da execução lista as linhas de cada tabela.
+- **Branch `painel-dados`:** um único commit, substituído a cada exportação. O `main` não cresce 17 MB por dia;
+  `app/dados/` no `main` fica como snapshot de reserva e para desenvolvimento local.
+- **Autenticação sem segredos:** a aplicação Entra `findata-painel-github` tem uma credencial federada só para
+  `repo:Depoussis/cvm:ref:refs/heads/main`; o GitHub entra no Azure com OIDC (`azure/login`, sem subscrição) e o
+  `exportar_painel.py` usa esse login (`auth_type="azure-cli"`). Permissões: `SELECT` no catálogo
+  (`sql/grants_painel/`), `CAN_USE` no SQL Warehouse e o direito `databricks-sql-access`.
+- **Custo:** ~1 min de SQL Warehouse serverless por exportação; minutos do GitHub Actions gratuitos (repositório
+  público).
+
+Passos únicos (dono do catálogo, já feitos em dev):
 ```bash
-python scripts/exportar_painel.py --env dev     # ~30 s de warehouse
-streamlit run app/streamlit_app.py              # local, na raiz do repositório
-git add app/dados && git commit -m "Painel: snapshot" && git push   # o Streamlit Cloud republica sozinho
-# a cache de dados usa a data de modificação de cada parquet: um snapshot novo é lido sem reiniciar a app;
+az ad app create --display-name findata-painel-github --sign-in-audience AzureADMyOrg   # → appId
+az ad sp create --id <appId>
+az ad app federated-credential create --id <appId> --parameters \
+  '{"name":"github-main","issuer":"https://token.actions.githubusercontent.com",
+    "subject":"repo:Depoussis/cvm:ref:refs/heads/main","audiences":["api://AzureADTokenExchange"]}'
+python scripts/configurar_painel_sp.py --env dev --client-id <appId>
+python scripts/apply_sql.py --env dev --dir sql/grants_painel --var sp=<appId>
+# e AZURE_CLIENT_ID=<appId> em .github/workflows/exportar_painel.yml (identificador, não é segredo)
+```
+
+Manualmente, a partir do portátil:
+```bash
+python scripts/exportar_painel.py --env dev     # ~30 s de warehouse, grava app/dados/
+streamlit run app/streamlit_app.py              # local, na raiz do repositório (FINDATA_DADOS_URL="" ignora o remoto)
 # alterações em app/painel/*.py (módulos importados) exigem "Manage app → Reboot app" no Streamlit Cloud
 ```
 
