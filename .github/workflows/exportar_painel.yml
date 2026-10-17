@@ -2,7 +2,7 @@
 # O Streamlit Cloud lê esse branch (app/painel/dados.py), por isso o main não recebe 17 MB de parquet por dia.
 #
 # Autenticação sem segredos: o GitHub emite um token OIDC que o Entra ID troca por um token da aplicação
-# findata-painel-github (credencial federada só para repo:Depoussis/cvm:ref:refs/heads/main). Essa identidade só
+# findata-painel-github (credencial federada só para o branch main deste repositório). Essa identidade só
 # tem leitura no catálogo (sql/grants_painel/) e CAN_USE no SQL Warehouse. Ver docs/analytics.md.
 name: Exportar painel
 
@@ -32,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip

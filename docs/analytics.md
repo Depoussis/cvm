@@ -105,7 +105,9 @@ az ad app create --display-name findata-painel-github --sign-in-audience AzureAD
 az ad sp create --id <appId>
 az ad app federated-credential create --id <appId> --parameters \
   '{"name":"github-main","issuer":"https://token.actions.githubusercontent.com",
-    "subject":"repo:Depoussis/cvm:ref:refs/heads/main","audiences":["api://AzureADTokenExchange"]}'
+    "subject":"repo:Depoussis@288774958/cvm@1422145072:ref:refs/heads/main","audiences":["api://AzureADTokenExchange"]}'
+# o GitHub envia o subject com os IDs do dono e do repositório (formato imutável); com só os nomes, o login falha
+# com AADSTS700213 e a mensagem mostra o subject certo
 python scripts/configurar_painel_sp.py --env dev --client-id <appId>
 python scripts/apply_sql.py --env dev --dir sql/grants_painel --var sp=<appId>
 # e AZURE_CLIENT_ID=<appId> em .github/workflows/exportar_painel.yml (identificador, não é segredo)
