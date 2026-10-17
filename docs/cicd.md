@@ -32,7 +32,13 @@ usa os identificadores numéricos do dono e do repositório (formato dos reposit
 az ad app federated-credential create --id 27dd81ac-d529-4b9d-910a-0108ea25f5b2 --parameters '{"name":"github-cvm-main","issuer":"https://token.actions.githubusercontent.com","subject":"repo:Depoussis@288774958/cvm@1422145072:ref:refs/heads/main","audiences":["api://AzureADTokenExchange"]}'
 ```
 
-Sem ela, o `cd.yml` falha no passo "Login no Azure" (os testes correm na mesma). O `cd.yml` não usa
+No workspace Databricks, a identidade tem de estar no grupo **admins** e ter os direitos *Workspace access* e
+*Databricks SQL access* (Settings → Identity and access). Com Contributor no resource group, isso acontece sozinho
+no primeiro login pelo portal. Aqui não aconteceu, porque a identidade foi registada por código para receber antes
+as permissões do Unity Catalog. Feito à mão em 17/10/2026. O deploy precisa de ser administrador para atualizar
+jobs de outro dono, publicar em `/Workspace/Shared` e publicar o painel AI/BI.
+
+Sem a credencial federada, o `cd.yml` falha no passo "Login no Azure" (os testes correm na mesma). O `cd.yml` não usa
 `environment:` porque isso mudaria o subject do token.
 
 # Azure DevOps (alternativa, parada)

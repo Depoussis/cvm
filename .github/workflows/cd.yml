@@ -5,7 +5,7 @@
 # connection sc-findata-dev do Azure DevOps: Contributor em rg-findata-dev e permissões no Unity Catalog), por uma
 # credencial federada só para o branch main. O deploy não muda agendamentos (gatilhos iniciados ficam, jobs mantêm
 # a pausa), nem o dono das execuções e o e-mail de alertas dos jobs existentes. Ver docs/cicd.md.
-# Credencial federada github-cvm-main criada em 17/10/2026.
+# Credencial federada github-cvm-main criada em 17/10/2026; identidade no grupo admins do workspace (docs/cicd.md).
 name: CD
 
 on:
