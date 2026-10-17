@@ -83,7 +83,7 @@ são um snapshot, atualizado uma vez por dia útil.
 ### Atualização automática
 
 ```
-ADF pl_findata_diario (20:30)  →  GitHub Action "Exportar painel" (23:00 seg–sex, dom 08:00)
+ADF pl_findata_diario (21:15)  →  GitHub Action "Exportar painel" (23:00 seg–sex, dom 08:00)
                                     exportar_painel.py → push -f do branch painel-dados (só os parquet)
                                   →  Streamlit (app/painel/dados.py) consulta o _meta.json remoto de 30 em 30 min
                                      e descarrega o snapshot se for mais novo; se falhar, usa app/dados/

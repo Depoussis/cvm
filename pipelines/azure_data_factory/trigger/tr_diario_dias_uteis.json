@@ -1,7 +1,7 @@
 {
   "name": "tr_diario_dias_uteis",
   "properties": {
-    "description": "Dias úteis às 20:30 de Brasília: depois da PTAX de fechamento e com os ficheiros da CVM da madrugada.",
+    "description": "Dias úteis às 21:15 de Brasília: depois da PTAX de fechamento, do COTAHIST do dia (B3, ~20:50) e com os ficheiros da CVM da madrugada.",
     "type": "ScheduleTrigger",
     "typeProperties": {
       "recurrence": {
@@ -9,7 +9,7 @@
         "interval": 1,
         "startTime": "2026-10-16T00:00:00",
         "timeZone": "E. South America Standard Time",
-        "schedule": { "weekDays": [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" ], "hours": [ 20 ], "minutes": [ 30 ] }
+        "schedule": { "weekDays": [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" ], "hours": [ 21 ], "minutes": [ 15 ] }
       }
     },
     "pipelines": [

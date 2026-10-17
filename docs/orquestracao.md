@@ -9,7 +9,7 @@
   do ADF (papel `Contributor` no workspace, atribuído por `scripts/deploy_rbac.sh`). Não há tokens nem segredos.
 
 ```text
-tr_diario_dias_uteis (seg–sex 20:30 BRT)
+tr_diario_dias_uteis (seg–sex 21:15 BRT)
         │
 pl_findata_diario
   ├─ BCB     ─► pl_databricks_job(findata_dev_bcb)     ──┐
