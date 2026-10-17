@@ -62,7 +62,7 @@ Visual clean (claro/escuro). **Navegação no topo** (`st.navigation(position="t
 
 | Menu | Página | Conteúdo |
 |---|---|---|
-| Mercado | `paginas/mercado.py` | Selic, PTAX (período e moedas), câmbio mensal, IBC-Br |
+| Mercado | `paginas/mercado.py` | Selic, PTAX (período e moedas), câmbio mensal, IBC-Br, índices B3 (IBOV, IFIX, SMLL, IDIV), taxas do Tesouro Direto ([pipelines_mercado.md](pipelines_mercado.md)) |
 | Bolsa | `paginas/acoes.py` | ações, FII e ETF: rankings, evolução, setores, tabela com DY, P/L, P/VP e ROE, dividendos por ano |
 | Simulador ▸ Um papel | `paginas/simulador.py` | compra numa data ao preço da época: eventos, proventos, IR da venda, total líquido ([simulador.md](simulador.md)) |
 | Simulador ▸ Carteira com aportes | `paginas/carteira.py` | vários papéis com pesos, aportes mensais, TIR, ganho acima do IPCA, CDI e BOVA11 com os mesmos aportes ([simulador.md](simulador.md#carteira-com-aportes-menu-simulador--carteira-com-aportes)) |

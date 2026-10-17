@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 PASTA = Path(__file__).resolve().parents[2] / "pipelines" / "azure_data_factory"
-CONHECIDAS = {"env", "databricks_host", "databricks_workspace_id", "job_id_bcb", "job_id_cvm", "job_id_b3", "job_id_b3_proventos", "job_id_ml",
+CONHECIDAS = {"env", "databricks_host", "databricks_workspace_id", "job_id_bcb", "job_id_cvm", "job_id_b3", "job_id_b3_proventos", "job_id_ml", "job_id_mercado",
               "job_id_frescura", "job_id_auditoria"}
 
 

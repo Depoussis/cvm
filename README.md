@@ -20,6 +20,7 @@ Key Vault · Log Analytics · Bicep · Python 3.11.
 | 6b. Modelo preditivo | Ranking de ações para o mês seguinte: features point-in-time, walk-forward, backtest, MLflow | experimental (16/10/2026), ver [docs/modelo_preditivo.md](docs/modelo_preditivo.md) |
 | 6c. Simulador | Compra numa data ao preço da época: valorização, proventos, eventos (desdobramentos, bonificações) vs Selic e Ibovespa | concluída (16/10/2026), ver [docs/simulador.md](docs/simulador.md) |
 | 6d. Carteira com aportes | Vários papéis com pesos e aportes mensais: TIR, ganho acima do IPCA, CDI e BOVA11 com os mesmos aportes; IPCA e CDI do BCB | concluída (16/10/2026), ver [docs/simulador.md](docs/simulador.md) |
+| 4b. Referências de mercado | Índices oficiais da B3 (IBOV, IFIX, SMLL, IDIV) e preços/taxas do Tesouro Direto; no painel e no simulador | concluída (16/10/2026), ver [docs/pipelines_mercado.md](docs/pipelines_mercado.md) |
 | 6e. Atualização automática | GitHub Action (OIDC, sem segredos) exporta o snapshot às 23:00 para o branch `painel-dados`; o Streamlit lê-o sozinho | concluída (16/10/2026), ver [docs/analytics.md](docs/analytics.md) |
 | 4. Histórico e auditoria | SCD1, SCD2, hashes, watermarks, reapresentações, reconciliação | concluída (16/10/2026), ver [docs/auditoria.md](docs/auditoria.md) |
 | 5. Orquestração | ADF, Databricks Jobs, retries, alertas, agendamentos | concluída (16/10/2026), ver [docs/orquestracao.md](docs/orquestracao.md) |

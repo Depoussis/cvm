@@ -27,6 +27,7 @@ databricks:
     cron_cvm: "0 0 8 ? * *"       # 08:00 de Brasília, todos os dias (a CVM atualiza os ficheiros de madrugada)
     cron_b3: "0 30 21 ? * MON-FRI"  # 21:30 de Brasília (a B3 publica o COTAHIST do dia por volta das 20:50)
     cron_b3_proventos: "0 0 5 ? * SUN"  # domingo 05:00 (antes da auditoria das 06:00)
+    cron_mercado: "0 0 20 ? * MON-FRI"  # índices B3 e Tesouro Direto (só se o agendamento for pelo Databricks)
     cron_ml: "0 0 7 ? * SUN"  # domingo 07:00, depois dos proventos e da auditoria
     cron_frescura: "0 0 22 ? * MON-FRI"  # só usado se o agendamento for pelo Databricks (por omissão: ADF)
     cron_auditoria: "0 0 6 ? * SUN"  # domingo 06:00: testes de integração e reconciliação

@@ -225,3 +225,16 @@ def test_resumo_ao_vivo_top10_contra_universo_e_bova11():
     p = modelo_vivo.placar(r)
     assert p["concluidos"] == 1 and p["em_curso"] == 1 and p["venceu_universo"] == 1.0
     assert modelo_vivo.resumir(pd.DataFrame()).empty
+
+
+def test_tesouro_com_os_mesmos_aportes_compra_ao_pu_do_dia_e_paga_ir_regressivo():
+    titulo = pd.DataFrame({"data": pd.to_datetime(["2024-01-02", "2024-02-01", "2025-06-02"]),
+                           "pu_compra": [100.0, 110.0, 150.0], "pu_venda": [99.0, 109.0, 148.0]})
+    aportes = pd.DataFrame({"data": pd.to_datetime(["2024-01-01", "2024-02-01"]), "valor": [1000.0, 1100.0]})
+    serie, bruto, liquido, avisos = carteira.tesouro_mesmos_aportes(
+        aportes, titulo, pd.Series(pd.to_datetime(["2024-01-15", "2025-06-02"])), pd.Timestamp("2025-06-02"))
+    assert serie["valor"].iat[0] == pytest.approx(10 * 99)                    # só o 1.º aporte, 10 títulos
+    assert bruto == pytest.approx(20 * 148)                                  # 10 + 10 títulos ao PU de recompra
+    # prazos de 517 e 487 dias: 17,5 % sobre o ganho de cada aporte
+    assert liquido == pytest.approx(1000 + 480 * 0.825 + 1100 + 380 * 0.825)
+    assert avisos == []

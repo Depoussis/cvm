@@ -79,8 +79,30 @@
         }
       },
       {
+        "name": "Mercado",
+        "type": "ExecutePipeline",
+        "typeProperties": {
+          "pipeline": {
+            "referenceName": "pl_databricks_job",
+            "type": "PipelineReference"
+          },
+          "waitOnCompletion": true,
+          "parameters": {
+            "job_id": "${job_id_mercado}",
+            "run_mode": {
+              "value": "@pipeline().parameters.run_mode",
+              "type": "Expression"
+            },
+            "run_id_origem": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          }
+        }
+      },
+      {
         "name": "Frescura",
-        "description": "Só corre se as três cargas tiverem sucesso, para o estado final do pipeline refletir qualquer falha.",
+        "description": "Só corre se as quatro cargas tiverem sucesso, para o estado final do pipeline refletir qualquer falha.",
         "type": "ExecutePipeline",
         "dependsOn": [
           {
@@ -97,6 +119,12 @@
           },
           {
             "activity": "B3",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "Mercado",
             "dependencyConditions": [
               "Succeeded"
             ]

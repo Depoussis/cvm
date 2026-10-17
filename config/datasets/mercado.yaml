@@ -1,0 +1,25 @@
+# Referências de mercado para o painel e o simulador (job findata_<env>_mercado). Ver docs/pipelines_mercado.md.
+# Confirmado com pedidos reais em 16/10/2026.
+
+# Índices oficiais da B3: API pública das páginas de estatísticas de índices ("Evolução diária"). Um pedido por
+# índice e ano devolve uma matriz dia (1-31) x mês (1-12) com o fecho, em texto no formato brasileiro.
+indices_b3:
+  url: "https://sistemaswebb3-listados.b3.com.br/indexStatisticsProxy/IndexCall/GetPortfolioDay/{parametros}"
+  indices:
+    IBOV: Ibovespa
+    IFIX: Índice de fundos imobiliários
+    SMLL: Small caps
+    IDIV: Dividendos
+  inicio_backfill: 2015
+  anos_incremental: 2          # ano corrente e o anterior (apanha correções e a viragem de ano)
+  pausa_entre_pedidos_s: 0.3
+  tabela_bronze: b3_indice_dia
+
+# Tesouro Direto: preços e taxas históricos (Tesouro Transparente, dados abertos). Um único CSV (~15 MB, ~177 mil
+# linhas desde 2002), atualizado de manhã em dias úteis com os valores do dia útil anterior. Separador ';',
+# decimais com vírgula, datas dd/mm/aaaa, cabeçalho em português.
+tesouro_direto:
+  url: "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/PrecoTaxaTesouroDireto.csv"
+  inicio_backfill: 2002-01-01
+  revisao_dias: 15             # incremental: só as linhas com data base nos últimos 15 dias vão para a bronze
+  tabela_bronze: tesouro_preco_taxa

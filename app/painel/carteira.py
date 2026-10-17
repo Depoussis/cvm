@@ -180,6 +180,38 @@ def renda_fixa_liquida(aportes: pd.DataFrame, indice: pd.Series, data_final: pd.
     return float(final.sum()), float((v + np.where(ganho > 0, ganho * (1 - aliq), ganho)).sum())
 
 
+def tesouro_mesmos_aportes(aportes: pd.DataFrame, titulo: pd.DataFrame, datas: pd.Series,
+                           data_final: pd.Timestamp) -> tuple[pd.DataFrame, float, float, list[str]]:
+    """Cada aporte compra o título Tesouro Direto (frações) ao PU de compra da primeira data base na data do aporte
+    ou depois; vale o PU de venda (recompra pelo Tesouro) em cada data. Devolve (série data/valor, bruto, líquido
+    de IR pela tabela regressiva de cada aporte, avisos). Sem taxa de custódia da B3 nem cupões (usar títulos sem
+    juros semestrais)."""
+    t = titulo.dropna(subset=["pu_compra", "pu_venda"]).sort_values("data")
+    avisos = []
+    if t.empty:
+        return pd.DataFrame(columns=["data", "valor"]), float("nan"), float("nan"), ["título sem preços"]
+    idx = t["data"].searchsorted(aportes["data"].to_numpy(), side="left")
+    fora = idx >= len(t)
+    if fora.any():
+        avisos.append(f"{int(fora.sum())} aporte(s) depois do último preço do título ficam de fora.")
+    if (aportes["data"] < t["data"].iat[0] - pd.Timedelta(days=7)).any():
+        avisos.append(f"O título só tem preços desde {t['data'].iat[0]:%d/%m/%Y}: os aportes anteriores compram nessa data.")
+    idx = np.clip(idx, 0, len(t) - 1)
+    unidades = np.where(fora, 0.0, aportes["valor"].to_numpy() / t["pu_compra"].to_numpy()[idx])
+    datas_compra = t["data"].to_numpy()[idx]
+    pu = pd.Series(t["pu_venda"].to_numpy(), index=pd.DatetimeIndex(t["data"]))
+    d = pd.to_datetime(pd.Series(datas)).reset_index(drop=True)
+    pu_t = _no_dia(pu, d)
+    ativo = datas_compra[None, :] <= d.to_numpy()[:, None]
+    serie = pd.DataFrame({"data": d, "valor": (unidades[None, :] * ativo).sum(axis=1) * pu_t})
+    final = unidades * _no_dia(pu, [data_final])[0]
+    v = np.where(fora, 0.0, aportes["valor"].to_numpy())
+    dias = (pd.Timestamp(data_final) - pd.to_datetime(datas_compra)).days.to_numpy()
+    aliq = np.array([simulador.aliquota_renda_fixa(int(x)) for x in dias])
+    ganho = final - v
+    return serie, float(final.sum()), float((v + np.where(ganho > 0, ganho * (1 - aliq), ganho)).sum()), avisos
+
+
 def corrigido_ipca(aportes: pd.DataFrame, ipca: pd.Series, data_hoje: pd.Timestamp) -> float:
     """Aportes corrigidos pela inflação até hoje: quanto seria preciso ter só para manter o poder de compra.
 

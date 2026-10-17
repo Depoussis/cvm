@@ -41,10 +41,23 @@ editada = st.data_editor(
     column_config={"Papel": st.column_config.SelectboxColumn(options=list(classes), required=True, width="medium"),
                    "Peso (%)": st.column_config.NumberColumn(min_value=0.0, max_value=100.0, step=5.0,
                                                              format="%.0f", required=True)})
-o1, o2, o3 = st.columns([1.4, 1.6, 2.2])
+o1, o2, o3, o4 = st.columns([1.3, 1.5, 2.1, 2.1])
 reinvestir = o1.toggle("Reinvestir proventos", value=False, key="cart_reinv")
 ir_jcp = o2.toggle("Descontar IR de 15 % do JCP", value=True, key="cart_jcp")
 isencao = o3.toggle("Isenção de vendas de ações até R$ 20 mil/mês", value=True, key="cart_isencao")
+linhas_snapshot = dados.meta().get("linhas", {})
+td = dados.tabela("tesouro") if "tesouro" in linhas_snapshot else pd.DataFrame()
+titulo_td = None
+if len(td):
+    # títulos sem cupões (o valor do título acumula tudo) com preços na data do primeiro aporte e hoje
+    sem_cupao = td[~td["juros_semestrais"].astype(bool)]
+    vivos = sem_cupao.groupby("titulo")["data"].agg(["min", "max"])
+    vivos = vivos[(vivos["min"] <= pd.Timestamp(data_inicio) + pd.Timedelta(days=7)) & (vivos["max"] >= td["data"].max())]
+    opcoes_td = sorted(vivos.index, key=lambda t: (not t.startswith("Tesouro IPCA+ 20"), t))
+    if opcoes_td:
+        titulo_td = o4.selectbox("Comparar com Tesouro Direto", opcoes_td, key="cart_td",
+                                 help="Cada aporte compra este título ao preço do dia; vende-se hoje ao preço de recompra "
+                                      "do Tesouro, com IR pela tabela regressiva (sem taxa de custódia da B3)")
 
 pesos = (editada.dropna().groupby("Papel")["Peso (%)"].sum())
 pesos = pesos[pesos > 0]
@@ -114,6 +127,19 @@ if bova_serie is not None and len(bova_serie):
     bova_final = float(bova_serie["valor"].iat[-1])
     imp_bova = simulador.imposto_venda("ETF e fundos", bova_final, aportado)
     comp.append(("Ibovespa (BOVA11, mesmos aportes)", "líquido do IR de 15 % na venda", bova_final - imp_bova.imposto))
+td_serie = None
+if titulo_td:
+    td_serie, _, td_liq, td_avisos = carteira.tesouro_mesmos_aportes(c.aportes, td[td["titulo"] == titulo_td], datas,
+                                                                     c.data_hoje)
+    comp.append((f"{titulo_td} (mesmos aportes)", "preço de recompra hoje, líquido de IR regressivo", td_liq))
+    for a_ in td_avisos:
+        ui.aviso(f"{titulo_td}: {a_}")
+ind = dados.tabela("indices_b3") if "indices_b3" in linhas_snapshot else pd.DataFrame()
+for cod, rotulo in (("IBOV", "Ibovespa (índice oficial)"), ("IFIX", "IFIX (índice oficial)")):
+    s_ = ind[ind["indice"] == cod].set_index("data")["fechamento"] if len(ind) else pd.Series(dtype=float)
+    if len(s_):
+        v_ = float(carteira.aplicar_fluxos(c.aportes, pd.Series([c.data_hoje]), s_, mensal=False)["valor"].iat[0])
+        comp.append((f"{rotulo}, mesmos aportes", "retorno total, sem custos nem IR (não é investível diretamente)", v_))
 if tem_ipca:
     comp.append(("Só a inflação (IPCA)", "o que manteria o poder de compra dos aportes", corrigido))
 
@@ -149,6 +175,8 @@ with g1, ui.card("cart_evolucao"):
         partes.append(carteira.aplicar_fluxos(c.aportes, datas, cdi, mensal=True).assign(serie="CDI"))
     if bova_serie is not None:
         partes.append(bova_serie.assign(serie="BOVA11 (Ibovespa)"))
+    if td_serie is not None and len(td_serie):
+        partes.append(td_serie.assign(serie=titulo_td))
     graficos.mostrar(graficos.linhas(pd.concat(partes), "data", "valor", "serie", "", 0, altura=340))
 with g2, ui.card("cart_comparacao"):
     ui.titulo_card("Comparação no fim", "Total líquido de cada alternativa com os mesmos aportes")
@@ -178,5 +206,7 @@ with ui.card("cart_posicoes"):
 
 ui.rodape("Mesmas regras do simulador de um papel (preços da época, eventos oficiais, proventos na data com, IR da "
           "venda por classe com compensação dentro do mês). Selic, CDI e IPCA: Banco Central (SGS 4390, 4391, 433). "
+          "Tesouro Direto: preços de compra e recompra do Tesouro Nacional, sem custódia da B3. Ibovespa e IFIX: "
+          "índices oficiais da B3. "
           "Ganho real compara com os aportes corrigidos pelo IPCA até ao último mês divulgado. Não inclui corretagem "
           "nem emolumentos. Projeto de estudo, não é recomendação.")

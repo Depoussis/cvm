@@ -49,6 +49,10 @@ JOBS = {
         ("bronze_b3_proventos", "bronze/b3_proventos", [], 2),
         ("silver_b3_proventos", "silver/b3_proventos", ["bronze_b3_proventos"], 0),
         ("gold_b3_proventos", "gold/b3_proventos", ["silver_b3_proventos"], 0)]),
+    "mercado": ("Referências de mercado (índices oficiais da B3 e Tesouro Direto): bronze -> silver -> gold. "
+                "Ver docs/pipelines_mercado.md.", "cron_mercado", [
+        ("bronze_mercado", "bronze/mercado", [], 2), ("silver_mercado", "silver/mercado", ["bronze_mercado"], 0),
+        ("gold_mercado", "gold/mercado", ["silver_mercado"], 0)]),
     "ml": ("Modelo de ranking de ações: features point-in-time, walk-forward, backtest e ranking atual (MLflow). "
            "Ver docs/modelo_preditivo.md.", "cron_ml", [
         ("ml_features", "ml/features", [], 0), ("ml_treino", "ml/treino", ["ml_features"], 0)]),

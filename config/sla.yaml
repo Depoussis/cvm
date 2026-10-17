@@ -7,6 +7,7 @@ padrao_dias:
   bcb_sgs: 5        # séries diárias: dias úteis, com feriados prolongados
   bcb_ptax: 5
   cvm: 7            # informe diário: os administradores enviam com alguns dias de atraso
+  mercado: 5        # índices B3 (pregões) e Tesouro Direto (publica de manhã os valores do dia útil anterior)
   b3: 5             # pregões em dias úteis; o diário de hoje só sai à noite (o ADF apanha-o no dia seguinte)
 
 entidades:
@@ -22,3 +23,4 @@ execucao_max_horas:
   bronze_bcb_ptax: 96
   bronze_cvm: 96
   bronze_b3: 96
+  bronze_mercado: 96

@@ -9,14 +9,22 @@
   do ADF (papel `Contributor` no workspace, atribuído por `scripts/deploy_rbac.sh`). Não há tokens nem segredos.
 
 ```text
-tr_diario_dias_uteis (seg–sex 20:30 BRT)          tr_semanal_domingo (dom 06:00 BRT)
-        │                                                   │
-pl_findata_diario                                   pl_findata_semanal
-  ├─ BCB ─► pl_databricks_job(findata_dev_bcb) ──┐    ├─ Auditoria ─► findata_dev_auditoria
-  ├─ CVM ─► pl_databricks_job(findata_dev_cvm) ──┤    │     (testes de integração + reconciliação)
-  ├─ B3  ─► pl_databricks_job(findata_dev_b3)  ──┤    └─ B3 proventos ─► findata_dev_b3_proventos
-  └─ Frescura (só se as três tiverem sucesso) ◄──┘           └─ Modelo ─► findata_dev_ml
-       └─ pl_databricks_job(findata_dev_frescura)                (features, walk-forward, ranking)
+tr_diario_dias_uteis (seg–sex 20:30 BRT)
+        │
+pl_findata_diario
+  ├─ BCB     ─► pl_databricks_job(findata_dev_bcb)     ──┐
+  ├─ CVM     ─► pl_databricks_job(findata_dev_cvm)     ──┤
+  ├─ B3      ─► pl_databricks_job(findata_dev_b3)      ──┤
+  ├─ Mercado ─► pl_databricks_job(findata_dev_mercado) ──┤   (índices B3 e Tesouro Direto)
+  └─ Frescura (só se as quatro tiverem sucesso) ◄────────┘
+       └─ pl_databricks_job(findata_dev_frescura)
+
+tr_semanal_domingo (dom 06:00 BRT)
+        │
+pl_findata_semanal
+  ├─ Auditoria ─► findata_dev_auditoria       (testes de integração + reconciliação)
+  └─ B3 proventos ─► findata_dev_b3_proventos
+       └─ Modelo ─► findata_dev_ml           (features, walk-forward, ranking)
 ```
 
 Dentro de cada job Databricks: `bronze → silver → gold (→ reapresentações)`:
@@ -26,7 +34,7 @@ Dentro de cada job Databricks: `bronze → silver → gold (→ reapresentaçõe
 - ML: `ml_features → ml_treino`, com MLflow e registo no Unity Catalog ([modelo_preditivo.md](modelo_preditivo.md)).
 
 Os IDs dos jobs vêm de `deploy_adf.py` (`job_id_bcb`, `job_id_cvm`, `job_id_b3`, `job_id_b3_proventos`,
-`job_id_ml`, `job_id_frescura`, `job_id_auditoria`).
+`job_id_ml`, `job_id_mercado`, `job_id_frescura`, `job_id_auditoria`).
 
 ## Parâmetros e rastreabilidade
 `pl_databricks_job` recebe `job_id`, `run_mode`, `data_inicio`, `data_fim`, `entidades` e envia ao job

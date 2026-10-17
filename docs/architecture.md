@@ -13,7 +13,9 @@ Estado em 16/10/2026: fases 1 a 6 concluídas, mais B3, streaming, fundamentos, 
   │  FI, FII, cadastros, FCA,    │        └──────────┬───────────┘      │ Streamlit Cloud       │
   │  DFP/ITR                     │                   │                  │  (snapshot parquet)   │
   │ B3 COTAHIST (TXT largura fixa)│                  │                  │ MLflow / modelo UC    │
-  │ B3 empresas listadas (JSON)  │                   │                  └──────────▲────────────┘
+  │ B3 empresas listadas (JSON)  │
+  │ B3 índices oficiais (JSON)   │
+  │ Tesouro Direto (CSV)         │                   │                  └──────────▲────────────┘
   └──────────────┬───────────────┘                   │                             │
                  │ download (Python no Databricks)   │ dispara jobs                 │
                  ▼                                   ▼                              │
@@ -30,9 +32,9 @@ Estado em 16/10/2026: fases 1 a 6 concluídas, mais B3, streaming, fundamentos, 
 
 Jobs Databricks (serverless, agendados pelo ADF): `findata_dev_bcb`, `findata_dev_cvm` (inclui FCA, DFP/ITR e
 `gold_fundamentos`), `findata_dev_b3` (COTAHIST com Auto Loader + gold por Change Data Feed),
-`findata_dev_b3_proventos` (semanal), `findata_dev_ml` (semanal), `findata_dev_frescura`, `findata_dev_auditoria`.
+`findata_dev_b3_proventos` (semanal), `findata_dev_mercado` (índices B3 e Tesouro Direto, diário), `findata_dev_ml` (semanal), `findata_dev_frescura`, `findata_dev_auditoria`.
 Documentos por tema: [pipelines_bcb.md](pipelines_bcb.md), [pipelines_cvm.md](pipelines_cvm.md),
-[pipelines_b3.md](pipelines_b3.md), [streaming.md](streaming.md), [fundamentos.md](fundamentos.md),
+[pipelines_b3.md](pipelines_b3.md), [pipelines_mercado.md](pipelines_mercado.md), [streaming.md](streaming.md), [fundamentos.md](fundamentos.md),
 [modelo_preditivo.md](modelo_preditivo.md), [analytics.md](analytics.md), [simulador.md](simulador.md),
 [testes.md](testes.md), [conceitos.md](conceitos.md).
 ```

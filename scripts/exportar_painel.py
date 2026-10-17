@@ -75,6 +75,14 @@ def extras(k: str) -> dict[str, str]:
                            FROM {g}.fct_serie_valor WHERE serie_codigo IN (4390, 4391, 433)
                              AND data_referencia >= DATE'2015-01-01'
                            GROUP BY data_referencia""",
+        # índices oficiais da B3 e Tesouro Direto (job findata_<env>_mercado)
+        "indices_b3": f"""SELECT indice, nome_indice, data_pregao AS data, CAST(fechamento AS DOUBLE) AS fechamento
+                          FROM {g}.fct_indice_diario""",
+        "tesouro": f"""SELECT titulo, tipo_titulo, indexador, juros_semestrais, data_vencimento AS vencimento,
+                              data_base AS data, CAST(taxa_compra AS DOUBLE) AS taxa_compra,
+                              CAST(pu_compra AS DOUBLE) AS pu_compra,
+                              CAST(coalesce(pu_venda, pu_base) AS DOUBLE) AS pu_venda
+                       FROM {g}.fct_tesouro_diario WHERE data_base >= DATE'2015-01-01'""",
         # B3: desempenho de todos os papéis com negócios recentes e o histórico diário dos que têm volume médio
         # >= R$ 300 mil/dia (gráfico de evolução e simulador; o fator de evento muda a quantidade de ações)
         "b3_desempenho": f"SELECT * FROM {g}.vw_b3_desempenho",
