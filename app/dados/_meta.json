@@ -1,5 +1,5 @@
 {
- "exportado_em": "2026-10-17T00:49:21+00:00",
+ "exportado_em": "2026-10-17T01:20:56+00:00",
  "ambiente": "dev",
  "catalogo": "findata_dev",
  "linhas": {
@@ -37,6 +37,7 @@
   "ml_resumo": 3,
   "ml_backtest": 111,
   "ml_importancia": 18,
-  "ml_ranking": 190
+  "ml_ranking": 190,
+  "ml_acompanhamento": 191
  }
 }

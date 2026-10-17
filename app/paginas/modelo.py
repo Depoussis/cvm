@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from painel import dados, formato, graficos, ui
+from painel import dados, formato, graficos, modelo_vivo, ui
 
 resumo = dados.tabela("ml_resumo").set_index("modelo")
 bt = dados.tabela("ml_backtest")
@@ -41,6 +41,69 @@ ui.kpis([
     {"rotulo": "Meses avaliados", "valor": formato.numero(g["meses"]), "icone": "calendario",
      "nota": f"de {formato.mes(bt['data_ref'].min())} a {formato.mes(bt['data_ref'].max())}"},
 ])
+
+with ui.card("ml_vivo"):
+    ui.titulo_card("Acompanhamento ao vivo", "Cada ranking fica gravado quando é publicado e nunca é alterado; o "
+                   "resultado é medido nos 21 pregões seguintes, com preços que ainda não existiam. Retornos brutos, "
+                   "carteira das 10 primeiras posições com igual peso")
+    acomp = (dados.tabela("ml_acompanhamento") if "ml_acompanhamento" in dados.meta().get("linhas", {})
+             else pd.DataFrame())
+    if len(acomp):
+        for col in ("data_ref", "data_fim"):
+            acomp[col] = pd.to_datetime(acomp[col])
+        acomp["publicado_em"] = pd.to_datetime(acomp["publicado_em"], utc=True)
+    viv = modelo_vivo.resumir(acomp)
+    pl = modelo_vivo.placar(viv)
+    if viv.empty:
+        st.caption("Ainda não há rankings gravados: o primeiro entra na próxima execução semanal do modelo.")
+    else:
+        pc = lambda v: formato.pct(v * 100, 1, sinal=True) if pd.notna(v) else "—"  # noqa: E731
+        if pl["concluidos"]:
+            ui.kpis([
+                {"rotulo": "Rankings concluídos", "valor": formato.numero(pl["concluidos"]), "icone": "calendario",
+                 "nota": f"{pl['em_curso']} em curso"},
+                {"rotulo": "Top 10 − universo (média)", "valor": pc(pl["excesso_medio"]), "icone": "subida",
+                 "nota": f"top 10 acima do universo em {formato.pct(pl['venceu_universo'] * 100, 0)} dos rankings",
+                 "tom": "pos" if pl["excesso_medio"] > 0 else "neg"},
+                {"rotulo": "IC médio ao vivo", "valor": formato.numero(pl["ic_medio"], 3), "icone": "atividade",
+                 "nota": f"backtest: {formato.numero(g['ic_medio'], 3)}", "tom": "pos" if pl["ic_medio"] > 0 else "neg"},
+                {"rotulo": "Acerto do top 10", "valor": formato.pct(pl["acerto_medio"] * 100, 0), "icone": "check",
+                 "nota": "ações do top 10 acima da mediana (50 % = acaso)"},
+            ])
+        else:
+            primeiro = viv["data_ref"].min()
+            previsto = primeiro + pd.Timedelta(days=30)
+            ui.aviso(f"Primeiro ranking gravado: <b>{formato.data(primeiro)}</b>. O resultado vai aparecendo a cada "
+                     f"pregão e fica completo (21 pregões) por volta de <b>{formato.data(previsto)}</b>. Até haver "
+                     "vários rankings concluídos, o resultado diz pouco: um mês pode ser sorte.")
+        t = viv.copy()
+        t["estado"] = [("concluído" if c_ else f"em curso ({p_}/{modelo_vivo.HORIZONTE})")
+                       for c_, p_ in zip(t["concluido"], t["pregoes"])]
+        for c_ in ("ret_top", "ret_universo", "ret_bova11", "excesso", "acerto"):
+            t[c_] = t[c_] * 100
+        st.dataframe(t[["data_ref", "estado", "ret_top", "ret_universo", "ret_bova11", "excesso", "acerto", "ic",
+                        "modelo"]], hide_index=True, width="stretch",
+                     column_config={
+                         "data_ref": st.column_config.DateColumn("Ranking de", format="DD/MM/YYYY"),
+                         "estado": st.column_config.TextColumn("Estado"),
+                         "ret_top": st.column_config.NumberColumn("Top 10 (%)", format="%+.2f"),
+                         "ret_universo": st.column_config.NumberColumn("Universo (%)", format="%+.2f"),
+                         "ret_bova11": st.column_config.NumberColumn("BOVA11 (%)", format="%+.2f"),
+                         "excesso": st.column_config.NumberColumn("Top 10 − universo (p.p.)", format="%+.2f"),
+                         "acerto": st.column_config.NumberColumn("Acerto (%)", format="%.0f"),
+                         "ic": st.column_config.NumberColumn("IC", format="%+.3f"),
+                         "modelo": st.column_config.TextColumn("Modelo")})
+        datas_rk = list(viv["data_ref"])
+        escolha = st.selectbox("Ver as ações de um ranking", datas_rk, format_func=formato.data, key="ml_vivo_data")
+        sel = acomp[(acomp["data_ref"] == escolha) & acomp["posicao"].notna()].sort_values("posicao")
+        st.dataframe(sel[["posicao", "ticker", "setor", "score", "pregoes", "ret"]].assign(
+                         score=lambda x: x["score"] * 100, ret=lambda x: x["ret"] * 100),
+                     hide_index=True, width="stretch", height=300,
+                     column_config={"posicao": st.column_config.NumberColumn("#", width="small"),
+                                    "ticker": "Ticker", "setor": "Setor",
+                                    "score": st.column_config.NumberColumn("Probabilidade (%)", format="%.1f"),
+                                    "pregoes": st.column_config.NumberColumn("Pregões"),
+                                    "ret": st.column_config.NumberColumn("Retorno até agora (%)", format="%+.2f")})
 
 c1, c2 = st.columns([3, 2], gap="medium")
 with c1, ui.card("ml_acumulado"):

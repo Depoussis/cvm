@@ -193,6 +193,15 @@ try:
     c.inserted += gravar(atual[cols].assign(data_ref=ultima.date(), modelo=f"{nome_registo} v{versao_modelo}")
                          .sort_values("posicao"), "ml_ranking_atual",
                          "Modelo de ranking: pontuação das ações na data mais recente (experimental, não é recomendação)")
+    # Acompanhamento ao vivo: guarda o ranking desta data uma única vez (sql/facts/47_ml_ranking_historico.sql).
+    # Se o job correr de novo com a mesma data, o ranking já gravado fica como estava.
+    novos = spark.sql(f"""
+        MERGE INTO {k}.gold.ml_ranking_historico t
+        USING (SELECT data_ref, ticker, setor, score, CAST(posicao AS INT) AS posicao, modelo,
+                      current_timestamp() AS publicado_em FROM {k}.gold.ml_ranking_atual) s
+        ON t.data_ref = s.data_ref AND t.ticker = s.ticker
+        WHEN NOT MATCHED THEN INSERT *""").collect()[0]["num_inserted_rows"]
+    print(f"ml_ranking_historico: {novos} linhas novas ({ultima:%Y-%m-%d})")
     control.concluir(spark, e, c)
 except Exception as ex:
     control.falhar(spark, e, ex)

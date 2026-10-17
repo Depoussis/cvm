@@ -111,8 +111,34 @@ Job **`findata_dev_ml`** (domingo 07:00, pelo ADF `pl_findata_semanal`, depois d
 | `ml_resumo` | métricas agregadas |
 | `ml_importancia` | importância das variáveis por permutação |
 | `ml_ranking_atual` | pontuação na data mais recente, com as variáveis que a explicam |
+| `ml_ranking_historico` | cada ranking publicado, gravado uma única vez (só inserções) |
+| `vw_ml_acompanhamento` | retorno realizado de cada ranking publicado nos 21 pregões seguintes |
+
+## Acompanhamento ao vivo
+
+O backtest é recalculado a cada treino e usa dados que já existiam. Para saber se o modelo funciona **daqui para a
+frente**, cada ranking fica gravado quando é publicado e o resultado é medido depois:
+
+1. `ml_treino` faz `MERGE ... WHEN NOT MATCHED INSERT` de `ml_ranking_atual` em `ml_ranking_historico`
+   (`sql/facts/47_ml_ranking_historico.sql`). Um ranking já gravado nunca é alterado, mesmo que o job corra de novo
+   com a mesma data.
+2. `vw_ml_acompanhamento` (`sql/views/73_ml_acompanhamento.sql`) calcula, para cada ação de cada ranking, o retorno
+   total nos 21 pregões do próprio papel depois da data do ranking, com **a mesma fórmula do alvo** (preço ajustado
+   + proventos ajustados com data ex na janela). Enquanto não passam 21 pregões, mostra o retorno até agora
+   (`concluido = false`). Inclui o BOVA11 como referência.
+3. A exportação diária do painel leva a view (`ml_acompanhamento`), por isso o resultado anda a cada pregão.
+4. `app/painel/modelo_vivo.py` resume cada ranking: top 10 (igual peso) contra o universo e o BOVA11, diferença,
+   acerto (fração do top 10 acima da mediana) e IC. O placar junta só os rankings concluídos.
+
+Validação (16/10/2026): aplicada ao mês de 31/08/2026 das previsões do backtest, a view dá o mesmo retorno que
+`ml_features.ret_fwd` nas 177 ações (diferença máxima 0).
+
+Primeiro ranking gravado: 15/10/2026 (publicado a 16/10), completo por volta de 14/11/2026. Com um ranking por
+semana, os resultados de rankings seguidos sobrepõem-se e não são independentes. São precisos vários meses
+concluídos antes de tirar conclusões. Retornos brutos, sem os custos de transação do backtest.
 
 A página **Modelo** do painel Streamlit mostra:
+- o acompanhamento ao vivo: placar, resultado de cada ranking e as ações de cada um;
 - o backtest, com a escolha do modelo;
 - a comparação dos três modelos;
 - o IC por mês;

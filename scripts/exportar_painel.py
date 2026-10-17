@@ -97,6 +97,7 @@ def extras(k: str) -> dict[str, str]:
         "ml_backtest": f"SELECT * FROM {g}.ml_backtest_mensal",
         "ml_importancia": f"SELECT * FROM {g}.ml_importancia",
         "ml_ranking": f"SELECT * FROM {g}.ml_ranking_atual",
+        "ml_acompanhamento": f"SELECT * FROM {g}.vw_ml_acompanhamento",
     }
 
 

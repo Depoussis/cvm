@@ -201,3 +201,27 @@ def test_fluxos_no_indice_tir_e_correcao_pelo_ipca():
         pytest.approx(100 * 1.005 ** 3 + 100 * 1.005 ** 2)
     um = pd.DataFrame({"data": pd.to_datetime(["2024-01-01"]), "valor": [100.0]})
     assert carteira.tir(um, 110.0, pd.Timestamp("2024-01-01") + pd.Timedelta(days=365.25)) == pytest.approx(0.10)
+
+
+# ---------------------------------------------------------------- acompanhamento ao vivo do modelo
+from painel import modelo_vivo  # noqa: E402
+
+
+def test_resumo_ao_vivo_top10_contra_universo_e_bova11():
+    n = 20
+    acoes = pd.DataFrame({"data_ref": pd.Timestamp("2026-09-30"), "ticker": [f"T{i:02d}3" for i in range(n)],
+                          "score": [1 - i / n for i in range(n)], "posicao": list(range(1, n + 1)),
+                          "modelo": "m v1", "publicado_em": pd.Timestamp("2026-10-01"), "pregoes": 21,
+                          "concluido": True, "data_fim": pd.Timestamp("2026-10-29"),
+                          "ret": [0.05 - i * 0.005 for i in range(n)]})       # retorno cai com a posição: IC = 1
+    bova = acoes.iloc[[0]].assign(ticker="BOVA11", score=None, posicao=None, ret=0.01)
+    curso = acoes.assign(data_ref=pd.Timestamp("2026-10-15"), pregoes=3, concluido=False, ret=0.0)
+    r = modelo_vivo.resumir(pd.concat([acoes, bova, curso], ignore_index=True))
+    assert list(r["data_ref"]) == [pd.Timestamp("2026-10-15"), pd.Timestamp("2026-09-30")]
+    s = r.iloc[1]
+    assert s["ret_top"] == pytest.approx(sum(0.05 - i * 0.005 for i in range(10)) / 10)
+    assert s["ret_universo"] == pytest.approx(sum(0.05 - i * 0.005 for i in range(n)) / n)
+    assert s["ret_bova11"] == pytest.approx(0.01) and s["ic"] == pytest.approx(1.0) and s["acerto"] == 1.0
+    p = modelo_vivo.placar(r)
+    assert p["concluidos"] == 1 and p["em_curso"] == 1 and p["venceu_universo"] == 1.0
+    assert modelo_vivo.resumir(pd.DataFrame()).empty
