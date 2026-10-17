@@ -38,6 +38,16 @@ no primeiro login pelo portal. Aqui não aconteceu, porque a identidade foi regi
 as permissões do Unity Catalog. Feito à mão em 17/10/2026. O deploy precisa de ser administrador para atualizar
 jobs de outro dono, publicar em `/Workspace/Shared` e publicar o painel AI/BI.
 
+**Leitura das vistas:** o `apply_sql` recria as vistas com `CREATE OR REPLACE VIEW`, e quem as recria passa a
+ser o dono. No CD é a identidade de deploy. A 17/10/2026 o dono do catálogo (o utilizador que corre os jobs) deixou
+de as conseguir ler. Também não é possível devolver a posse no CD, porque uma identidade que não é administradora da
+conta só pode transferir posse para grupos de que faz parte. Solução: o dono do catálogo tem leitura explícita no
+catálogo inteiro:
+
+```sql
+GRANT USE CATALOG, USE SCHEMA, SELECT ON CATALOG findata_dev TO `<dono do catálogo>`
+```
+
 Sem a credencial federada, o `cd.yml` falha no passo "Login no Azure" (os testes correm na mesma). O `cd.yml` não usa
 `environment:` porque isso mudaria o subject do token.
 
