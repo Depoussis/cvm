@@ -1,0 +1,83 @@
+# CD (ambiente dev): depois dos testes, aplica o SQL, publica o código e os jobs no Databricks, os pipelines do ADF
+# e o painel AI/BI, e corre o teste de fumaça (testes de integração no Databricks). Mesmos scripts que à mão.
+#
+# Autenticação sem segredos: token OIDC do GitHub trocado por um token da aplicação de deploy (a mesma da service
+# connection sc-findata-dev do Azure DevOps: Contributor em rg-findata-dev e permissões no Unity Catalog), por uma
+# credencial federada só para o branch main. O deploy não muda agendamentos (gatilhos iniciados ficam, jobs mantêm
+# a pausa), nem o dono das execuções e o e-mail de alertas dos jobs existentes. Ver docs/cicd.md.
+name: CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "notebooks/**"
+      - "sql/control/**"
+      - "sql/schemas/**"
+      - "sql/dimensions/**"
+      - "sql/facts/**"
+      - "sql/views/**"
+      - "config/**"
+      - "pipelines/**"
+      - "scripts/apply_sql.py"
+      - "scripts/deploy_*.py"
+      - ".github/workflows/cd.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: cd-dev
+  cancel-in-progress: false
+
+env:
+  AZURE_CLIENT_ID: 27dd81ac-d529-4b9d-910a-0108ea25f5b2        # aplicação de deploy (identificador, não é segredo)
+  AZURE_TENANT_ID: 84d8c417-9aa6-4451-bac3-7430e18b2b93
+  AZURE_SUBSCRIPTION_ID: a51d7d8f-69ec-4d14-83d5-150aeade439a
+
+jobs:
+  testes:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # sem "environment:": mudaria o subject do token OIDC (a credencial federada é a do branch main)
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Dependências
+        run: pip install -r requirements.txt
+
+      - name: Login no Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Tabelas e vistas (SQL)
+        run: |
+          python scripts/apply_sql.py --env dev --dir sql/control --dir sql/schemas \
+            --dir sql/dimensions --dir sql/facts --dir sql/views
+
+      - name: Código e jobs Databricks
+        run: python scripts/deploy_workspace.py --env dev
+
+      - name: Azure Data Factory
+        run: python scripts/deploy_adf.py --env dev
+
+      - name: Painel AI/BI
+        run: python scripts/deploy_dashboard.py --env dev
+
+      - name: Teste de fumaça (testes de integração no Databricks)
+        run: python scripts/smoke_test.py --env dev

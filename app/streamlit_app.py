@@ -37,6 +37,7 @@ pagina = st.navigation({
     ],
     "Plataforma": [
         st.Page("paginas/operacao.py", title="Operação e qualidade", icon=":material/fact_check:"),
+        st.Page("paginas/validacao.py", title="Validação externa", icon=":material/verified:"),
     ],
 }, position="top")
 

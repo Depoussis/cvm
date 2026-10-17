@@ -328,8 +328,11 @@ def v_eventos(q, k) -> dict:
         columns={"fator_evento_x": "fator_yahoo"})
     so_y = so_y.merge(todos[["ticker", "data_ex", "preco_fechamento", "fecho_anterior"]], on=["ticker", "data_ex"])
     so_y["razao_fecho_b3"] = so_y["preco_fechamento"] / so_y["fecho_anterior"]
+    # suspeita de bonificação em falta: o fecho da B3 está mais perto do fator do Yahoo do que de "sem evento"
+    so_y["suspeita"] = (so_y["razao_fecho_b3"] / so_y["fator_yahoo"] - 1).abs() < (so_y["razao_fecho_b3"] - 1).abs()
     res["so_yahoo_detalhe"] = json.loads(so_y.assign(data_ex=so_y["data_ex"].dt.strftime("%Y-%m-%d"))
                                          .to_json(orient="records", force_ascii=False))
+    res["bonificacoes_suspeitas"] = int(so_y["suspeita"].sum())
     res["tickers"] = int(todos["ticker"].nunique())
     return {"titulo": "Desdobramentos, grupamentos e bonificações (100 ações mais negociadas)",
             "tabela": f"{k}.gold.fct_cotacao_diaria", "sql": sql, "fonte": "Yahoo Finance (eventos 'split')",
@@ -440,11 +443,48 @@ VERIFICACOES = {"ptax": v_ptax, "selic": v_selic, "ipca": v_ipca, "cotacoes": v_
                 "eventos": v_eventos, "indices": v_indices, "fundos": v_fundos, "tesouro": v_tesouro}
 
 
-def main() -> None:
+def _pct(a: float, b: float) -> float:
+    return 100.0 if not b else 100.0 * a / b
+
+
+# medidas de um resultado usadas pelos limites de config/validacao.yaml, além de iguais/comparados
+METRICAS = {
+    "plataforma_igual_b3_pct": lambda r: _pct(r["desempate_cotahist"]["nosso_igual_ficheiro"],
+                                              r["desempate_cotahist"]["dias"]),
+    "bonificacoes_suspeitas": lambda r: r.get("bonificacoes_suspeitas", 0),
+    "acoes_ate_1pct_pct": lambda r: _pct(sum(t["ate_1pct"] for t in r["por_ticker"] if t["classe"] != "FII"),
+                                         sum(t["comparados"] for t in r["por_ticker"] if t["classe"] != "FII")),
+}
+
+
+def avaliar_limites(verificacoes: dict, limites: dict) -> list[str]:
+    """Alertas: verificações abaixo dos limites, com erro ou em falta."""
+    alertas = []
+    for nome, lim in limites.items():
+        r = verificacoes.get(nome)
+        if r is None or "erro" in r:
+            alertas.append(f"{nome}: não correu ({(r or {}).get('erro', 'sem resultado')})")
+            continue
+        iguais = _pct(r["iguais"], r["comparados"])
+        if "min_iguais_pct" in lim and iguais < lim["min_iguais_pct"]:
+            alertas.append(f"{nome}: {iguais:.2f} % iguais, mínimo {lim['min_iguais_pct']} %")
+        if "metrica" in lim:
+            valor = METRICAS[lim["metrica"]](r)
+            r.setdefault("metricas", {})[lim["metrica"]] = valor
+            if "min_metrica" in lim and valor < lim["min_metrica"]:
+                alertas.append(f"{nome}: {lim['metrica']} = {valor:.2f}, mínimo {lim['min_metrica']}")
+            if "max_metrica" in lim and valor > lim["max_metrica"]:
+                alertas.append(f"{nome}: {lim['metrica']} = {valor:.2f}, máximo {lim['max_metrica']}")
+    return alertas
+
+
+def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--env", default="dev")
     ap.add_argument("--so", nargs="*", help="só estas verificações")
+    ap.add_argument("--limites", action="store_true",
+                    help="avalia config/validacao.yaml e sai com código 1 se houver alertas")
     args = ap.parse_args()
     cfg = carregar_ambiente(args.env)
     k = cfg["unity_catalog"]["catalog"]
@@ -459,15 +499,30 @@ def main() -> None:
         if args.so and nome not in args.so:
             continue
         log.info("a verificar %s", nome)
-        r = f(q, k)
-        r["verificado_em"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        try:
+            r = f(q, k)
+        except Exception as ex:  # uma fonte em baixo não impede as outras verificações
+            log.exception("%s falhou", nome)
+            anterior = relatorio["verificacoes"].get(nome, {})
+            relatorio["verificacoes"][nome] = {**anterior, "erro": repr(ex)[:500], "erro_em": agora}
+            continue
+        r["verificado_em"] = agora
         relatorio["verificacoes"][nome] = r
         log.info("%s: %s comparados, %s iguais, %s diferentes, só nosso %s, só fonte %s", nome, r["comparados"],
                  r["iguais"], r["diferentes"], r["so_nosso"], r["so_fonte"])
+    alertas = []
+    if args.limites:
+        alertas = avaliar_limites(relatorio["verificacoes"], carregar_yaml("validacao.yaml")["limites"])
+        relatorio["alertas"] = alertas
+        relatorio["avaliado_em"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        for a in alertas:
+            log.error("ALERTA %s", a)
     DESTINO.parent.mkdir(parents=True, exist_ok=True)
     DESTINO.write_text(json.dumps(relatorio, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
-    log.info("relatório em %s", DESTINO.relative_to(RAIZ))
+    log.info("relatório em %s; %d alertas", DESTINO.relative_to(RAIZ), len(alertas))
+    return 1 if alertas else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

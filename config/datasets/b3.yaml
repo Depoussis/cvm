@@ -34,3 +34,4 @@ proventos:
     complemento: b3_empresa_complemento
     dinheiro: b3_proventos_dinheiro
     eventos: b3_eventos_acoes
+    fii: b3_fii_rendimentos

@@ -4,7 +4,8 @@
 # MAGIC A partir da carga bronze mais recente (cada carga traz o histórico completo):
 # MAGIC - `b3_provento` (SCD1): dividendos, JCP e rendimentos por ação, com data com;
 # MAGIC - `b3_evento_acao` (SCD1): desdobramentos, grupamentos e bonificações oficiais;
-# MAGIC - `b3_empresa` (SCD1): CNPJ e número de ações ON/PN.
+# MAGIC - `b3_empresa` (SCD1): CNPJ e número de ações ON/PN;
+# MAGIC - `b3_fii_rendimento` (SCD1, acumulado): rendimentos exatos por cota dos FII (a fonte só tem ~12 meses).
 # MAGIC Números no formato brasileiro (`0,674`, `1.234,5`) e datas `dd/mm/aaaa`; o que não converte vai para a
 # MAGIC quarentena e é contado na regra HIGH `formato_api`.
 
@@ -143,6 +144,24 @@ if p.escolhida("proventos") or p.escolhida("b3_empresa"):
                CAST(max({num('qtd_acoes_total')}) AS BIGINT) AS qtd_acoes_total, max(dia) AS data_referencia
         FROM _pend WHERE _valido GROUP BY emissor""",
         ["emissor"])
+
+if p.escolhida("proventos") or p.escolhida("b3_fii_rendimento"):
+    carregar(
+        "b3_fii_rendimento", "b3_fii_rendimento", ultima_carga("b3_fii_rendimentos"),
+        f"{dt('data_com')} IS NOT NULL AND {num('valor')} IS NOT NULL AND nullif(trim(isin), '') IS NOT NULL",
+        f"""
+        SELECT trim(isin) AS isin, fundo, upper(trim(tipo_provento)) AS tipo_provento, {dt('data_com')} AS data_com,
+               {num('valor')} AS valor_por_cota, {dt('data_pagamento')} AS data_pagamento,
+               {dt('data_aprovacao')} AS data_aprovacao, trim(referencia) AS referencia,
+               row_number() OVER (PARTITION BY trim(isin), upper(trim(tipo_provento)), {dt('data_com')}, {num('valor')}
+                                  ORDER BY {dt('data_pagamento')} NULLS LAST, _source_url) AS parcela
+        FROM _pend WHERE _valido""",
+        ["isin", "tipo_provento", "data_com", "valor_por_cota", "parcela"],
+        [dq.Regra("fii_rendimento_suspeito", "Rendimento por cota acima de 10 % do valor típico do FII", "INFO",
+                  f"{k}.silver.b3_fii_rendimento",
+                  f"""SELECT * FROM (SELECT *, valor_por_cota / median(valor_por_cota) OVER (PARTITION BY isin) AS r
+                      FROM {k}.silver.b3_fii_rendimento) WHERE r > 10""",
+                  f"SELECT count(*) FROM {k}.silver.b3_fii_rendimento")])
 
 if erros:
     raise RuntimeError(f"falharam {len(erros)} entidades: {erros}")

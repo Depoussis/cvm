@@ -26,6 +26,19 @@ CHAVES_DINHEIRO = {"typeStock", "dateApproval", "valueCash", "ratio", "corporate
 CHAVES_EVENTO = {"isinCode", "factor", "approvedOn", "label", "lastDatePrior"}
 
 
+# Fundos listados (FII): GetListedSupplementFunds devolve os rendimentos exatos por cota, mas só dos últimos ~12
+# meses (confirmado em 17/10/2026). A silver nunca apaga, por isso o histórico exato cresce a cada carga semanal.
+BASE_FUNDOS = "https://sistemaswebb3-listados.b3.com.br/fundsProxy/fundsCall"
+TIPO_FUNDO_FII = 7
+CHAVES_FII = {"isinCode", "rate", "label", "lastDatePrior", "paymentDate"}
+
+
+def url_fundo(identificador: str, tipo_fundo: int = TIPO_FUNDO_FII) -> str:
+    """Página de um fundo listado pela raiz de 4 letras do ticker (ex.: 'KNCR' para KNCR11)."""
+    return f"{BASE_FUNDOS}/GetListedSupplementFunds/" + _b64(
+        {"cnpj": "0", "identifierFund": identificador, "typeFund": tipo_fundo})
+
+
 def _b64(parametros: dict[str, Any]) -> str:
     return base64.b64encode(json.dumps(parametros, separators=(",", ":")).encode()).decode()
 
@@ -91,6 +104,9 @@ CAMPOS = {
                  "dateClosingPricePriorExDate": "data_fecho_data_com", "closingPricePriorExDate": "fecho_data_com",
                  "quotedPerShares": "cotacao_por_acoes", "corporateActionPrice": "provento_pct_preco",
                  "lastDateTimePriorEx": "data_hora_com"},
+    "fii": {"assetIssued": "ativo_emitido", "isinCode": "isin", "rate": "valor", "label": "tipo_provento",
+            "lastDatePrior": "data_com", "paymentDate": "data_pagamento", "approvedOn": "data_aprovacao",
+            "relatedTo": "referencia", "remarks": "observacoes"},
 }
 
 

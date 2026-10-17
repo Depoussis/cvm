@@ -60,28 +60,42 @@ Há três modelos comparados nas mesmas condições:
 - **gradient boosting:** `HistGradientBoostingClassifier`, 200 árvores, 15 folhas, mínimo de 100 exemplos por
   folha, setor categórico.
 
-### Resultados (execução de 16/10/2026)
+### Resultados (execução de 17/10/2026, modelo v2)
+
+Retreinado depois da [validação contra fontes externas](validacao_dados.md). A validação corrigiu três erros nos
+dados da B3:
+- 17 bonificações que apareciam como quedas de 4 a 23 %;
+- proventos em falta de 9 emissores;
+- parcelas de proventos perdidas.
 
 | Modelo | AUC média | IC médio | t do IC | IC > 0 | Carteira top 10 | Ao ano | Volatilidade | Queda máx. |
 |---|---|---|---|---|---|---|---|---|
-| Momentum 12-1 | 0,523 | +0,041 | 1,98 | 68 % | −37,9 % | −14,3 % | 27,3 % | −47,2 % |
-| Regressão logística | **0,568** | **+0,130** | 5,37 | 84 % | **+60,3 %** | **+16,5 %** | 14,2 % | −12,0 % |
-| Gradient boosting | 0,556 | +0,109 | 5,47 | 86 % | +46,6 % | +13,2 % | 19,3 % | −21,0 % |
-| *Universo (média das ações)* | | | | | +9,4 % | | | |
+| Momentum 12-1 | 0,526 | +0,044 | 2,11 | 65 % | −34,0 % | −12,6 % | 27,3 % | −43,9 % |
+| Regressão logística | **0,571** | **+0,136** | 5,43 | 81 % | **+50,2 %** | **+14,1 %** | 13,4 % | −12,0 % |
+| Gradient boosting | 0,556 | +0,105 | 5,61 | 95 % | +28,4 % | +8,5 % | 19,7 % | −18,0 % |
+| *Universo (média das ações)* | | | | | +11,1 % | | | |
 | *BOVA11* | | | | | +47,9 % | | | |
+
+**Comparação com a v1** (16/10, dados ainda com os erros):
+- O AUC e o IC quase não mudaram: a capacidade de ordenar as ações mantém-se.
+- O retorno da carteira caiu, sobretudo no gradient boosting (+46,6 % → +28,4 %; logística +60,3 % → +50,2 %).
+- Parte do resultado da v1 vinha de quedas falsas. Por exemplo, as bonificações anuais da Itaúsa faziam a ação
+  parecer barata depois de uma "queda", e o modelo aprendia esse padrão inexistente.
+- O ranking de 15/10 já publicado no acompanhamento ao vivo não foi reescrito: é medido tal como saiu.
 
 ### Como ler
 
 - **AUC 0,55–0,57:** acima do acaso (0,5) e no intervalo típico de modelos de ações. Um valor muito mais alto
   levantaria a suspeita de fuga de informação.
-- **IC médio de 0,11 a 0,13, com t > 5:** a ordenação acerta de forma consistente (em 84–86 % dos meses), não por
+- **IC médio de 0,10 a 0,14, com t > 5:** a ordenação acerta de forma consistente (em 81–95 % dos meses), não por
   sorte num mês excecional.
-- **A carteira bate claramente o universo** (+47 a +60 % contra +9 %). Contra o BOVA11 o resultado é misto:
-  - o gradient boosting empata (+46,6 % contra +47,9 %);
-  - a logística passa-o (+60,3 %), com menos volatilidade e uma queda máxima menor.
+- **A carteira bate claramente o universo** (+28 a +50 % contra +11 %). Contra o BOVA11 (+47,9 %) o resultado é
+  misto:
+  - a logística fica um pouco acima (+50,2 %), com menos volatilidade e uma queda máxima menor;
+  - o gradient boosting fica abaixo (+28,4 %).
 
   Nestes 3 anos as grandes empresas (que pesam no índice) renderam muito mais do que a média das ações líquidas.
-- **Momentum sozinho foi mau** neste período (−37,9 %), o que mostra a importância de ter uma referência simples.
+- **Momentum sozinho foi mau** neste período (−34,0 %), o que mostra a importância de ter uma referência simples.
 - **Variáveis mais importantes** (queda da AUC ao baralhar cada uma, últimos 12 meses fora da amostra): setor,
   dividend yield, momentum 12-1, ROE e dólar. O modelo favoreceu ações defensivas e pagadoras de dividendos
   (energia, telecomunicações, bancos), coerente com um período de juros altos.

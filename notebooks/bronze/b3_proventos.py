@@ -4,7 +4,8 @@
 # MAGIC API pública "Empresas listadas" da B3 (`src/ingestion/b3/proventos.py`, `config/datasets/b3.yaml: proventos`):
 # MAGIC 1. lista de empresas (paginada);
 # MAGIC 2. para cada companhia com ações negociadas nos últimos `anos_atividade` anos: complemento (número de ações,
-# MAGIC    desdobramentos/grupamentos/bonificações) e histórico completo de dividendos e JCP (paginado).
+# MAGIC    desdobramentos/grupamentos/bonificações) e histórico completo de dividendos e JCP (paginado);
+# MAGIC 3. para cada FII negociado: rendimentos exatos por cota ("Fundos listados", só ~12 meses).
 # MAGIC
 # MAGIC Todas as respostas vão para um único ficheiro JSON Lines no volume `ops.raw` (original imutável). Um registo sem
 # MAGIC as chaves esperadas (schema drift) faz a execução falhar. A bronze recebe uma cópia completa por execução;
@@ -109,6 +110,23 @@ if p.escolhida(ENTIDADE):
         print(f"{len(complementos)} complementos, {len(eventos)} eventos em ações, {len(dinheiro)} proventos em "
               f"dinheiro, {len(respostas)} pedidos, {len(falhas)} falhas")
 
+        # 2b. FII: rendimentos exatos por cota (só ~12 meses na API; a silver acumula o histórico)
+        fundos = sorted({r[0] for r in spark.sql(f"""
+            SELECT DISTINCT substr(ticker, 1, 4) FROM {k}.gold.dim_ativo_b3
+            WHERE classe_ativo = 'FII' AND ultimo_pregao >= add_months(current_date(), -12 * {cfg['anos_atividade']})
+        """).collect()})
+        fii, falhas_fii = [], {}
+        for fundo in fundos:
+            try:
+                d = pedir(pv.url_fundo(fundo))
+                for x in (d or {}).get("cashDividends") or []:
+                    if pv.chaves_em_falta(x, pv.CHAVES_FII):
+                        raise ValueError(f"{fundo}: rendimento sem {pv.chaves_em_falta(x, pv.CHAVES_FII)}")
+                    fii.append((respostas[-1][0], fundo, x))
+            except (ErroFonte, ValueError) as ex:   # ValueError: resposta vazia ou não-JSON de alguns fundos
+                falhas_fii[fundo] = repr(ex)
+        print(f"{len(fundos)} FII, {len(fii)} rendimentos, {len(falhas_fii)} falhas")
+
         # 3. original: todas as respostas num ficheiro JSON Lines
         conteudo = "\n".join(json.dumps({"url": u, "corpo": b.decode("utf-8", "replace")}, ensure_ascii=False)
                              for u, b in respostas).encode()
@@ -127,6 +145,8 @@ if p.escolhida(ENTIDADE):
             grupos["eventos"].append((url, pv.registo("eventos", ev, emissor=emissor)))
         for url, emissor, nome, x in dinheiro:
             grupos["dinheiro"].append((url, pv.registo("dinheiro", x, emissor=emissor, nome_pregao_pedido=nome)))
+        for url, fundo, x in fii:
+            grupos["fii"].append((url, pv.registo("fii", x, fundo=fundo)))
         for tipo, linhas in grupos.items():
             tabela = f"{k}.bronze.{cfg['tabelas_bronze'][tipo]}"
             por_url = defaultdict(list)
@@ -140,10 +160,13 @@ if p.escolhida(ENTIDADE):
             print(f"bronze.{cfg['tabelas_bronze'][tipo]}: {n} linhas")
         writer.registar_ficheiros(spark, k, [writer.linha_registo(
             origem(pv.BASE), p.run_id, "PROCESSED", f"{len(respostas)} respostas; falhas: {len(falhas)}", None)])
-        e.parameters.update({"empresas": len(por_emissor), "pedidos": len(respostas), "falhas": falhas})
+        e.parameters.update({"empresas": len(por_emissor), "pedidos": len(respostas), "falhas": falhas,
+                             "fii": len(fundos), "falhas_fii": falhas_fii})
         # Falhas isoladas (ex.: empresa sem página) não param a carga; muitas indicam um problema na fonte.
         if len(falhas) > max(5, 0.05 * len(por_emissor)):
             raise RuntimeError(f"{len(falhas)} empresas falharam: {dict(list(falhas.items())[:10])}")
+        if len(falhas_fii) > max(5, 0.05 * len(fundos)):
+            raise RuntimeError(f"{len(falhas_fii)} FII falharam: {dict(list(falhas_fii.items())[:10])}")
         control.concluir(spark, e, c)
     except Exception as ex:
         control.falhar(spark, e, ex, c)

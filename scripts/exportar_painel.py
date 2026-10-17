@@ -165,8 +165,13 @@ def main() -> None:
         pq.write_table(t, DESTINO / f"{nome}.parquet", compression="zstd")
         linhas[nome] = t.num_rows
         log.info("%-16s %8d linhas", nome, t.num_rows)
+    ficheiros = []
+    validacao = RAIZ / "docs" / "validacao" / "resultado.json"   # validação semanal (validar_fontes.yml)
+    if validacao.exists():
+        (DESTINO / "validacao.json").write_bytes(validacao.read_bytes())
+        ficheiros.append("validacao.json")
     meta = {"exportado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"), "ambiente": args.env,
-            "catalogo": k, "linhas": linhas}
+            "catalogo": k, "linhas": linhas, "ficheiros": ficheiros}
     (DESTINO / "_meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
     total = sum(p.stat().st_size for p in DESTINO.glob("*.parquet")) / 1e6
     log.info("snapshot em %s (%.1f MB)", DESTINO, total)

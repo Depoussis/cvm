@@ -1,0 +1,2506 @@
+{
+ "verificacoes": {
+  "ptax": {
+   "titulo": "PTAX de fechamento (dólar e euro)",
+   "tabela": "findata_dev.gold.fct_ptax_diario",
+   "sql": "SELECT simbolo, data_cotacao, cotacao_compra, cotacao_venda\n  FROM findata_dev.gold.fct_ptax_diario\n WHERE simbolo IN ('USD', 'EUR') AND data_cotacao >= DATE'2015-01-01'",
+   "fonte": "Banco Central, API Olinda (boletim de fechamento)",
+   "url": "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaPeriodo(moeda=@moeda,dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@moeda='USD'&@dataInicial='01-01-2015'&@dataFinalCotacao='10-17-2026'&$format=json&$filter=tipoBoletim%20eq%20'Fechamento'",
+   "independente": false,
+   "chave": [
+    "simbolo",
+    "data_cotacao"
+   ],
+   "comparados": 5916,
+   "iguais": 5916,
+   "diferentes": 0,
+   "so_nosso": 0,
+   "so_fonte": 0,
+   "colunas": {
+    "cotacao_compra": {
+     "max_dif": 8.881784197001252e-16,
+     "tolerancia": 1e-06,
+     "diferentes": 0
+    },
+    "cotacao_venda": {
+     "max_dif": 8.881784197001252e-16,
+     "tolerancia": 1e-06,
+     "diferentes": 0
+    }
+   },
+   "rotulos": {},
+   "amostra": [
+    {
+     "simbolo": "USD",
+     "data_cotacao": "2026-10-06",
+     "cotacao_compra_nosso": 4.9692,
+     "cotacao_compra_fonte": 4.9692,
+     "cotacao_compra_dif": 0.0,
+     "cotacao_venda_nosso": 4.9698,
+     "cotacao_venda_fonte": 4.9698,
+     "cotacao_venda_dif": 0.0
+    },
+    {
+     "simbolo": "USD",
+     "data_cotacao": "2026-10-07",
+     "cotacao_compra_nosso": 4.9929,
+     "cotacao_compra_fonte": 4.9929,
+     "cotacao_compra_dif": 0.0,
+     "cotacao_venda_nosso": 4.9935,
+     "cotacao_venda_fonte": 4.9935,
+     "cotacao_venda_dif": 0.0
+    },
+    {
+     "simbolo": "USD",
+     "data_cotacao": "2026-10-08",
+     "cotacao_compra_nosso": 5.0113,
+     "cotacao_compra_fonte": 5.0113,
+     "cotacao_compra_dif": 0.0,
+     "cotacao_venda_nosso": 5.0119,
+     "cotacao_venda_fonte": 5.0119,
+     "cotacao_venda_dif": 0.0
+    },
+    {
+     "simbolo": "USD",
+     "data_cotacao": "2026-10-09",
+     "cotacao_compra_nosso": 4.9886,
+     "cotacao_compra_fonte": 4.9886,
+     "cotacao_compra_dif": 0.0,
+     "cotacao_venda_nosso": 4.9892,
+     "cotacao_venda_fonte": 4.9892,
+     "cotacao_venda_dif": 0.0
+    },
+    {
+     "simbolo": "USD",
+     "data_cotacao": "2026-10-13",
+     "cotacao_compra_nosso": 5.009,
+     "cotacao_compra_fonte": 5.009,
+     "cotacao_compra_dif": 0.0,
+     "cotacao_venda_nosso": 5.0096,
+     "cotacao_venda_fonte": 5.0096,
+     "cotacao_venda_dif": 0.0
+    },
+    {
+     "simbolo": "USD",
+     "data_cotacao": "2026-10-14",
+     "cotacao_compra_nosso": 5.0435,
+     "cotacao_compra_fonte": 5.0435,
+     "cotacao_compra_dif": 0.0,
+     "cotacao_venda_nosso": 5.0441,
+     "cotacao_venda_fonte": 5.0441,
+     "cotacao_venda_dif": 0.0
+    },
+    {
+     "simbolo": "USD",
+     "data_cotacao": "2026-10-15",
+     "cotacao_compra_nosso": 5.0515,
+     "cotacao_compra_fonte": 5.0515,
+     "cotacao_compra_dif": 0.0,
+     "cotacao_venda_nosso": 5.0521,
+     "cotacao_venda_fonte": 5.0521,
+     "cotacao_venda_dif": 0.0
+    },
+    {
+     "simbolo": "USD",
+     "data_cotacao": "2026-10-16",
+     "cotacao_compra_nosso": 5.082,
+     "cotacao_compra_fonte": 5.082,
+     "cotacao_compra_dif": 0.0,
+     "cotacao_venda_nosso": 5.0826,
+     "cotacao_venda_fonte": 5.0826,
+     "cotacao_venda_dif": 0.0
+    }
+   ],
+   "divergencias": [],
+   "exemplos_so_nosso": [],
+   "exemplos_so_fonte": [],
+   "verificado_em": "2026-10-17T10:14:17Z"
+  },
+  "selic": {
+   "titulo": "Meta Selic (série SGS 432) contra as decisões do Copom",
+   "tabela": "findata_dev.gold.fct_serie_valor",
+   "sql": "SELECT data_referencia AS data, valor AS meta_selic\n  FROM findata_dev.gold.fct_serie_valor\n WHERE serie_codigo = 432   -- meta Selic definida pelo Copom (% a.a.)",
+   "fonte": "Banco Central, histórico das reuniões do Copom (site do BCB)",
+   "url": "https://www.bcb.gov.br/api/servico/sitebcb/historicotaxasjuros",
+   "independente": true,
+   "chave": [
+    "data"
+   ],
+   "comparados": 9784,
+   "iguais": 9773,
+   "diferentes": 11,
+   "so_nosso": 3,
+   "so_fonte": 0,
+   "colunas": {
+    "meta_selic": {
+     "max_dif": 1.0,
+     "tolerancia": 1e-09,
+     "diferentes": 11
+    }
+   },
+   "rotulos": {},
+   "amostra": [
+    {
+     "data": "2026-10-10",
+     "meta_selic_nosso": 13.75,
+     "meta_selic_fonte": 13.75,
+     "meta_selic_dif": 0.0
+    },
+    {
+     "data": "2026-10-11",
+     "meta_selic_nosso": 13.75,
+     "meta_selic_fonte": 13.75,
+     "meta_selic_dif": 0.0
+    },
+    {
+     "data": "2026-10-12",
+     "meta_selic_nosso": 13.75,
+     "meta_selic_fonte": 13.75,
+     "meta_selic_dif": 0.0
+    },
+    {
+     "data": "2026-10-13",
+     "meta_selic_nosso": 13.75,
+     "meta_selic_fonte": 13.75,
+     "meta_selic_dif": 0.0
+    },
+    {
+     "data": "2026-10-14",
+     "meta_selic_nosso": 13.75,
+     "meta_selic_fonte": 13.75,
+     "meta_selic_dif": 0.0
+    },
+    {
+     "data": "2026-10-15",
+     "meta_selic_nosso": 13.75,
+     "meta_selic_fonte": 13.75,
+     "meta_selic_dif": 0.0
+    },
+    {
+     "data": "2026-10-16",
+     "meta_selic_nosso": 13.75,
+     "meta_selic_fonte": 13.75,
+     "meta_selic_dif": 0.0
+    },
+    {
+     "data": "2026-10-17",
+     "meta_selic_nosso": 13.75,
+     "meta_selic_fonte": 13.75,
+     "meta_selic_dif": 0.0
+    }
+   ],
+   "divergencias": [
+    {
+     "data": "2003-06-19",
+     "meta_selic_nosso": 26.5,
+     "meta_selic_fonte": 26.0,
+     "meta_selic_dif": 0.5
+    },
+    {
+     "data": "2005-04-21",
+     "meta_selic_nosso": 19.5,
+     "meta_selic_fonte": 19.25,
+     "meta_selic_dif": 0.25
+    },
+    {
+     "data": "2007-06-07",
+     "meta_selic_nosso": 12.5,
+     "meta_selic_fonte": 12.0,
+     "meta_selic_dif": 0.5
+    },
+    {
+     "data": "2009-06-11",
+     "meta_selic_nosso": 10.25,
+     "meta_selic_fonte": 9.25,
+     "meta_selic_dif": 1.0
+    },
+    {
+     "data": "2011-04-21",
+     "meta_selic_nosso": 11.75,
+     "meta_selic_fonte": 12.0,
+     "meta_selic_dif": -0.25
+    },
+    {
+     "data": "2011-04-22",
+     "meta_selic_nosso": 11.75,
+     "meta_selic_fonte": 12.0,
+     "meta_selic_dif": -0.25
+    },
+    {
+     "data": "2011-04-23",
+     "meta_selic_nosso": 11.75,
+     "meta_selic_fonte": 12.0,
+     "meta_selic_dif": -0.25
+    },
+    {
+     "data": "2011-04-24",
+     "meta_selic_nosso": 11.75,
+     "meta_selic_fonte": 12.0,
+     "meta_selic_dif": -0.25
+    },
+    {
+     "data": "2022-06-16",
+     "meta_selic_nosso": 13.25,
+     "meta_selic_fonte": 12.75,
+     "meta_selic_dif": 0.5
+    },
+    {
+     "data": "2023-11-02",
+     "meta_selic_nosso": 12.25,
+     "meta_selic_fonte": 12.75,
+     "meta_selic_dif": -0.5
+    },
+    {
+     "data": "2025-06-19",
+     "meta_selic_nosso": 15.0,
+     "meta_selic_fonte": 14.75,
+     "meta_selic_dif": 0.25
+    }
+   ],
+   "exemplos_so_nosso": [
+    {
+     "data": "2000-07-08"
+    },
+    {
+     "data": "2000-07-09"
+    },
+    {
+     "data": "2017-09-07"
+    }
+   ],
+   "exemplos_so_fonte": [],
+   "desempate_sgs": [
+    {
+     "data": "2003-06-19",
+     "dia_semana": "qui",
+     "sgs_api": 26.5,
+     "nosso": 26.5
+    },
+    {
+     "data": "2005-04-21",
+     "dia_semana": "qui",
+     "sgs_api": 19.5,
+     "nosso": 19.5
+    },
+    {
+     "data": "2007-06-07",
+     "dia_semana": "qui",
+     "sgs_api": 12.5,
+     "nosso": 12.5
+    },
+    {
+     "data": "2009-06-11",
+     "dia_semana": "qui",
+     "sgs_api": 10.25,
+     "nosso": 10.25
+    },
+    {
+     "data": "2011-04-21",
+     "dia_semana": "qui",
+     "sgs_api": 11.75,
+     "nosso": 11.75
+    },
+    {
+     "data": "2011-04-22",
+     "dia_semana": "sex",
+     "sgs_api": 11.75,
+     "nosso": 11.75
+    },
+    {
+     "data": "2011-04-23",
+     "dia_semana": "sáb",
+     "sgs_api": 11.75,
+     "nosso": 11.75
+    },
+    {
+     "data": "2011-04-24",
+     "dia_semana": "dom",
+     "sgs_api": 11.75,
+     "nosso": 11.75
+    },
+    {
+     "data": "2022-06-16",
+     "dia_semana": "qui",
+     "sgs_api": 13.25,
+     "nosso": 13.25
+    },
+    {
+     "data": "2023-11-02",
+     "dia_semana": "qui",
+     "sgs_api": 12.25,
+     "nosso": 12.25
+    },
+    {
+     "data": "2025-06-19",
+     "dia_semana": "qui",
+     "sgs_api": 15.0,
+     "nosso": 15.0
+    },
+    {
+     "data": "2000-07-08",
+     "dia_semana": "sáb",
+     "sgs_api": 17.5,
+     "nosso": 17.5
+    },
+    {
+     "data": "2000-07-09",
+     "dia_semana": "dom",
+     "sgs_api": 17.5,
+     "nosso": 17.5
+    },
+    {
+     "data": "2017-09-07",
+     "dia_semana": "qui",
+     "sgs_api": 9.25,
+     "nosso": 9.25
+    }
+   ],
+   "verificado_em": "2026-10-17T10:14:38Z"
+  },
+  "ipca": {
+   "titulo": "IPCA mensal (série SGS 433) contra o IBGE",
+   "tabela": "findata_dev.gold.fct_serie_valor",
+   "sql": "SELECT data_referencia AS mes, valor AS ipca_mes\n  FROM findata_dev.gold.fct_serie_valor\n WHERE serie_codigo = 433   -- IPCA, variação mensal (%)",
+   "fonte": "IBGE, SIDRA tabela 1737 (variação mensal do IPCA)",
+   "url": "https://apisidra.ibge.gov.br/values/t/1737/n1/all/v/63/p/all",
+   "independente": true,
+   "chave": [
+    "mes"
+   ],
+   "comparados": 321,
+   "iguais": 321,
+   "diferentes": 0,
+   "so_nosso": 0,
+   "so_fonte": 0,
+   "colunas": {
+    "ipca_mes": {
+     "max_dif": 2.220446049250313e-16,
+     "tolerancia": 1e-09,
+     "diferentes": 0
+    }
+   },
+   "rotulos": {},
+   "amostra": [
+    {
+     "mes": "2026-02-01",
+     "ipca_mes_nosso": 0.7,
+     "ipca_mes_fonte": 0.7,
+     "ipca_mes_dif": 1.110223025e-16
+    },
+    {
+     "mes": "2026-03-01",
+     "ipca_mes_nosso": 0.88,
+     "ipca_mes_fonte": 0.88,
+     "ipca_mes_dif": 0.0
+    },
+    {
+     "mes": "2026-04-01",
+     "ipca_mes_nosso": 0.67,
+     "ipca_mes_fonte": 0.67,
+     "ipca_mes_dif": 0.0
+    },
+    {
+     "mes": "2026-05-01",
+     "ipca_mes_nosso": 0.58,
+     "ipca_mes_fonte": 0.58,
+     "ipca_mes_dif": 0.0
+    },
+    {
+     "mes": "2026-06-01",
+     "ipca_mes_nosso": 0.16,
+     "ipca_mes_fonte": 0.16,
+     "ipca_mes_dif": 0.0
+    },
+    {
+     "mes": "2026-07-01",
+     "ipca_mes_nosso": 0.07,
+     "ipca_mes_fonte": 0.07,
+     "ipca_mes_dif": 0.0
+    },
+    {
+     "mes": "2026-08-01",
+     "ipca_mes_nosso": -0.32,
+     "ipca_mes_fonte": -0.32,
+     "ipca_mes_dif": 0.0
+    },
+    {
+     "mes": "2026-09-01",
+     "ipca_mes_nosso": 0.82,
+     "ipca_mes_fonte": 0.82,
+     "ipca_mes_dif": 1.110223025e-16
+    }
+   ],
+   "divergencias": [],
+   "exemplos_so_nosso": [],
+   "exemplos_so_fonte": [],
+   "verificado_em": "2026-10-17T10:14:40Z"
+  },
+  "cotacoes": {
+   "titulo": "Cotações de 20 papéis (ações, FII e ETF)",
+   "tabela": "findata_dev.gold.fct_cotacao_diaria",
+   "sql": "SELECT ticker, data_pregao AS data, preco_fechamento, retorno_dia\n  FROM findata_dev.gold.fct_cotacao_diaria\n WHERE ticker IN ('PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'BBAS3', 'ABEV3', 'WEGE3', 'B3SA3', 'MGLU3', 'RENT3', 'SUZB3', 'PETR3', 'KNCR11', 'HGLG11', 'MXRF11', 'XPML11', 'BOVA11', 'IVVB11', 'SMAL11', 'HASH11')",
+   "fonte": "Yahoo Finance (fecho diário; desdobramentos desfeitos para o fecho bruto)",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/PETR4.SA?period1=1609718400&period2=1792232082&interval=1d&events=div%7Csplit",
+   "independente": true,
+   "chave": [
+    "ticker",
+    "data"
+   ],
+   "comparados": 4941,
+   "iguais": 4883,
+   "diferentes": 58,
+   "so_nosso": 19,
+   "so_fonte": 0,
+   "colunas": {
+    "preco_fechamento": {
+     "max_dif": 109.44093800544738,
+     "tolerancia": 0.0051,
+     "diferentes": 58
+    }
+   },
+   "rotulos": {},
+   "amostra": [
+    {
+     "ticker": "XPML11",
+     "data": "2026-10-05",
+     "preco_fechamento_nosso": 103.21,
+     "preco_fechamento_fonte": 103.2099990845,
+     "preco_fechamento_dif": 9.155e-07
+    },
+    {
+     "ticker": "XPML11",
+     "data": "2026-10-06",
+     "preco_fechamento_nosso": 105.49,
+     "preco_fechamento_fonte": 105.4899978638,
+     "preco_fechamento_dif": 2.1362e-06
+    },
+    {
+     "ticker": "XPML11",
+     "data": "2026-10-07",
+     "preco_fechamento_nosso": 107.79,
+     "preco_fechamento_fonte": 107.7900009155,
+     "preco_fechamento_dif": -9.155e-07
+    },
+    {
+     "ticker": "XPML11",
+     "data": "2026-10-08",
+     "preco_fechamento_nosso": 106.5,
+     "preco_fechamento_fonte": 106.5,
+     "preco_fechamento_dif": 0.0
+    },
+    {
+     "ticker": "XPML11",
+     "data": "2026-10-09",
+     "preco_fechamento_nosso": 108.07,
+     "preco_fechamento_fonte": 108.0699996948,
+     "preco_fechamento_dif": 3.052e-07
+    },
+    {
+     "ticker": "XPML11",
+     "data": "2026-10-13",
+     "preco_fechamento_nosso": 106.77,
+     "preco_fechamento_fonte": 106.7699966431,
+     "preco_fechamento_dif": 3.3569e-06
+    },
+    {
+     "ticker": "XPML11",
+     "data": "2026-10-14",
+     "preco_fechamento_nosso": 106.3,
+     "preco_fechamento_fonte": 106.3000030518,
+     "preco_fechamento_dif": -3.0518e-06
+    },
+    {
+     "ticker": "XPML11",
+     "data": "2026-10-15",
+     "preco_fechamento_nosso": 107.39,
+     "preco_fechamento_fonte": 107.3899993896,
+     "preco_fechamento_dif": 6.104e-07
+    }
+   ],
+   "divergencias": [
+    {
+     "ticker": "ABEV3",
+     "data": "2026-02-25",
+     "preco_fechamento_nosso": 16.44,
+     "preco_fechamento_fonte": 16.3799991608,
+     "preco_fechamento_dif": 0.0600008392
+    },
+    {
+     "ticker": "ABEV3",
+     "data": "2026-10-01",
+     "preco_fechamento_nosso": 15.42,
+     "preco_fechamento_fonte": 15.3699998856,
+     "preco_fechamento_dif": 0.0500001144
+    },
+    {
+     "ticker": "B3SA3",
+     "data": "2026-06-24",
+     "preco_fechamento_nosso": 14.97,
+     "preco_fechamento_fonte": 15.029999733,
+     "preco_fechamento_dif": -0.059999733
+    },
+    {
+     "ticker": "B3SA3",
+     "data": "2026-10-01",
+     "preco_fechamento_nosso": 18.51,
+     "preco_fechamento_fonte": 18.4300003052,
+     "preco_fechamento_dif": 0.0799996948
+    },
+    {
+     "ticker": "BBAS3",
+     "data": "2026-03-13",
+     "preco_fechamento_nosso": 23.81,
+     "preco_fechamento_fonte": 23.75,
+     "preco_fechamento_dif": 0.06
+    },
+    {
+     "ticker": "BBAS3",
+     "data": "2026-10-01",
+     "preco_fechamento_nosso": 23.02,
+     "preco_fechamento_fonte": 23.0799999237,
+     "preco_fechamento_dif": -0.0599999237
+    },
+    {
+     "ticker": "BBDC4",
+     "data": "2026-07-27",
+     "preco_fechamento_nosso": 18.71,
+     "preco_fechamento_fonte": 18.6777648926,
+     "preco_fechamento_dif": 0.0322351074
+    },
+    {
+     "ticker": "BBDC4",
+     "data": "2026-07-28",
+     "preco_fechamento_nosso": 18.77,
+     "preco_fechamento_fonte": 18.7376613617,
+     "preco_fechamento_dif": 0.0323386383
+    },
+    {
+     "ticker": "BBDC4",
+     "data": "2026-07-29",
+     "preco_fechamento_nosso": 18.35,
+     "preco_fechamento_fonte": 18.3183841705,
+     "preco_fechamento_dif": 0.0316158295
+    },
+    {
+     "ticker": "BBDC4",
+     "data": "2026-07-30",
+     "preco_fechamento_nosso": 18.39,
+     "preco_fechamento_fonte": 18.3583145142,
+     "preco_fechamento_dif": 0.0316854858
+    },
+    {
+     "ticker": "BBDC4",
+     "data": "2026-07-31",
+     "preco_fechamento_nosso": 18.43,
+     "preco_fechamento_fonte": 18.3982467651,
+     "preco_fechamento_dif": 0.0317532349
+    },
+    {
+     "ticker": "BBDC4",
+     "data": "2026-08-03",
+     "preco_fechamento_nosso": 18.55,
+     "preco_fechamento_fonte": 18.5180397034,
+     "preco_fechamento_dif": 0.0319602966
+    },
+    {
+     "ticker": "BBDC4",
+     "data": "2026-08-04",
+     "preco_fechamento_nosso": 18.22,
+     "preco_fechamento_fonte": 18.1886081696,
+     "preco_fechamento_dif": 0.0313918304
+    },
+    {
+     "ticker": "BBDC4",
+     "data": "2026-10-01",
+     "preco_fechamento_nosso": 18.57,
+     "preco_fechamento_fonte": 18.5300006866,
+     "preco_fechamento_dif": 0.0399993134
+    },
+    {
+     "ticker": "BOVA11",
+     "data": "2025-10-21",
+     "preco_fechamento_nosso": 141.17,
+     "preco_fechamento_fonte": 141.4499969482,
+     "preco_fechamento_dif": -0.2799969482
+    }
+   ],
+   "exemplos_so_nosso": [
+    {
+     "ticker": "B3SA3",
+     "data": "2026-08-10"
+    },
+    {
+     "ticker": "BBAS3",
+     "data": "2026-08-10"
+    },
+    {
+     "ticker": "BBDC4",
+     "data": "2026-08-10"
+    },
+    {
+     "ticker": "BOVA11",
+     "data": "2025-10-24"
+    },
+    {
+     "ticker": "HASH11",
+     "data": "2025-10-24"
+    },
+    {
+     "ticker": "HGLG11",
+     "data": "2026-08-10"
+    },
+    {
+     "ticker": "ITUB4",
+     "data": "2026-08-10"
+    },
+    {
+     "ticker": "IVVB11",
+     "data": "2025-10-24"
+    },
+    {
+     "ticker": "KNCR11",
+     "data": "2026-08-10"
+    },
+    {
+     "ticker": "MGLU3",
+     "data": "2026-08-10"
+    }
+   ],
+   "exemplos_so_fonte": [],
+   "por_ticker": [
+    {
+     "ticker": "ABEV3",
+     "comparados": 248,
+     "iguais": 246
+    },
+    {
+     "ticker": "B3SA3",
+     "comparados": 247,
+     "iguais": 245
+    },
+    {
+     "ticker": "BBAS3",
+     "comparados": 247,
+     "iguais": 245
+    },
+    {
+     "ticker": "BBDC4",
+     "comparados": 247,
+     "iguais": 239
+    },
+    {
+     "ticker": "BOVA11",
+     "comparados": 247,
+     "iguais": 244
+    },
+    {
+     "ticker": "HASH11",
+     "comparados": 247,
+     "iguais": 246
+    },
+    {
+     "ticker": "HGLG11",
+     "comparados": 247,
+     "iguais": 246
+    },
+    {
+     "ticker": "ITUB4",
+     "comparados": 247,
+     "iguais": 246
+    },
+    {
+     "ticker": "IVVB11",
+     "comparados": 247,
+     "iguais": 245
+    },
+    {
+     "ticker": "KNCR11",
+     "comparados": 247,
+     "iguais": 240
+    },
+    {
+     "ticker": "MGLU3",
+     "comparados": 247,
+     "iguais": 246
+    },
+    {
+     "ticker": "MXRF11",
+     "comparados": 247,
+     "iguais": 242
+    },
+    {
+     "ticker": "PETR3",
+     "comparados": 247,
+     "iguais": 246
+    },
+    {
+     "ticker": "PETR4",
+     "comparados": 247,
+     "iguais": 242
+    },
+    {
+     "ticker": "RENT3",
+     "comparados": 247,
+     "iguais": 245
+    },
+    {
+     "ticker": "SMAL11",
+     "comparados": 247,
+     "iguais": 246
+    },
+    {
+     "ticker": "SUZB3",
+     "comparados": 247,
+     "iguais": 247
+    },
+    {
+     "ticker": "VALE3",
+     "comparados": 247,
+     "iguais": 243
+    },
+    {
+     "ticker": "WEGE3",
+     "comparados": 247,
+     "iguais": 245
+    },
+    {
+     "ticker": "XPML11",
+     "comparados": 247,
+     "iguais": 239
+    }
+   ],
+   "periodo": "16/10/2025 a 15/10/2026",
+   "desempate_cotahist": {
+    "dias": 58,
+    "nosso_igual_ficheiro": 58,
+    "yahoo_igual_ficheiro": 0,
+    "exemplos": [
+     {
+      "ticker": "RENT3",
+      "data": "2026-02-11",
+      "preco_fechamento_nosso": 51.12,
+      "preco_fechamento_fonte": 51.0900001526,
+      "b3_arquivo": 51.12
+     },
+     {
+      "ticker": "RENT3",
+      "data": "2026-10-01",
+      "preco_fechamento_nosso": 40.03,
+      "preco_fechamento_fonte": 40.2400016785,
+      "b3_arquivo": 40.03
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-01-22",
+      "preco_fechamento_nosso": 109.2,
+      "preco_fechamento_fonte": 109.1809921265,
+      "b3_arquivo": 109.2
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-01-15",
+      "preco_fechamento_nosso": 110.51,
+      "preco_fechamento_fonte": 1.0690619946,
+      "b3_arquivo": 110.51
+     },
+     {
+      "ticker": "HGLG11",
+      "data": "2026-10-01",
+      "preco_fechamento_nosso": 146.99,
+      "preco_fechamento_fonte": 146.8000030518,
+      "b3_arquivo": 146.99
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-01-16",
+      "preco_fechamento_nosso": 110.0,
+      "preco_fechamento_fonte": 1.0641280413,
+      "b3_arquivo": 110.0
+     },
+     {
+      "ticker": "B3SA3",
+      "data": "2026-10-01",
+      "preco_fechamento_nosso": 18.51,
+      "preco_fechamento_fonte": 18.4300003052,
+      "b3_arquivo": 18.51
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-10-01",
+      "preco_fechamento_nosso": 101.35,
+      "preco_fechamento_fonte": 101.0500030518,
+      "b3_arquivo": 101.35
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-01-21",
+      "preco_fechamento_nosso": 109.1,
+      "preco_fechamento_fonte": 109.0810089111,
+      "b3_arquivo": 109.1
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-01-19",
+      "preco_fechamento_nosso": 109.6,
+      "preco_fechamento_fonte": 109.5809173584,
+      "b3_arquivo": 109.6
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-01-20",
+      "preco_fechamento_nosso": 109.1,
+      "preco_fechamento_fonte": 109.0810089111,
+      "b3_arquivo": 109.1
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-01-14",
+      "preco_fechamento_nosso": 110.4,
+      "preco_fechamento_fonte": 1.0679980516,
+      "b3_arquivo": 110.4
+     }
+    ]
+   },
+   "retorno": {
+    "comparados": 28746,
+    "iguais": 28324,
+    "diferentes": 422,
+    "so_nosso": 19,
+    "so_fonte": 0,
+    "colunas": {
+     "retorno_dia": {
+      "max_dif": 101.98082811951346,
+      "tolerancia": 0.0011,
+      "diferentes": 422
+     }
+    },
+    "rotulos": {},
+    "amostra": [
+     {
+      "ticker": "XPML11",
+      "data": "2026-10-05",
+      "retorno_dia_nosso": 0.0128557409,
+      "retorno_dia_fonte": 0.0128557168,
+      "retorno_dia_dif": 2.42e-08
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-10-06",
+      "retorno_dia_nosso": 0.0220908827,
+      "retorno_dia_fonte": 0.022090871,
+      "retorno_dia_dif": 1.16e-08
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-10-07",
+      "retorno_dia_nosso": 0.0218030145,
+      "retorno_dia_fonte": 0.0218030439,
+      "retorno_dia_dif": -2.94e-08
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-10-08",
+      "retorno_dia_nosso": -0.011967715,
+      "retorno_dia_fonte": -0.0119677234,
+      "retorno_dia_dif": 8.4e-09
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-10-09",
+      "retorno_dia_nosso": 0.014741784,
+      "retorno_dia_fonte": 0.0147417812,
+      "retorno_dia_dif": 2.9e-09
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-10-13",
+      "retorno_dia_nosso": -0.0120292403,
+      "retorno_dia_fonte": -0.0120292686,
+      "retorno_dia_dif": 2.83e-08
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-10-14",
+      "retorno_dia_nosso": -0.0044019856,
+      "retorno_dia_fonte": -0.0044019257,
+      "retorno_dia_dif": -5.99e-08
+     },
+     {
+      "ticker": "XPML11",
+      "data": "2026-10-15",
+      "retorno_dia_nosso": 0.0102539981,
+      "retorno_dia_fonte": 0.0102539634,
+      "retorno_dia_dif": 3.47e-08
+     }
+    ],
+    "divergencias": [
+     {
+      "ticker": "ABEV3",
+      "data": "2021-01-06",
+      "retorno_dia_nosso": 0.0151802657,
+      "retorno_dia_fonte": 0.020240274,
+      "retorno_dia_dif": -0.0050600084
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2021-01-07",
+      "retorno_dia_nosso": 0.0,
+      "retorno_dia_fonte": -0.0049596979,
+      "retorno_dia_dif": 0.0049596979
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2021-02-25",
+      "retorno_dia_nosso": -0.0347411444,
+      "retorno_dia_fonte": -0.0326975808,
+      "retorno_dia_dif": -0.0020435636
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2021-02-26",
+      "retorno_dia_nosso": -0.0105857445,
+      "retorno_dia_fonte": -0.0126760108,
+      "retorno_dia_dif": 0.0020902663
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2021-03-19",
+      "retorno_dia_nosso": 0.0124183007,
+      "retorno_dia_fonte": 0.0196078554,
+      "retorno_dia_dif": -0.0071895547
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2021-03-22",
+      "retorno_dia_nosso": 0.003227889,
+      "retorno_dia_fonte": -0.0038461807,
+      "retorno_dia_dif": 0.0070740696
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2021-10-20",
+      "retorno_dia_nosso": 0.0138705416,
+      "retorno_dia_fonte": 0.0178335203,
+      "retorno_dia_dif": -0.0039629787
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2021-10-21",
+      "retorno_dia_nosso": -0.0136807818,
+      "retorno_dia_fonte": -0.0175210582,
+      "retorno_dia_dif": 0.0038402764
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2022-10-06",
+      "retorno_dia_nosso": -0.0055831266,
+      "retorno_dia_fonte": 0.0018609664,
+      "retorno_dia_dif": -0.0074440929
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2022-10-07",
+      "retorno_dia_nosso": -0.0380536494,
+      "retorno_dia_fonte": -0.0452012111,
+      "retorno_dia_dif": 0.0071475617
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2024-01-24",
+      "retorno_dia_nosso": -0.0127150337,
+      "retorno_dia_fonte": -0.0067314999,
+      "retorno_dia_dif": -0.0059835338
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2024-01-25",
+      "retorno_dia_nosso": 0.0,
+      "retorno_dia_fonte": -0.0060240908,
+      "retorno_dia_dif": 0.0060240908
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2025-07-11",
+      "retorno_dia_nosso": 0.0052910053,
+      "retorno_dia_fonte": 0.0075586081,
+      "retorno_dia_dif": -0.0022676028
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2025-07-14",
+      "retorno_dia_nosso": -0.0007518797,
+      "retorno_dia_fonte": -0.0030007473,
+      "retorno_dia_dif": 0.0022488676
+     },
+     {
+      "ticker": "ABEV3",
+      "data": "2026-02-25",
+      "retorno_dia_nosso": -0.0084439083,
+      "retorno_dia_fonte": -0.0120627722,
+      "retorno_dia_dif": 0.0036188639
+     }
+    ],
+    "exemplos_so_nosso": [
+     {
+      "ticker": "B3SA3",
+      "data": "2026-08-10"
+     },
+     {
+      "ticker": "BBAS3",
+      "data": "2026-08-10"
+     },
+     {
+      "ticker": "BBDC4",
+      "data": "2026-08-10"
+     },
+     {
+      "ticker": "BOVA11",
+      "data": "2025-10-24"
+     },
+     {
+      "ticker": "HASH11",
+      "data": "2025-10-24"
+     },
+     {
+      "ticker": "HGLG11",
+      "data": "2026-08-10"
+     },
+     {
+      "ticker": "ITUB4",
+      "data": "2026-08-10"
+     },
+     {
+      "ticker": "IVVB11",
+      "data": "2025-10-24"
+     },
+     {
+      "ticker": "KNCR11",
+      "data": "2026-08-10"
+     },
+     {
+      "ticker": "MGLU3",
+      "data": "2026-08-10"
+     }
+    ],
+    "exemplos_so_fonte": [],
+    "por_ticker": [
+     {
+      "ticker": "ABEV3",
+      "comparados": 1442,
+      "iguais": 1424
+     },
+     {
+      "ticker": "B3SA3",
+      "comparados": 1441,
+      "iguais": 1418
+     },
+     {
+      "ticker": "BBAS3",
+      "comparados": 1441,
+      "iguais": 1412
+     },
+     {
+      "ticker": "BBDC4",
+      "comparados": 1441,
+      "iguais": 1408
+     },
+     {
+      "ticker": "BOVA11",
+      "comparados": 1441,
+      "iguais": 1411
+     },
+     {
+      "ticker": "HASH11",
+      "comparados": 1366,
+      "iguais": 1365
+     },
+     {
+      "ticker": "HGLG11",
+      "comparados": 1441,
+      "iguais": 1430
+     },
+     {
+      "ticker": "ITUB4",
+      "comparados": 1441,
+      "iguais": 1426
+     },
+     {
+      "ticker": "IVVB11",
+      "comparados": 1441,
+      "iguais": 1411
+     },
+     {
+      "ticker": "KNCR11",
+      "comparados": 1441,
+      "iguais": 1431
+     },
+     {
+      "ticker": "MGLU3",
+      "comparados": 1441,
+      "iguais": 1423
+     },
+     {
+      "ticker": "MXRF11",
+      "comparados": 1441,
+      "iguais": 1434
+     },
+     {
+      "ticker": "PETR3",
+      "comparados": 1441,
+      "iguais": 1426
+     },
+     {
+      "ticker": "PETR4",
+      "comparados": 1441,
+      "iguais": 1394
+     },
+     {
+      "ticker": "RENT3",
+      "comparados": 1441,
+      "iguais": 1422
+     },
+     {
+      "ticker": "SMAL11",
+      "comparados": 1441,
+      "iguais": 1411
+     },
+     {
+      "ticker": "SUZB3",
+      "comparados": 1441,
+      "iguais": 1430
+     },
+     {
+      "ticker": "VALE3",
+      "comparados": 1441,
+      "iguais": 1404
+     },
+     {
+      "ticker": "WEGE3",
+      "comparados": 1441,
+      "iguais": 1416
+     },
+     {
+      "ticker": "XPML11",
+      "comparados": 1441,
+      "iguais": 1428
+     }
+    ],
+    "periodo": "04/01/2021 a 15/10/2026"
+   },
+   "verificado_em": "2026-10-17T10:15:52Z",
+   "metricas": {
+    "plataforma_igual_b3_pct": 100.0
+   }
+  },
+  "proventos": {
+   "titulo": "Proventos (dividendos, JCP e rendimentos de FII)",
+   "tabela": "findata_dev.gold.fct_provento",
+   "sql": "SELECT ticker, classe_ativo,\n       CASE WHEN classe_ativo = 'FII' THEN trunc(data_com, 'MM') ELSE data_ex END AS data_ex,\n       round(sum(valor_ajustado), 6) AS valor\n  FROM findata_dev.gold.fct_provento JOIN findata_dev.gold.dim_ativo_b3 USING (ticker)\n WHERE ticker IN ('PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'BBAS3', 'ABEV3', 'WEGE3', 'B3SA3', 'MGLU3', 'RENT3', 'SUZB3', 'PETR3', 'KNCR11', 'HGLG11', 'MXRF11', 'XPML11', 'BOVA11', 'IVVB11', 'SMAL11', 'HASH11') AND data_ex >= DATE'2021-01-05'\n GROUP BY ALL",
+   "fonte": "Yahoo Finance (eventos de dividendos)",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/PETR4.SA?period1=1609718400&period2=1792239027&interval=1d&events=div%7Csplit",
+   "independente": true,
+   "chave": [
+    "ticker",
+    "data_ex"
+   ],
+   "comparados": 606,
+   "iguais": 384,
+   "diferentes": 222,
+   "so_nosso": 61,
+   "so_fonte": 0,
+   "colunas": {
+    "valor": {
+     "max_dif": 1.600192,
+     "tolerancia": 0.0005,
+     "diferentes": 222
+    }
+   },
+   "rotulos": {},
+   "amostra": [
+    {
+     "ticker": "XPML11",
+     "data_ex": "2026-01-01",
+     "valor_nosso": 0.92,
+     "valor_fonte": 0.92,
+     "valor_dif": 0.0
+    },
+    {
+     "ticker": "XPML11",
+     "data_ex": "2026-02-01",
+     "valor_nosso": 0.92,
+     "valor_fonte": 0.92,
+     "valor_dif": 0.0
+    },
+    {
+     "ticker": "XPML11",
+     "data_ex": "2026-03-01",
+     "valor_nosso": 0.92,
+     "valor_fonte": 0.92,
+     "valor_dif": 0.0
+    },
+    {
+     "ticker": "XPML11",
+     "data_ex": "2026-04-01",
+     "valor_nosso": 0.92,
+     "valor_fonte": 0.92,
+     "valor_dif": 0.0
+    },
+    {
+     "ticker": "XPML11",
+     "data_ex": "2026-05-01",
+     "valor_nosso": 0.92,
+     "valor_fonte": 0.92,
+     "valor_dif": 0.0
+    },
+    {
+     "ticker": "XPML11",
+     "data_ex": "2026-06-01",
+     "valor_nosso": 0.92,
+     "valor_fonte": 0.92,
+     "valor_dif": 0.0
+    },
+    {
+     "ticker": "XPML11",
+     "data_ex": "2026-07-01",
+     "valor_nosso": 0.92,
+     "valor_fonte": 0.92,
+     "valor_dif": 0.0
+    },
+    {
+     "ticker": "XPML11",
+     "data_ex": "2026-08-01",
+     "valor_nosso": 0.92,
+     "valor_fonte": 0.95,
+     "valor_dif": -0.03
+    }
+   ],
+   "divergencias": [
+    {
+     "ticker": "BBAS3",
+     "data_ex": "2026-02-24",
+     "valor_nosso": 0.221492,
+     "valor_fonte": 0.220517,
+     "valor_dif": 0.000975
+    },
+    {
+     "ticker": "BBAS3",
+     "data_ex": "2026-09-02",
+     "valor_nosso": 0.139776,
+     "valor_fonte": 0.10527,
+     "valor_dif": 0.034506
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2021-07-05",
+     "valor_nosso": 0.490007,
+     "valor_fonte": 0.489163,
+     "valor_dif": 0.000844
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2023-01-09",
+     "valor_nosso": 0.583406,
+     "valor_fonte": 0.582401,
+     "valor_dif": 0.001005
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2023-12-22",
+     "valor_nosso": 0.688942,
+     "valor_fonte": 0.687755,
+     "valor_dif": 0.001187
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2024-06-18",
+     "valor_nosso": 0.395055,
+     "valor_fonte": 0.394375,
+     "valor_dif": 0.00068
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2025-01-02",
+     "valor_nosso": 0.293976,
+     "valor_fonte": 0.293469,
+     "valor_dif": 0.000507
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2025-07-01",
+     "valor_nosso": 0.297161,
+     "valor_fonte": 0.296649,
+     "valor_dif": 0.000512
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2025-09-30",
+     "valor_nosso": 0.297161,
+     "valor_fonte": 0.296649,
+     "valor_dif": 0.000512
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2025-12-30",
+     "valor_nosso": 0.38631,
+     "valor_fonte": 0.385644,
+     "valor_dif": 0.000666
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2026-04-07",
+     "valor_nosso": 0.297339,
+     "valor_fonte": 0.296826,
+     "valor_dif": 0.000513
+    },
+    {
+     "ticker": "BBDC4",
+     "data_ex": "2026-07-06",
+     "valor_nosso": 0.346895,
+     "valor_fonte": 0.346297,
+     "valor_dif": 0.000598
+    },
+    {
+     "ticker": "HGLG11",
+     "data_ex": "2022-03-01",
+     "valor_nosso": 1.112967,
+     "valor_fonte": 1.080226,
+     "valor_dif": 0.032741
+    },
+    {
+     "ticker": "HGLG11",
+     "data_ex": "2022-04-01",
+     "valor_nosso": 1.09852,
+     "valor_fonte": 1.08619,
+     "valor_dif": 0.01233
+    },
+    {
+     "ticker": "HGLG11",
+     "data_ex": "2022-05-01",
+     "valor_nosso": 1.105181,
+     "valor_fonte": 1.08619,
+     "valor_dif": 0.018991
+    }
+   ],
+   "exemplos_so_nosso": [
+    {
+     "ticker": "ABEV3",
+     "data_ex": "2025-08-08"
+    },
+    {
+     "ticker": "B3SA3",
+     "data_ex": "2021-09-29"
+    },
+    {
+     "ticker": "BBAS3",
+     "data_ex": "2023-11-22"
+    },
+    {
+     "ticker": "BBAS3",
+     "data_ex": "2024-02-22"
+    },
+    {
+     "ticker": "HGLG11",
+     "data_ex": "2021-01-01"
+    },
+    {
+     "ticker": "HGLG11",
+     "data_ex": "2021-02-01"
+    },
+    {
+     "ticker": "HGLG11",
+     "data_ex": "2021-03-01"
+    },
+    {
+     "ticker": "HGLG11",
+     "data_ex": "2021-04-01"
+    },
+    {
+     "ticker": "HGLG11",
+     "data_ex": "2021-05-01"
+    },
+    {
+     "ticker": "HGLG11",
+     "data_ex": "2021-06-01"
+    }
+   ],
+   "exemplos_so_fonte": [],
+   "relativo": {
+    "ate_1pct": 486,
+    "ate_5pct": 557,
+    "acima_5pct": 49,
+    "total": 606
+   },
+   "por_ticker": [
+    {
+     "ticker": "ABEV3",
+     "comparados": 10,
+     "iguais": 10,
+     "ate_1pct": 10,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "B3SA3",
+     "comparados": 27,
+     "iguais": 27,
+     "ate_1pct": 27,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "BBAS3",
+     "comparados": 38,
+     "iguais": 36,
+     "ate_1pct": 37,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "BBDC4",
+     "comparados": 85,
+     "iguais": 75,
+     "ate_1pct": 85,
+     "razao_mediana": 1.0017,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "HGLG11",
+     "comparados": 55,
+     "iguais": 15,
+     "ate_1pct": 42,
+     "razao_mediana": 1.0,
+     "classe": "FII"
+    },
+    {
+     "ticker": "ITUB4",
+     "comparados": 94,
+     "iguais": 94,
+     "ate_1pct": 94,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "KNCR11",
+     "comparados": 55,
+     "iguais": 1,
+     "ate_1pct": 53,
+     "razao_mediana": 1.0044,
+     "classe": "FII"
+    },
+    {
+     "ticker": "MGLU3",
+     "comparados": 3,
+     "iguais": 2,
+     "ate_1pct": 2,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "MXRF11",
+     "comparados": 54,
+     "iguais": 13,
+     "ate_1pct": 17,
+     "razao_mediana": 1.0008,
+     "classe": "FII"
+    },
+    {
+     "ticker": "PETR3",
+     "comparados": 24,
+     "iguais": 21,
+     "ate_1pct": 22,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "PETR4",
+     "comparados": 24,
+     "iguais": 20,
+     "ate_1pct": 21,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "RENT3",
+     "comparados": 25,
+     "iguais": 3,
+     "ate_1pct": 3,
+     "razao_mediana": 0.9682,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "SUZB3",
+     "comparados": 7,
+     "iguais": 7,
+     "ate_1pct": 7,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "VALE3",
+     "comparados": 16,
+     "iguais": 16,
+     "ate_1pct": 16,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "WEGE3",
+     "comparados": 34,
+     "iguais": 34,
+     "ate_1pct": 34,
+     "razao_mediana": 1.0,
+     "classe": "Ação/ETF"
+    },
+    {
+     "ticker": "XPML11",
+     "comparados": 55,
+     "iguais": 10,
+     "ate_1pct": 16,
+     "razao_mediana": 1.0,
+     "classe": "FII"
+    }
+   ],
+   "verificado_em": "2026-10-17T12:10:24Z",
+   "metricas": {
+    "acoes_ate_1pct_pct": 92.50645994832041
+   }
+  },
+  "eventos": {
+   "titulo": "Desdobramentos, grupamentos e bonificações (100 ações mais negociadas)",
+   "tabela": "findata_dev.gold.fct_cotacao_diaria",
+   "sql": "WITH top AS (\n  SELECT ticker FROM findata_dev.gold.fct_cotacao_diaria\n   WHERE classe_ativo = 'Ação' AND data_pregao >= add_months(current_date(), -12)\n   GROUP BY ticker ORDER BY sum(volume) DESC LIMIT 100)\nSELECT c.ticker, c.data_pregao AS data_ex, c.fator_evento, c.retorno_dia, c.preco_fechamento,\n       lag(c.preco_fechamento) OVER (PARTITION BY c.ticker ORDER BY c.data_pregao) AS fecho_anterior\n  FROM findata_dev.gold.fct_cotacao_diaria c JOIN top USING (ticker)",
+   "fonte": "Yahoo Finance (eventos 'split')",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/ABEV3.SA?period1=1609804800&period2=1792235926&interval=1d&events=split",
+   "independente": true,
+   "chave": [
+    "ticker",
+    "data_ex"
+   ],
+   "comparados": 66,
+   "iguais": 66,
+   "diferentes": 0,
+   "so_nosso": 4,
+   "so_fonte": 1,
+   "colunas": {
+    "fator_evento": {
+     "max_dif": 1.7666150869621866e-05,
+     "tolerancia": 0.002,
+     "diferentes": 0
+    }
+   },
+   "rotulos": {},
+   "amostra": [
+    {
+     "ticker": "SLCE3",
+     "data_ex": "2022-01-03",
+     "fator_evento_nosso": 0.9090909091,
+     "fator_evento_fonte": 0.9090909091,
+     "fator_evento_dif": 0.0
+    },
+    {
+     "ticker": "SLCE3",
+     "data_ex": "2023-05-09",
+     "fator_evento_nosso": 0.9090909091,
+     "fator_evento_fonte": 0.9090909091,
+     "fator_evento_dif": 0.0
+    },
+    {
+     "ticker": "SLCE3",
+     "data_ex": "2023-12-14",
+     "fator_evento_nosso": 0.5,
+     "fator_evento_fonte": 0.5,
+     "fator_evento_dif": 0.0
+    },
+    {
+     "ticker": "SLCE3",
+     "data_ex": "2026-01-02",
+     "fator_evento_nosso": 0.8888888889,
+     "fator_evento_fonte": 0.8888888889,
+     "fator_evento_dif": 0.0
+    },
+    {
+     "ticker": "VAMO3",
+     "data_ex": "2021-08-16",
+     "fator_evento_nosso": 0.25,
+     "fator_evento_fonte": 0.25,
+     "fator_evento_dif": 0.0
+    },
+    {
+     "ticker": "VBBR3",
+     "data_ex": "2025-11-26",
+     "fator_evento_nosso": 0.9336175936,
+     "fator_evento_fonte": 0.9336175917,
+     "fator_evento_dif": 2e-09
+    },
+    {
+     "ticker": "VIVT3",
+     "data_ex": "2025-04-15",
+     "fator_evento_nosso": 0.5,
+     "fator_evento_fonte": 0.5,
+     "fator_evento_dif": 2.220446049e-16
+    },
+    {
+     "ticker": "WEGE3",
+     "data_ex": "2021-04-28",
+     "fator_evento_nosso": 0.5,
+     "fator_evento_fonte": 0.5,
+     "fator_evento_dif": 0.0
+    }
+   ],
+   "divergencias": [],
+   "exemplos_so_nosso": [
+    {
+     "ticker": "AXIA3",
+     "data_ex": "2025-12-22"
+    },
+    {
+     "ticker": "AXIA6",
+     "data_ex": "2025-12-22"
+    },
+    {
+     "ticker": "CYRE3",
+     "data_ex": "2026-01-02"
+    },
+    {
+     "ticker": "RENT3",
+     "data_ex": "2025-12-30"
+    }
+   ],
+   "exemplos_so_fonte": [
+    {
+     "ticker": "SAUD3",
+     "data_ex": "2022-04-05"
+    }
+   ],
+   "so_yahoo_detalhe": [],
+   "bonificacoes_suspeitas": 0,
+   "tickers": 100,
+   "verificado_em": "2026-10-17T11:18:43Z",
+   "metricas": {
+    "bonificacoes_suspeitas": 0
+   }
+  },
+  "indices": {
+   "titulo": "Ibovespa (fecho diário)",
+   "tabela": "findata_dev.gold.fct_indice_diario",
+   "sql": "SELECT indice, data_pregao AS data, fechamento\n  FROM findata_dev.gold.fct_indice_diario\n WHERE indice = 'IBOV'",
+   "fonte": "Yahoo Finance (^BVSP); desempate com o ETF BOVA11",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/%5EBVSP?period1=1420156800&period2=1792232198&interval=1d&events=div%7Csplit",
+   "independente": true,
+   "chave": [
+    "indice",
+    "data"
+   ],
+   "comparados": 2926,
+   "iguais": 2762,
+   "diferentes": 164,
+   "so_nosso": 1,
+   "so_fonte": 1,
+   "colunas": {
+    "fechamento": {
+     "max_dif": 939.4499999999971,
+     "tolerancia": 1.0,
+     "diferentes": 164
+    }
+   },
+   "rotulos": {},
+   "amostra": [
+    {
+     "indice": "IBOV",
+     "data": "2026-10-06",
+     "fechamento_nosso": 205835.29,
+     "fechamento_fonte": 205835.0,
+     "fechamento_dif": 0.29
+    },
+    {
+     "indice": "IBOV",
+     "data": "2026-10-07",
+     "fechamento_nosso": 204302.33,
+     "fechamento_fonte": 204302.0,
+     "fechamento_dif": 0.33
+    },
+    {
+     "indice": "IBOV",
+     "data": "2026-10-08",
+     "fechamento_nosso": 206220.24,
+     "fechamento_fonte": 206220.0,
+     "fechamento_dif": 0.24
+    },
+    {
+     "indice": "IBOV",
+     "data": "2026-10-09",
+     "fechamento_nosso": 209066.9,
+     "fechamento_fonte": 209067.0,
+     "fechamento_dif": -0.1
+    },
+    {
+     "indice": "IBOV",
+     "data": "2026-10-13",
+     "fechamento_nosso": 206887.52,
+     "fechamento_fonte": 206888.0,
+     "fechamento_dif": -0.48
+    },
+    {
+     "indice": "IBOV",
+     "data": "2026-10-14",
+     "fechamento_nosso": 206505.98,
+     "fechamento_fonte": 206506.0,
+     "fechamento_dif": -0.02
+    },
+    {
+     "indice": "IBOV",
+     "data": "2026-10-15",
+     "fechamento_nosso": 204324.26,
+     "fechamento_fonte": 204324.0,
+     "fechamento_dif": 0.26
+    },
+    {
+     "indice": "IBOV",
+     "data": "2026-10-16",
+     "fechamento_nosso": 205430.33,
+     "fechamento_fonte": 205430.0,
+     "fechamento_dif": 0.33
+    }
+   ],
+   "divergencias": [
+    {
+     "indice": "IBOV",
+     "data": "2015-11-10",
+     "fechamento_nosso": 46206.56,
+     "fechamento_fonte": 46179.0,
+     "fechamento_dif": 27.56
+    },
+    {
+     "indice": "IBOV",
+     "data": "2017-12-26",
+     "fechamento_nosso": 75707.73,
+     "fechamento_fonte": 75688.0,
+     "fechamento_dif": 19.73
+    },
+    {
+     "indice": "IBOV",
+     "data": "2018-02-28",
+     "fechamento_nosso": 85353.6,
+     "fechamento_fonte": 85481.0,
+     "fechamento_dif": -127.4
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-11-04",
+     "fechamento_nosso": 108779.33,
+     "fechamento_fonte": 108601.0,
+     "fechamento_dif": 178.33
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-11-05",
+     "fechamento_nosso": 108719.02,
+     "fechamento_fonte": 108451.0,
+     "fechamento_dif": 268.02
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-11-06",
+     "fechamento_nosso": 108360.22,
+     "fechamento_fonte": 108336.0,
+     "fechamento_dif": 24.22
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-11-11",
+     "fechamento_nosso": 108367.44,
+     "fechamento_fonte": 108215.0,
+     "fechamento_dif": 152.44
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-11-12",
+     "fechamento_nosso": 106751.11,
+     "fechamento_fonte": 106785.0,
+     "fechamento_dif": -33.89
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-11-13",
+     "fechamento_nosso": 106059.95,
+     "fechamento_fonte": 105914.0,
+     "fechamento_dif": 145.95
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-11-18",
+     "fechamento_nosso": 106269.25,
+     "fechamento_fonte": 106347.0,
+     "fechamento_dif": -77.75
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-11-19",
+     "fechamento_nosso": 105864.18,
+     "fechamento_fonte": 105618.0,
+     "fechamento_dif": 246.18
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-12-02",
+     "fechamento_nosso": 108927.83,
+     "fechamento_fonte": 109061.0,
+     "fechamento_dif": -133.17
+    },
+    {
+     "indice": "IBOV",
+     "data": "2019-12-30",
+     "fechamento_nosso": 115645.34,
+     "fechamento_fonte": 115964.0,
+     "fechamento_dif": -318.66
+    },
+    {
+     "indice": "IBOV",
+     "data": "2020-11-03",
+     "fechamento_nosso": 95979.71,
+     "fechamento_fonte": 95587.0,
+     "fechamento_dif": 392.71
+    },
+    {
+     "indice": "IBOV",
+     "data": "2020-11-04",
+     "fechamento_nosso": 97866.81,
+     "fechamento_fonte": 97811.0,
+     "fechamento_dif": 55.81
+    }
+   ],
+   "exemplos_so_nosso": [
+    {
+     "indice": "IBOV",
+     "data": "2020-11-20"
+    }
+   ],
+   "exemplos_so_fonte": [
+    {
+     "indice": "IBOV",
+     "data": "2017-12-29"
+    }
+   ],
+   "relativo": {
+    "ate_0_1pct": 2833,
+    "ate_1pct": 2926,
+    "acima_1pct": 0,
+    "total": 2926
+   },
+   "desempate_bova11": {
+    "dias": 164,
+    "nosso_mais_perto": 122,
+    "yahoo_mais_perto": 42,
+    "erro_medio_nosso_pp": 0.14540883256939457,
+    "erro_medio_yahoo_pp": 0.2615228839267995,
+    "erro_medio_todos_os_dias_pp": 0.16260631814067572
+   },
+   "verificado_em": "2026-10-17T10:16:39Z"
+  },
+  "fundos": {
+   "titulo": "Informe diário de fundos, 09/2026 (todas as linhas)",
+   "tabela": "findata_dev.gold.fct_fundo_diario",
+   "sql": "SELECT cnpj_classe, id_subclasse, dt_comptc, vl_quota, vl_patrim_liq, nr_cotst\n  FROM findata_dev.gold.fct_fundo_diario\n WHERE dt_comptc BETWEEN DATE'2026-09-01' AND DATE'2026-09-30'",
+   "fonte": "CVM, ficheiro original do portal de dados abertos (descarregado de novo)",
+   "url": "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_202609.zip",
+   "independente": false,
+   "chave": [
+    "cnpj_classe",
+    "id_subclasse",
+    "dt_comptc"
+   ],
+   "comparados": 538072,
+   "iguais": 538015,
+   "diferentes": 57,
+   "so_nosso": 0,
+   "so_fonte": 27,
+   "colunas": {
+    "vl_quota": {
+     "max_dif": 3900.3882202199998,
+     "tolerancia": 1e-06,
+     "diferentes": 34
+    },
+    "vl_patrim_liq": {
+     "max_dif": 585827701.62,
+     "tolerancia": 0.005,
+     "diferentes": 36
+    },
+    "nr_cotst": {
+     "max_dif": 17.0,
+     "tolerancia": 0,
+     "diferentes": 21
+    }
+   },
+   "rotulos": {},
+   "amostra": [
+    {
+     "cnpj_classe": "97929213000134",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-21",
+     "vl_quota_nosso": 15.6446738,
+     "vl_quota_fonte": 15.6446738,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 68955553.55,
+     "vl_patrim_liq_fonte": 68955553.55,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 7.0,
+     "nr_cotst_fonte": 7,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "97929213000134",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-22",
+     "vl_quota_nosso": 15.6489593,
+     "vl_quota_fonte": 15.6489593,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 68974442.47,
+     "vl_patrim_liq_fonte": 68974442.47,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 7.0,
+     "nr_cotst_fonte": 7,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "97929213000134",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-23",
+     "vl_quota_nosso": 15.6519401,
+     "vl_quota_fonte": 15.6519401,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 68987580.51,
+     "vl_patrim_liq_fonte": 68987580.51,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 7.0,
+     "nr_cotst_fonte": 7,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "97929213000134",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-24",
+     "vl_quota_nosso": 15.6590009,
+     "vl_quota_fonte": 15.6590009,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 69018701.87,
+     "vl_patrim_liq_fonte": 69018701.87,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 7.0,
+     "nr_cotst_fonte": 7,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "97929213000134",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-25",
+     "vl_quota_nosso": 15.6689526,
+     "vl_quota_fonte": 15.6689526,
+     "vl_quota_dif": -0.0,
+     "vl_patrim_liq_nosso": 69062564.78,
+     "vl_patrim_liq_fonte": 69062564.78,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 7.0,
+     "nr_cotst_fonte": 7,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "97929213000134",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-28",
+     "vl_quota_nosso": 15.6710047,
+     "vl_quota_fonte": 15.6710047,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 69071609.78,
+     "vl_patrim_liq_fonte": 69071609.78,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 7.0,
+     "nr_cotst_fonte": 7,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "97929213000134",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-29",
+     "vl_quota_nosso": 15.691175,
+     "vl_quota_fonte": 15.691175,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 69160512.59,
+     "vl_patrim_liq_fonte": 69160512.59,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 7.0,
+     "nr_cotst_fonte": 7,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "97929213000134",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30",
+     "vl_quota_nosso": 15.6987119,
+     "vl_quota_fonte": 15.6987119,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 69193731.92,
+     "vl_patrim_liq_fonte": 69193731.92,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 7.0,
+     "nr_cotst_fonte": 7,
+     "nr_cotst_dif": 0.0
+    }
+   ],
+   "divergencias": [
+    {
+     "cnpj_classe": "01975502000109",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-21",
+     "vl_quota_nosso": 735.543796,
+     "vl_quota_fonte": 736.001778,
+     "vl_quota_dif": -0.457982,
+     "vl_patrim_liq_nosso": 1034387490.1,
+     "vl_patrim_liq_fonte": 1081590510.35,
+     "vl_patrim_liq_dif": -47203020.24999988,
+     "nr_cotst_nosso": 1.0,
+     "nr_cotst_fonte": 2,
+     "nr_cotst_dif": -1.0
+    },
+    {
+     "cnpj_classe": "07830005000190",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30",
+     "vl_quota_nosso": 7.8349489,
+     "vl_quota_fonte": 7.8822999,
+     "vl_quota_dif": -0.047351,
+     "vl_patrim_liq_nosso": 193911882.44,
+     "vl_patrim_liq_fonte": 195083802.77,
+     "vl_patrim_liq_dif": -1171920.330000013,
+     "nr_cotst_nosso": 5.0,
+     "nr_cotst_fonte": 5,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "18581619000100",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-17",
+     "vl_quota_nosso": 2.6737534,
+     "vl_quota_fonte": 2.6737534,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 438556591.98,
+     "vl_patrim_liq_fonte": 438556591.98,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 5.0,
+     "nr_cotst_fonte": 4,
+     "nr_cotst_dif": 1.0
+    },
+    {
+     "cnpj_classe": "18581619000100",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-18",
+     "vl_quota_nosso": 2.6697899,
+     "vl_quota_fonte": 2.6697899,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 437906483.29,
+     "vl_patrim_liq_fonte": 437906483.29,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 5.0,
+     "nr_cotst_fonte": 4,
+     "nr_cotst_dif": 1.0
+    },
+    {
+     "cnpj_classe": "18816393000171",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30",
+     "vl_quota_nosso": 565.526342,
+     "vl_quota_fonte": 565.526342,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 330626315.05,
+     "vl_patrim_liq_fonte": 330626315.05,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 4.0,
+     "nr_cotst_fonte": 3,
+     "nr_cotst_dif": 1.0
+    },
+    {
+     "cnpj_classe": "24571992000175",
+     "id_subclasse": "8IOZK1787953997",
+     "dt_comptc": "2026-09-30",
+     "vl_quota_nosso": 35.114609,
+     "vl_quota_fonte": 35.114609,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 412044612.69,
+     "vl_patrim_liq_fonte": 412044612.69,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 10481.0,
+     "nr_cotst_fonte": 10464,
+     "nr_cotst_dif": 17.0
+    },
+    {
+     "cnpj_classe": "24571992000175",
+     "id_subclasse": "FRCHZ1787953713",
+     "dt_comptc": "2026-09-30",
+     "vl_quota_nosso": 35.11436,
+     "vl_quota_fonte": 35.11436,
+     "vl_quota_dif": 0.0,
+     "vl_patrim_liq_nosso": 843893988.78,
+     "vl_patrim_liq_fonte": 843893988.78,
+     "vl_patrim_liq_dif": 0.0,
+     "nr_cotst_nosso": 113.0,
+     "nr_cotst_fonte": 110,
+     "nr_cotst_dif": 3.0
+    },
+    {
+     "cnpj_classe": "26094788000136",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30",
+     "vl_quota_nosso": 100.1624141,
+     "vl_quota_fonte": 100.2375729,
+     "vl_quota_dif": -0.0751588,
+     "vl_patrim_liq_nosso": 37061149.6,
+     "vl_patrim_liq_fonte": 37088959.14,
+     "vl_patrim_liq_dif": -27809.5399999991,
+     "nr_cotst_nosso": 2.0,
+     "nr_cotst_fonte": 2,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "26812171000109",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-22",
+     "vl_quota_nosso": 56980.61126329,
+     "vl_quota_fonte": 57047.28798522,
+     "vl_quota_dif": -66.67672193,
+     "vl_patrim_liq_nosso": 8680537928.130001,
+     "vl_patrim_liq_fonte": 8690695590.55,
+     "vl_patrim_liq_dif": -10157662.419998169,
+     "nr_cotst_nosso": 1.0,
+     "nr_cotst_fonte": 1,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "26812171000109",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-23",
+     "vl_quota_nosso": 56980.61126329,
+     "vl_quota_fonte": 57191.4920049,
+     "vl_quota_dif": -210.88074161,
+     "vl_patrim_liq_nosso": 8680537928.130001,
+     "vl_patrim_liq_fonte": 8712663913.36,
+     "vl_patrim_liq_dif": -32125985.229999542,
+     "nr_cotst_nosso": 1.0,
+     "nr_cotst_fonte": 1,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "26812171000109",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-24",
+     "vl_quota_nosso": 56980.61126329,
+     "vl_quota_fonte": 57311.58150115,
+     "vl_quota_dif": -330.97023786,
+     "vl_patrim_liq_nosso": 8680537928.130001,
+     "vl_patrim_liq_fonte": 8730958582.44,
+     "vl_patrim_liq_dif": -50420654.309999466,
+     "nr_cotst_nosso": 1.0,
+     "nr_cotst_fonte": 1,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "26812171000109",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-25",
+     "vl_quota_nosso": 56980.61126329,
+     "vl_quota_fonte": 57380.05574357,
+     "vl_quota_dif": -399.44448028,
+     "vl_patrim_liq_nosso": 8680537928.130001,
+     "vl_patrim_liq_fonte": 8741390082.65,
+     "vl_patrim_liq_dif": -60852154.51999855,
+     "nr_cotst_nosso": 1.0,
+     "nr_cotst_fonte": 1,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "26812171000109",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-28",
+     "vl_quota_nosso": 56980.61126329,
+     "vl_quota_fonte": 57434.66449299,
+     "vl_quota_dif": -454.0532297,
+     "vl_patrim_liq_nosso": 8680537928.130001,
+     "vl_patrim_liq_fonte": 8749709286.5,
+     "vl_patrim_liq_dif": -69171358.36999893,
+     "nr_cotst_nosso": 1.0,
+     "nr_cotst_fonte": 1,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "26812171000109",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-29",
+     "vl_quota_nosso": 56980.61126329,
+     "vl_quota_fonte": 57273.35245927,
+     "vl_quota_dif": -292.74119598,
+     "vl_patrim_liq_nosso": 8680537928.130001,
+     "vl_patrim_liq_fonte": 8725134695.32,
+     "vl_patrim_liq_dif": -44596767.18999863,
+     "nr_cotst_nosso": 1.0,
+     "nr_cotst_fonte": 1,
+     "nr_cotst_dif": 0.0
+    },
+    {
+     "cnpj_classe": "26812171000109",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30",
+     "vl_quota_nosso": 56980.61126329,
+     "vl_quota_fonte": 57165.09613173,
+     "vl_quota_dif": -184.48486844,
+     "vl_patrim_liq_nosso": 8680537928.130001,
+     "vl_patrim_liq_fonte": 8708642714.34,
+     "vl_patrim_liq_dif": -28104786.209999084,
+     "nr_cotst_nosso": 1.0,
+     "nr_cotst_fonte": 1,
+     "nr_cotst_dif": 0.0
+    }
+   ],
+   "exemplos_so_nosso": [],
+   "exemplos_so_fonte": [
+    {
+     "cnpj_classe": "23722061000168",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30"
+    },
+    {
+     "cnpj_classe": "31943998000191",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30"
+    },
+    {
+     "cnpj_classe": "35162383000189",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30"
+    },
+    {
+     "cnpj_classe": "36015218000167",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30"
+    },
+    {
+     "cnpj_classe": "44315944000123",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-30"
+    },
+    {
+     "cnpj_classe": "50651069000153",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-01"
+    },
+    {
+     "cnpj_classe": "50651069000153",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-02"
+    },
+    {
+     "cnpj_classe": "50651069000153",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-03"
+    },
+    {
+     "cnpj_classe": "50651069000153",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-04"
+    },
+    {
+     "cnpj_classe": "50651069000153",
+     "id_subclasse": "",
+     "dt_comptc": "2026-09-08"
+    }
+   ],
+   "linhas_ficheiro": 538099,
+   "duplicadas_ficheiro": 0,
+   "ficheiro_cvm_modificado": "Sat, 17 Oct 2026 03:53:08 GMT",
+   "ultima_carga_plataforma": "2026-10-16 09:25:59.037631+00:00",
+   "verificado_em": "2026-10-17T10:16:50Z"
+  },
+  "tesouro": {
+   "titulo": "Tesouro Direto: preços e taxas (todas as linhas)",
+   "tabela": "findata_dev.gold.fct_tesouro_diario",
+   "sql": "SELECT tipo_titulo, data_vencimento, data_base, taxa_compra, taxa_venda, pu_compra, pu_venda\n  FROM findata_dev.gold.fct_tesouro_diario",
+   "fonte": "Tesouro Transparente, CSV original (descarregado de novo)",
+   "url": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/PrecoTaxaTesouroDireto.csv",
+   "independente": false,
+   "chave": [
+    "tipo_titulo",
+    "data_vencimento",
+    "data_base"
+   ],
+   "comparados": 177434,
+   "iguais": 177434,
+   "diferentes": 0,
+   "so_nosso": 0,
+   "so_fonte": 0,
+   "colunas": {
+    "taxa_compra": {
+     "max_dif": 3.552713678800501e-15,
+     "tolerancia": 1e-06,
+     "diferentes": 0
+    },
+    "taxa_venda": {
+     "max_dif": 3.552713678800501e-15,
+     "tolerancia": 1e-06,
+     "diferentes": 0
+    },
+    "pu_compra": {
+     "max_dif": 3.637978807091713e-12,
+     "tolerancia": 0.005,
+     "diferentes": 0
+    },
+    "pu_venda": {
+     "max_dif": 3.637978807091713e-12,
+     "tolerancia": 0.005,
+     "diferentes": 0
+    }
+   },
+   "rotulos": {},
+   "amostra": [
+    {
+     "tipo_titulo": "Tesouro Selic",
+     "data_vencimento": "2031-03-01",
+     "data_base": "2026-10-05",
+     "taxa_compra_nosso": 0.09,
+     "taxa_compra_fonte": 0.09,
+     "taxa_compra_dif": 1.387778781e-17,
+     "taxa_venda_nosso": 0.1,
+     "taxa_venda_fonte": 0.1,
+     "taxa_venda_dif": 0.0,
+     "pu_compra_nosso": 19952.71,
+     "pu_compra_fonte": 19952.71,
+     "pu_compra_dif": 0.0,
+     "pu_venda_nosso": 19933.75,
+     "pu_venda_fonte": 19933.75,
+     "pu_venda_dif": 0.0
+    },
+    {
+     "tipo_titulo": "Tesouro Selic",
+     "data_vencimento": "2031-03-01",
+     "data_base": "2026-10-06",
+     "taxa_compra_nosso": 0.09,
+     "taxa_compra_fonte": 0.09,
+     "taxa_compra_dif": 1.387778781e-17,
+     "taxa_venda_nosso": 0.1,
+     "taxa_venda_fonte": 0.1,
+     "taxa_venda_dif": 0.0,
+     "pu_compra_nosso": 19962.22,
+     "pu_compra_fonte": 19962.22,
+     "pu_compra_dif": 0.0,
+     "pu_venda_nosso": 19943.27,
+     "pu_venda_fonte": 19943.27,
+     "pu_venda_dif": 0.0
+    },
+    {
+     "tipo_titulo": "Tesouro Selic",
+     "data_vencimento": "2031-03-01",
+     "data_base": "2026-10-07",
+     "taxa_compra_nosso": 0.09,
+     "taxa_compra_fonte": 0.09,
+     "taxa_compra_dif": 1.387778781e-17,
+     "taxa_venda_nosso": 0.1,
+     "taxa_venda_fonte": 0.1,
+     "taxa_venda_dif": 0.0,
+     "pu_compra_nosso": 19972.34,
+     "pu_compra_fonte": 19972.34,
+     "pu_compra_dif": 0.0,
+     "pu_venda_nosso": 19953.38,
+     "pu_venda_fonte": 19953.38,
+     "pu_venda_dif": 0.0
+    },
+    {
+     "tipo_titulo": "Tesouro Selic",
+     "data_vencimento": "2031-03-01",
+     "data_base": "2026-10-08",
+     "taxa_compra_nosso": 0.09,
+     "taxa_compra_fonte": 0.09,
+     "taxa_compra_dif": 1.387778781e-17,
+     "taxa_venda_nosso": 0.1,
+     "taxa_venda_fonte": 0.1,
+     "taxa_venda_dif": 0.0,
+     "pu_compra_nosso": 19981.94,
+     "pu_compra_fonte": 19981.94,
+     "pu_compra_dif": 0.0,
+     "pu_venda_nosso": 19962.99,
+     "pu_venda_fonte": 19962.99,
+     "pu_venda_dif": 0.0
+    },
+    {
+     "tipo_titulo": "Tesouro Selic",
+     "data_vencimento": "2031-03-01",
+     "data_base": "2026-10-09",
+     "taxa_compra_nosso": 0.09,
+     "taxa_compra_fonte": 0.09,
+     "taxa_compra_dif": 1.387778781e-17,
+     "taxa_venda_nosso": 0.1,
+     "taxa_venda_fonte": 0.1,
+     "taxa_venda_dif": 0.0,
+     "pu_compra_nosso": 19991.91,
+     "pu_compra_fonte": 19991.91,
+     "pu_compra_dif": 0.0,
+     "pu_venda_nosso": 19972.93,
+     "pu_venda_fonte": 19972.93,
+     "pu_venda_dif": 0.0
+    },
+    {
+     "tipo_titulo": "Tesouro Selic",
+     "data_vencimento": "2031-03-01",
+     "data_base": "2026-10-13",
+     "taxa_compra_nosso": 0.09,
+     "taxa_compra_fonte": 0.09,
+     "taxa_compra_dif": 1.387778781e-17,
+     "taxa_venda_nosso": 0.1,
+     "taxa_venda_fonte": 0.1,
+     "taxa_venda_dif": 0.0,
+     "pu_compra_nosso": 20001.6,
+     "pu_compra_fonte": 20001.6,
+     "pu_compra_dif": 0.0,
+     "pu_venda_nosso": 19982.63,
+     "pu_venda_fonte": 19982.63,
+     "pu_venda_dif": 0.0
+    },
+    {
+     "tipo_titulo": "Tesouro Selic",
+     "data_vencimento": "2031-03-01",
+     "data_base": "2026-10-14",
+     "taxa_compra_nosso": 0.09,
+     "taxa_compra_fonte": 0.09,
+     "taxa_compra_dif": 1.387778781e-17,
+     "taxa_venda_nosso": 0.1,
+     "taxa_venda_fonte": 0.1,
+     "taxa_venda_dif": 0.0,
+     "pu_compra_nosso": 20010.2,
+     "pu_compra_fonte": 20010.2,
+     "pu_compra_dif": 0.0,
+     "pu_venda_nosso": 19991.21,
+     "pu_venda_fonte": 19991.21,
+     "pu_venda_dif": 0.0
+    },
+    {
+     "tipo_titulo": "Tesouro Selic",
+     "data_vencimento": "2031-03-01",
+     "data_base": "2026-10-15",
+     "taxa_compra_nosso": 0.09,
+     "taxa_compra_fonte": 0.09,
+     "taxa_compra_dif": 1.387778781e-17,
+     "taxa_venda_nosso": 0.1,
+     "taxa_venda_fonte": 0.1,
+     "taxa_venda_dif": 0.0,
+     "pu_compra_nosso": 20017.83,
+     "pu_compra_fonte": 20017.83,
+     "pu_compra_dif": 0.0,
+     "pu_venda_nosso": 19998.86,
+     "pu_venda_fonte": 19998.86,
+     "pu_venda_dif": 0.0
+    }
+   ],
+   "divergencias": [],
+   "exemplos_so_nosso": [],
+   "exemplos_so_fonte": [],
+   "verificado_em": "2026-10-17T10:19:05Z"
+  }
+ },
+ "alertas": [],
+ "avaliado_em": "2026-10-17T12:10:35Z"
+}

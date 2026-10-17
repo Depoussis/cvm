@@ -71,6 +71,7 @@ Visual clean (claro/escuro). **Navegação no topo** (`st.navigation(position="t
 | Fundos ▸ Fundos imobiliários | `paginas/fii.py` | rankings de FII (cotistas, PL, caixa, DY), segmentos |
 | Fundos ▸ Análise de fundo | `paginas/analise.py` | pesquisa por nome, ticker ou CNPJ; rentabilidade contra a Selic |
 | Plataforma ▸ Operação e qualidade | `paginas/operacao.py` | reconciliação, frescura, execuções, regras de qualidade |
+| Plataforma ▸ Validação externa | `paginas/validacao.py` | resultado da validação semanal (`validacao.json` do snapshot), consulta, fonte e diferenças de cada verificação |
 
 A faixa por baixo do menu mostra a data do snapshot e as fontes. Código em `app/` (`streamlit_app.py`, `paginas/`,
 `painel/`); tema em `.streamlit/config.toml`.

@@ -101,3 +101,28 @@ CREATE TABLE IF NOT EXISTS ${catalog}.bronze.b3_proventos_dinheiro (
 )
 USING DELTA
 COMMENT 'B3: dividendos e JCP por ação (GetListedCashDividends), histórico completo, por execução';
+
+CREATE TABLE IF NOT EXISTS ${catalog}.bronze.b3_fii_rendimentos (
+  fundo                STRING    COMMENT 'Raiz de 4 letras do ticker do FII (identifierFund)',
+  ativo_emitido        STRING,
+  isin                 STRING,
+  valor                STRING,
+  tipo_provento        STRING,
+  data_com             STRING,
+  data_pagamento       STRING,
+  data_aprovacao       STRING,
+  referencia           STRING,
+  observacoes          STRING,
+  _source_system       STRING    NOT NULL,
+  _source_entity       STRING    NOT NULL,
+  _source_url          STRING    NOT NULL,
+  _source_file_path    STRING    NOT NULL,
+  _file_hash           STRING    NOT NULL,
+  _record_hash         STRING    NOT NULL,
+  _request_start       DATE,
+  _request_end         DATE,
+  _ingestion_timestamp TIMESTAMP NOT NULL,
+  _pipeline_run_id     STRING    NOT NULL
+)
+USING DELTA
+COMMENT 'B3: rendimentos exatos por cota dos FII (cashDividends de GetListedSupplementFunds, ~12 meses), por execução';

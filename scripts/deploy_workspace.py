@@ -15,6 +15,7 @@ import io
 import os
 import logging
 import sys
+import uuid
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -134,23 +135,32 @@ def main() -> None:
     args.fonte = args.fonte or sorted(JOBS)
     cfg = carregar_ambiente(args.env)
     w = WorkspaceClient(host=cfg["databricks"]["host"], auth_type="azure-cli")
-    # No CD (identidade do Azure DevOps), o e-mail dos alertas e o dono das execuções vêm de variáveis do pipeline,
-    # para não ficarem no repositório; localmente usa-se o utilizador com sessão iniciada.
-    email = os.environ.get("FINDATA_ALERT_EMAIL") or w.current_user.me().user_name
-    run_as = os.environ.get("FINDATA_RUN_AS")
+    # E-mail dos alertas e dono das execuções: variáveis de ambiente se existirem (para não ficarem no repositório);
+    # senão, os do job já existente (o CD corre com uma identidade de serviço, que não tem e-mail nem deve passar a
+    # ser a dona das execuções); num job novo, o utilizador com sessão iniciada.
+    email_env = os.environ.get("FINDATA_ALERT_EMAIL")
+    run_as_env = os.environ.get("FINDATA_RUN_AS")
+    email_local = None
     destino = f"/Workspace/Shared/findata_{args.env}"
     log.info("%d ficheiros publicados em %s", publicar_codigo(w, destino), destino)
 
     for fonte in args.fonte:
+        existente = next(iter(w.jobs.list(name=NOME_JOB.format(env=args.env, fonte=fonte))), None)
+        atual = w.jobs.get(existente.job_id) if existente else None
+        email = email_env or _email_existente(atual)
+        if not email:
+            email_local = email_local or w.current_user.me().user_name
+            email = email_local
         definicao = definicao_job(args.env, destino, cfg, email, fonte)
+        run_as = run_as_env or (atual.run_as_user_name if atual else None)
         if run_as:
-            definicao["run_as"] = jobs.JobRunAs(user_name=run_as)
-        existente = next(iter(w.jobs.list(name=definicao["name"])), None)
+            definicao["run_as"] = (jobs.JobRunAs(service_principal_name=run_as) if _e_uuid(run_as)
+                                   else jobs.JobRunAs(user_name=run_as))
         if existente:
             # mantém o estado do agendamento (ativado à mão na interface) em vez de voltar a pausar
-            atual = w.jobs.get(existente.job_id).settings.schedule
-            if atual and atual.pause_status:
-                definicao["schedule"].pause_status = atual.pause_status
+            agenda = atual.settings.schedule
+            if agenda and agenda.pause_status:
+                definicao["schedule"].pause_status = agenda.pause_status
             w.jobs.reset(existente.job_id, jobs.JobSettings(**definicao))
             job_id = existente.job_id
             log.info("job %s atualizado (id %s), agendamento %s", definicao["name"], job_id,
@@ -161,6 +171,19 @@ def main() -> None:
         if args.run:
             run = w.jobs.run_now(job_id, job_parameters={"run_mode": args.run})
             log.info("execução %s disparada: %s/jobs/%s/runs/%s", args.run, cfg["databricks"]["host"], job_id, run.run_id)
+
+def _email_existente(job) -> str | None:
+    n = job.settings.email_notifications if job else None
+    return n.on_failure[0] if n and n.on_failure else None
+
+
+def _e_uuid(texto: str) -> bool:
+    try:
+        uuid.UUID(texto)
+        return True
+    except ValueError:
+        return False
+
 
 if __name__ == "__main__":
     main()

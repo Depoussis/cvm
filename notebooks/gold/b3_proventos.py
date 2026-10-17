@@ -46,8 +46,23 @@ acoes AS (
   FROM {k}.silver.b3_provento s
   JOIN papel pa ON pa.emissor = s.emissor AND pa.tipo_acao = s.tipo_acao
 ),
--- FII: rendimento por cota = DY do mês x cota patrimonial (informe mensal da CVM). Conferido com os valores exatos da
--- B3 nos meses em que existem (diferença < 1 %). Data com = último pregão do mês de referência.
+-- FII, valor exato: rendimentos por cota publicados pela B3 (silver.b3_fii_rendimento, acumulada desde 17/10/2026
+-- com os ~12 meses que a API devolve). Mês de referência pelo texto da B3 ("SETEMBRO 2026/2026", "Dezembro/2025", "Março-2026/2026"), senão a data com.
+fii_b3 AS (
+  SELECT a.ticker, substr(a.ticker, 1, 4) AS emissor, 'CI' AS tipo_acao, concat(r.tipo_provento, ' FII (B3)') AS tipo_provento,
+         r.data_com, r.data_aprovacao, r.valor_por_cota AS valor_por_acao, r.parcela,
+         CASE WHEN r.mes BETWEEN 1 AND 12 AND r.ano BETWEEN 1990 AND 2100 THEN make_date(r.ano, r.mes, 1)
+              ELSE trunc(r.data_com, 'MM') END AS mes_referencia
+  FROM (SELECT *, CAST(array_position(array('JANEIRO', 'FEVEREIRO', 'MARCO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO',
+                                            'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'),
+                                      translate(regexp_extract(upper(referencia), '^([A-ZÇ]+)', 1), 'Ç', 'C')) AS INT) AS mes,
+               try_cast(regexp_extract(referencia, '([0-9]{{4}})', 1) AS INT) AS ano
+        FROM {k}.silver.b3_fii_rendimento) r
+  JOIN {k}.gold.dim_ativo_b3 a ON a.isin = r.isin AND a.classe_ativo = 'FII'
+  WHERE r.valor_por_cota > 0
+),
+-- FII, estimativa: rendimento por cota = DY do mês x cota patrimonial (informe mensal da CVM), só nos meses sem o
+-- valor exato da B3. Data com = último pregão do mês de referência. Validação em docs/validacao_dados.md.
 fii AS (
   SELECT a.ticker, substr(a.ticker, 1, 4) AS emissor, 'CI' AS tipo_acao, 'RENDIMENTO FII (CVM)' AS tipo_provento,
          (SELECT max(c.data_pregao) FROM {k}.gold.fct_cotacao_diaria c
@@ -57,9 +72,12 @@ fii AS (
          1 AS parcela
   FROM {k}.silver.cvm_fii_mensal m
   JOIN {k}.gold.dim_ativo_b3 a ON a.cnpj_emissor = m.cnpj_classe AND a.classe_ativo = 'FII'
+  LEFT ANTI JOIN (SELECT DISTINCT ticker, mes_referencia FROM fii_b3) x
+    ON x.ticker = a.ticker AND x.mes_referencia = m.data_referencia
   WHERE m.dividend_yield_mes > 0 AND m.dividend_yield_mes < 0.5 AND m.valor_patrimonial_cota > 0
 ),
-p AS (SELECT * FROM acoes UNION ALL SELECT * FROM fii WHERE data_com IS NOT NULL),
+p AS (SELECT * FROM acoes UNION ALL SELECT * FROM fii WHERE data_com IS NOT NULL
+      UNION ALL SELECT * EXCEPT (mes_referencia) FROM fii_b3),
 c AS (SELECT ticker, data_pregao, preco_fechamento, fator_evento FROM {k}.gold.fct_cotacao_diaria)
 SELECT p.ticker, p.emissor, p.tipo_acao, p.tipo_provento, p.data_com,
        -- só com histórico de cotações até à data com: antes dele, o "primeiro pregão depois" seria o início da série

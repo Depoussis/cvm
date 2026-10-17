@@ -1,0 +1,49 @@
+# CI: testes unitários, compilação do Bicep e JSON do ADF em cada push e pull request. Não toca no Azure.
+# O deploy é o workflow cd.yml (só main). Ver docs/cicd.md.
+name: CI
+
+on:
+  push:
+    paths-ignore: ["docs/**", "*.md"]
+  pull_request:
+    branches: [main]
+  workflow_call:        # reutilizado pelo cd.yml antes do deploy
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Testes unitários (sem Spark nem rede)
+        run: python -m pytest -q --junitxml=testes.xml
+
+      - name: Compilar Bicep
+        run: |
+          for f in infrastructure/bicep/main.bicep infrastructure/bicep/monitoring.bicep \
+                   infrastructure/bicep/modules/rbac.bicep; do
+            az bicep build --file "$f" --stdout > /dev/null && echo "ok $f"
+          done
+
+      - name: Resumo
+        if: always()
+        run: |
+          python - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          s = ET.parse("testes.xml").getroot()
+          s = s if s.tag == "testsuite" else s[0]
+          print(f"**Testes:** {s.get('tests')} · falhas {s.get('failures')} · erros {s.get('errors')} · "
+                f"{float(s.get('time')):.1f} s")
+          EOF

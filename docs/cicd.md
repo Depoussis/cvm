@@ -1,15 +1,44 @@
-# CI/CD no Azure DevOps (Fase 7)
+# CI/CD (Fase 7)
+
+Desde 17/10/2026 o CI/CD corre no **GitHub Actions**, no mesmo repositório (`Depoussis/cvm`). O Azure DevOps
+(`azure-pipelines.yml`, mais abaixo) continua definido, mas parado: a organização nova não tem execuções gratuitas
+até a Microsoft aprovar o pedido de paralelismo. Os passos e os scripts são os mesmos nos dois.
+
+```text
+push / pull request ──► ci.yml: pytest (sem Spark nem rede) · compilação Bicep
+push em main ────────► cd.yml (só se mudar código, SQL, config ou pipelines):
+                         ci.yml → apply_sql (tabelas/vistas) → deploy_workspace (código e jobs Databricks)
+                         → deploy_adf (linked service, pipelines, gatilhos) → deploy_dashboard
+                         → smoke_test (testes de integração no Databricks)
+dias úteis 23:00 ───► exportar_painel.yml (snapshot do painel, branch painel-dados)
+domingo 07:00 ──────► validar_fontes.yml (validação contra fontes externas; falha = alerta por e-mail)
+```
+
+| Workflow | Identidade (OIDC, sem segredos) | Permissões |
+|---|---|---|
+| `ci.yml` | nenhuma | só leitura do repositório |
+| `cd.yml` | aplicação de deploy `27dd81ac-…` (a mesma da service connection `sc-findata-dev`) | Contributor em `rg-findata-dev`, permissões de deploy no Unity Catalog |
+| `exportar_painel.yml`, `validar_fontes.yml` | `findata-painel-github` (`40452b47-…`) | só leitura no catálogo, `CAN_USE` no SQL Warehouse |
+
+O deploy não muda agendamentos (gatilhos do ADF iniciados ficam iniciados, jobs mantêm a pausa), nem o dono das
+execuções e o e-mail de alertas dos jobs existentes: `deploy_workspace.py` reaproveita-os do job atual quando não há
+`FINDATA_ALERT_EMAIL` / `FINDATA_RUN_AS`.
+
+### Passo único: credencial federada da aplicação de deploy
+O GitHub só obtém token para a aplicação de deploy se ela confiar no branch `main` deste repositório. O subject
+usa os identificadores numéricos do dono e do repositório (formato dos repositórios novos do GitHub):
+
+```bash
+az ad app federated-credential create --id 27dd81ac-d529-4b9d-910a-0108ea25f5b2 --parameters '{"name":"github-cvm-main","issuer":"https://token.actions.githubusercontent.com","subject":"repo:Depoussis@288774958/cvm@1422145072:ref:refs/heads/main","audiences":["api://AzureADTokenExchange"]}'
+```
+
+Sem ela, o `cd.yml` falha no passo "Login no Azure" (os testes correm na mesma). O `cd.yml` não usa
+`environment:` porque isso mudaria o subject do token.
+
+# Azure DevOps (alternativa, parada)
 
 Organização **felipecoelho05**, projeto **findata**; código em GitHub `Depoussis/cvm`; definição em
 `azure-pipelines.yml`.
-
-```text
-push / pull request ──► CI: pytest (44 testes, sem Spark nem rede) · compilação Bicep · JSON do ADF · painel
-push em main ────────► CD (ambiente findata-dev):
-                         apply_sql (tabelas/vistas) → deploy_workspace (código e jobs Databricks)
-                         → deploy_adf (linked service, pipelines, gatilhos) → deploy_dashboard
-                         → smoke_test (testes de integração no Databricks)
-```
 
 ## Decisões
 - **Azure DevOps a ler do GitHub** (pedido do projeto): o código fica no GitHub; o Azure Pipelines é o motor de

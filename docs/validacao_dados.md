@@ -75,10 +75,10 @@ abaixo: antes dela, faltavam 17 bonificações.
   - **RENT3:** o Yahoo não aplica a bonificação de 12/2025 que a B3 publica.
   - **BBDC4:** o Yahoo aplica um ajuste próprio de 0,17 %.
   - **PETR4:** em 22/11/2022 o Yahoo só tem R$ 1,75 dos R$ 3,35 por ação anunciados pela Petrobras.
-- **FII:** a plataforma **estima** o rendimento pelo informe mensal da CVM (DY × cota patrimonial). Por isso a
-  comparação é feita por mês e só se espera proximidade. A mediana da razão fica entre 0,99 e 1,00, mas há meses com
-  mais de 1 % de diferença (MXRF11, XPML11). Isto é uma limitação conhecida: o valor exato só existe na B3, e apenas
-  para cerca de 12 meses.
+- **FII:** a 17/10/2026, a plataforma passou a usar o **valor exato da B3** nos últimos ~12 meses; esses meses
+  batem com o Yahoo. Para trás fica a **estimativa** pelo informe mensal da CVM (DY × cota patrimonial), comparada
+  por mês: a mediana da razão fica perto de 1, mas há meses com mais de 1 % de diferença (MXRF11, XPML11). O
+  histórico exato cresce a cada carga semanal ([simulador.md](simulador.md)).
 
 ![Proventos](img/validacao/proventos.png)
 
@@ -106,6 +106,33 @@ foram corrigidos e verificados de novo.
 Também foi corrigido um problema menor nos proventos anteriores a 2021, ano em que começa o histórico de cotações.
 Esses proventos ficavam com data ex 04/01/2021 e passaram a não ter data ex. O simulador não era afetado, porque usa
 a data com.
+
+## Validação semanal automática
+
+Todos os domingos às 07:00 (Brasília), o workflow `.github/workflows/validar_fontes.yml` faz quatro passos:
+1. corre `validar_fontes.py --limites` com a identidade de só leitura do painel;
+2. regenera o relatório;
+3. grava `docs/validacao/` no `main`;
+4. falha se algum limite de `config/validacao.yaml` for ultrapassado. Nesse caso o GitHub avisa o dono do
+   repositório por e-mail.
+
+A exportação de domingo, uma hora depois, leva o resultado para a página **Plataforma ▸ Validação externa** do
+painel.
+
+![Página Validação externa](img/validacao_painel.png)
+
+| Limite | Porquê |
+|---|---|
+| PTAX e IPCA a 100 %; Tesouro a 99,99 % | mesma fonte ou fonte oficial sem convenções diferentes |
+| Selic ≥ 99,5 %, fundos ≥ 99 % | feriados; correções da CVM entre a carga e a validação |
+| Ibovespa ≥ 90 %, cotações ≥ 97 % e **100 % iguais ao ficheiro da B3 nos dias diferentes** | erros conhecidos do Yahoo |
+| Eventos: 100 % e **0 bonificações suspeitas** | um evento só no Yahoo com o fecho da B3 compatível é uma bonificação que a B3 não publicou: entra em `config/datasets/b3_eventos_complementares.yaml` |
+| Proventos de ações: ≥ 85 % a 1 % | RENT3 e BBDC4 têm convenções diferentes no Yahoo |
+
+Também se testou um detetor de bonificações só a partir dos preços: uma queda perto de 1/(1+p) no dia em que muda
+o número de distribuição do COTAHIST, descontados os dividendos. Dava dezenas de falsos positivos por mês, porque os
+dias de dividendos e as quedas normais de 3–5 % também cumprem a condição. Por isso o alerta usa a comparação com o
+Yahoo, que nas 100 ações mais negociadas teve 66 de 66 eventos iguais e nenhum falso positivo.
 
 ## Limites desta validação
 

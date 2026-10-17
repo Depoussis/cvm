@@ -1,0 +1,87 @@
+# Validação semanal contra fontes externas (scripts/validar_fontes.py): compara a gold com IBGE, Copom, Yahoo
+# Finance e os ficheiros originais da CVM, do Tesouro e da B3, avalia os limites de config/validacao.yaml e grava
+# docs/validacao/ no main. A exportação de domingo (exportar_painel.yml, 1 h depois) leva o resultado para a
+# página "Validação externa" do painel.
+#
+# Alerta: com limites ultrapassados (ex.: uma bonificação nova que a B3 não publicou), o workflow falha DEPOIS de
+# gravar o resultado, e o GitHub avisa o dono do repositório por e-mail. Ver docs/validacao_dados.md.
+#
+# Identidade: findata-painel-github (só leitura no catálogo e CAN_USE no SQL Warehouse), como a exportação.
+name: Validar fontes
+
+on:
+  schedule:
+    - cron: "0 10 * * 0"     # domingo 07:00 de Brasília (pl_findata_semanal corre às 06:00)
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: write    # commit de docs/validacao/ no main
+
+concurrency:
+  group: validar-fontes
+  cancel-in-progress: false
+
+env:
+  AZURE_CLIENT_ID: 40452b47-a510-4a92-8108-89cc2f8a908e   # findata-painel-github (identificador, não é segredo)
+  AZURE_TENANT_ID: 84d8c417-9aa6-4451-bac3-7430e18b2b93
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Dependências
+        run: pip install -r requirements.txt pandas==3.0.6 pyarrow==26.0.0
+
+      - name: Login no Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Validar
+        id: validar
+        continue-on-error: true      # o resultado é gravado mesmo com alertas; a falha vem no último passo
+        run: python scripts/validar_fontes.py --env dev --limites
+
+      - name: Relatório
+        run: python scripts/relatorio_validacao.py
+
+      - name: Gravar no main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/validacao/
+          git diff --cached --quiet && exit 0
+          git commit -m "Validação semanal contra fontes externas ($(date -u +%F))"
+          git push
+
+      - name: Resumo
+        if: always()
+        run: |
+          python - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          r = json.load(open("docs/validacao/resultado.json", encoding="utf-8"))
+          print("| Verificação | Comparados | Iguais |\n|---|---|---|")
+          for n, v in r["verificacoes"].items():
+              if "erro" in v:
+                  print(f"| {n} | erro | {v['erro'][:80]} |")
+              else:
+                  print(f"| {n} | {v['comparados']} | {100 * v['iguais'] / max(v['comparados'], 1):.2f} % |")
+          print("\n**Alertas:** " + ("; ".join(r.get("alertas", [])) or "nenhum"))
+          EOF
+
+      - name: Falhar se houver alertas
+        if: steps.validar.outcome == 'failure'
+        run: |
+          echo "::error::Validação contra fontes externas com alertas (ver o resumo e docs/validacao/resultado.json)"
+          exit 1

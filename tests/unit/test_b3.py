@@ -163,3 +163,18 @@ def test_regras_de_contas_dos_fundamentos():
     assert py(f.RE_PL).search("Patrimônio Líquido Consolidado") and py(f.RE_NAO_CONTROLADORES).search(
         "Participação dos Acionistas Não Controladores")
     assert py(f.RE_CAIXA).search("Caixa e Equivalentes de Caixa") and py(f.RE_CAIXA).search("Aplicações Financeiras")
+
+
+def test_fii_url_e_registo_dos_rendimentos_exatos():
+    import base64, json
+    from src.ingestion.b3 import proventos as pv
+    u = pv.url_fundo("KNCR")
+    assert "/fundsProxy/fundsCall/GetListedSupplementFunds/" in u
+    assert json.loads(base64.b64decode(u.rsplit("/", 1)[1])) == {"cnpj": "0", "identifierFund": "KNCR", "typeFund": 7}
+    x = {"assetIssued": "BRKNCRCTF000", "paymentDate": "14/10/2026", "rate": "1,13000000000",
+         "relatedTo": "SETEMBRO 2026/2026", "approvedOn": "30/09/2026", "isinCode": "BRKNCRCTF000",
+         "label": "RENDIMENTO", "lastDatePrior": "30/09/2026", "remarks": ""}
+    assert not pv.chaves_em_falta(x, pv.CHAVES_FII)
+    r = pv.registo("fii", x, fundo="KNCR")
+    assert r["fundo"] == "KNCR" and r["isin"] == "BRKNCRCTF000" and r["data_com"] == "30/09/2026"
+    assert pv.numero(r["valor"]) == pv.numero("1,13") and r["referencia"] == "SETEMBRO 2026/2026"

@@ -243,7 +243,7 @@ encontrados e corrigidos durante os testes, estão no fim.
 | TD-16 | Yield de evento acima de 30 % | rever | 9 casos (ex.: CEBR5 31 % em 2021, CASH3 2024), regra INFO `yield_evento_suspeito` |
 | TD-17 | Heurística contra eventos oficiais | eventos detetados | **38 de 105** desdobramentos/grupamentos desde 2021 não detetados e nenhuma bonificação (D-06). Ex.: VAMO3 1:4 (razão 0,228, fora da tolerância), CMIG4 +30 % (−23 % no preço), EGIE3 +40 %, ITUB4 +3 %, BBDC4 +10 % |
 | TD-18 | Cobertura de fundamentos nas features | maioria das linhas | 9 930 de 12 594 com lucro/valor de mercado (2 664 sem fundamentos: empresas sem DFP/ITR ligadas ao ticker ou meses iniciais) |
-| TD-19 | Resultados do backtest plausíveis | AUC entre 0,5 e ~0,6 (mais alto seria suspeito) | AUC 0,523 / 0,568 / 0,556; IC 0,04 / 0,13 / 0,11 |
+| TD-19 | Resultados do backtest plausíveis | AUC entre 0,5 e ~0,6 (mais alto seria suspeito) | AUC 0,526 / 0,571 / 0,556; IC 0,04 / 0,14 / 0,10 (v2, 17/10/2026) |
 
 ## Painel
 

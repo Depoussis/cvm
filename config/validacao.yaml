@@ -1,0 +1,17 @@
+# Limites da validação semanal contra fontes externas (scripts/validar_fontes.py --limites; workflow
+# .github/workflows/validar_fontes.yml). Abaixo do limite, o workflow falha e o GitHub avisa por e-mail.
+# Valores a partir da validação de 17/10/2026 (docs/validacao_dados.md), com margem para as diferenças explicadas
+# (convenções do Yahoo, feriados, revisões da CVM depois da carga).
+#
+# min_iguais_pct: % mínima de linhas iguais (dentro da tolerância de cada verificação)
+# metrica: outra medida do resultado em vez de iguais/comparados (ver scripts/validar_fontes.py, METRICAS)
+limites:
+  ptax:      {min_iguais_pct: 100}
+  ipca:      {min_iguais_pct: 100}
+  tesouro:   {min_iguais_pct: 99.99}
+  selic:     {min_iguais_pct: 99.5}
+  fundos:    {min_iguais_pct: 99.0}      # revisões da CVM entre a carga e a validação
+  indices:   {min_iguais_pct: 90}        # o Yahoo tem fechos errados (desempate com o BOVA11)
+  cotacoes:  {min_iguais_pct: 97, metrica: plataforma_igual_b3_pct, min_metrica: 100}
+  eventos:   {min_iguais_pct: 100, metrica: bonificacoes_suspeitas, max_metrica: 0}
+  proventos: {metrica: acoes_ate_1pct_pct, min_metrica: 85}

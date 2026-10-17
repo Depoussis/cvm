@@ -40,9 +40,19 @@ Nos meses em que a B3 publica o valor exato, a estimativa da CVM coincide, com d
 | HGLG11 | 07/2026 | 1,1688 | 1,17 |
 | HGLG11 | 08/2026 | 1,1661 | 1,17 |
 
-As datas com coincidem com as da B3 (KNCR11: 29/05, 30/06, 31/07 e 31/08/2026). A API de fundos da B3 só devolve
-cerca de 12 meses, e com registos repetidos, por isso o histórico vem da CVM. FII que informam DY = 0 à CVM (cerca
-de 40 %) ficam sem rendimentos no simulador.
+As datas com coincidem com as da B3 (KNCR11: 29/05, 30/06, 31/07 e 31/08/2026).
+
+**Desde 17/10/2026, a gold usa o valor exato da B3** sempre que ele existe (`silver.b3_fii_rendimento`, tipo
+`RENDIMENTO FII (B3)` em `gold.fct_provento`). A estimativa da CVM (`RENDIMENTO FII (CVM)`) fica só para os meses
+sem valor da B3.
+
+A API de fundos da B3 (`GetListedSupplementFunds`) só devolve cerca de 12 meses. A carga semanal guarda o que
+recebe e a silver nunca apaga, por isso o histórico exato cresce a partir de outubro de 2025. Há duas razões para
+preferir o valor exato:
+- **Precisão:** a validação contra o Yahoo ([validacao_dados.md](validacao_dados.md)) mostrou meses com mais de 1 %
+  de diferença na estimativa (MXRF11, XPML11).
+- **Cobertura:** os FII que informam DY = 0 à CVM (cerca de 40 %) passam a ter rendimentos nos meses em que a B3 os
+  publica.
 
 ## IR na venda (quadro "Resumo da simulação")
 

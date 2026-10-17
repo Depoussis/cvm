@@ -59,3 +59,26 @@ CREATE TABLE IF NOT EXISTS ${catalog}.silver.b3_empresa (
 )
 USING DELTA
 COMMENT 'B3: empresas com ações negociadas, CNPJ e número de ações (SCD1, última carga)';
+
+-- FII: rendimentos exatos por cota da B3. A API só devolve ~12 meses; como o MERGE nunca apaga, o histórico exato
+-- cresce a cada carga semanal (desde 17/10/2026, com os 12 meses anteriores). A gold usa-os em vez da estimativa da CVM.
+CREATE TABLE IF NOT EXISTS ${catalog}.silver.b3_fii_rendimento (
+  isin             STRING         NOT NULL COMMENT 'ISIN da cota (recibos de subscrição têm ISIN próprio)',
+  fundo            STRING         NOT NULL,
+  tipo_provento    STRING         NOT NULL COMMENT 'RENDIMENTO, AMORTIZACAO, ...',
+  data_com         DATE           NOT NULL,
+  valor_por_cota   DECIMAL(24, 11) NOT NULL,
+  parcela          INT            NOT NULL COMMENT 'Linhas iguais na fonte = parcelas (1, 2, ...)',
+  data_pagamento   DATE,
+  data_aprovacao   DATE,
+  referencia       STRING         COMMENT 'Ex.: SETEMBRO 2026/2026',
+  record_hash      STRING         NOT NULL,
+  _inserted_at     TIMESTAMP      NOT NULL,
+  _updated_at      TIMESTAMP      NOT NULL,
+  _pipeline_run_id STRING         NOT NULL,
+  CONSTRAINT pk_b3_fii_rendimento PRIMARY KEY (isin, tipo_provento, data_com, valor_por_cota, parcela) NOT ENFORCED
+)
+USING DELTA
+CLUSTER BY (isin, data_com)
+COMMENT 'B3: rendimentos exatos por cota dos FII (SCD1, acumulado: a fonte só tem ~12 meses)'
+TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true');

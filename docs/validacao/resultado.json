@@ -1187,88 +1187,91 @@
     ],
     "periodo": "04/01/2021 a 15/10/2026"
    },
-   "verificado_em": "2026-10-17T10:15:52Z"
+   "verificado_em": "2026-10-17T10:15:52Z",
+   "metricas": {
+    "plataforma_igual_b3_pct": 100.0
+   }
   },
   "proventos": {
    "titulo": "Proventos (dividendos, JCP e rendimentos de FII)",
    "tabela": "findata_dev.gold.fct_provento",
    "sql": "SELECT ticker, classe_ativo,\n       CASE WHEN classe_ativo = 'FII' THEN trunc(data_com, 'MM') ELSE data_ex END AS data_ex,\n       round(sum(valor_ajustado), 6) AS valor\n  FROM findata_dev.gold.fct_provento JOIN findata_dev.gold.dim_ativo_b3 USING (ticker)\n WHERE ticker IN ('PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'BBAS3', 'ABEV3', 'WEGE3', 'B3SA3', 'MGLU3', 'RENT3', 'SUZB3', 'PETR3', 'KNCR11', 'HGLG11', 'MXRF11', 'XPML11', 'BOVA11', 'IVVB11', 'SMAL11', 'HASH11') AND data_ex >= DATE'2021-01-05'\n GROUP BY ALL",
    "fonte": "Yahoo Finance (eventos de dividendos)",
-   "url": "https://query1.finance.yahoo.com/v8/finance/chart/PETR4.SA?period1=1609718400&period2=1792233660&interval=1d&events=div%7Csplit",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/PETR4.SA?period1=1609718400&period2=1792239027&interval=1d&events=div%7Csplit",
    "independente": true,
    "chave": [
     "ticker",
     "data_ex"
    ],
-   "comparados": 602,
-   "iguais": 353,
-   "diferentes": 249,
-   "so_nosso": 60,
-   "so_fonte": 4,
+   "comparados": 606,
+   "iguais": 384,
+   "diferentes": 222,
+   "so_nosso": 61,
+   "so_fonte": 0,
    "colunas": {
     "valor": {
      "max_dif": 1.600192,
      "tolerancia": 0.0005,
-     "diferentes": 249
+     "diferentes": 222
     }
    },
    "rotulos": {},
    "amostra": [
     {
      "ticker": "XPML11",
-     "data_ex": "2025-12-01",
-     "valor_nosso": 1.293599,
-     "valor_fonte": 0.91984,
-     "valor_dif": 0.373759
+     "data_ex": "2026-01-01",
+     "valor_nosso": 0.92,
+     "valor_fonte": 0.92,
+     "valor_dif": 0.0
     },
     {
      "ticker": "XPML11",
      "data_ex": "2026-02-01",
-     "valor_nosso": 0.302991,
+     "valor_nosso": 0.92,
      "valor_fonte": 0.92,
-     "valor_dif": -0.617009
+     "valor_dif": 0.0
     },
     {
      "ticker": "XPML11",
      "data_ex": "2026-03-01",
-     "valor_nosso": 0.363182,
+     "valor_nosso": 0.92,
      "valor_fonte": 0.92,
-     "valor_dif": -0.556818
+     "valor_dif": 0.0
     },
     {
      "ticker": "XPML11",
      "data_ex": "2026-04-01",
-     "valor_nosso": 0.857555,
+     "valor_nosso": 0.92,
      "valor_fonte": 0.92,
-     "valor_dif": -0.062445
+     "valor_dif": 0.0
     },
     {
      "ticker": "XPML11",
      "data_ex": "2026-05-01",
-     "valor_nosso": 1.468742,
+     "valor_nosso": 0.92,
      "valor_fonte": 0.92,
-     "valor_dif": 0.548742
+     "valor_dif": 0.0
     },
     {
      "ticker": "XPML11",
      "data_ex": "2026-06-01",
-     "valor_nosso": 0.857555,
+     "valor_nosso": 0.92,
      "valor_fonte": 0.92,
-     "valor_dif": -0.062445
+     "valor_dif": 0.0
     },
     {
      "ticker": "XPML11",
      "data_ex": "2026-07-01",
-     "valor_nosso": 0.857555,
+     "valor_nosso": 0.92,
      "valor_fonte": 0.92,
-     "valor_dif": -0.062445
+     "valor_dif": 0.0
     },
     {
      "ticker": "XPML11",
      "data_ex": "2026-08-01",
-     "valor_nosso": 0.857555,
+     "valor_nosso": 0.92,
      "valor_fonte": 0.95,
-     "valor_dif": -0.092445
+     "valor_dif": -0.03
     }
    ],
    "divergencias": [
@@ -1420,29 +1423,12 @@
      "data_ex": "2021-06-01"
     }
    ],
-   "exemplos_so_fonte": [
-    {
-     "ticker": "HGLG11",
-     "data_ex": "2026-09-01"
-    },
-    {
-     "ticker": "KNCR11",
-     "data_ex": "2026-09-01"
-    },
-    {
-     "ticker": "MXRF11",
-     "data_ex": "2026-09-01"
-    },
-    {
-     "ticker": "XPML11",
-     "data_ex": "2026-01-01"
-    }
-   ],
+   "exemplos_so_fonte": [],
    "relativo": {
-    "ate_1pct": 462,
-    "ate_5pct": 537,
-    "acima_5pct": 65,
-    "total": 602
+    "ate_1pct": 486,
+    "ate_5pct": 557,
+    "acima_5pct": 49,
+    "total": 606
    },
    "por_ticker": [
     {
@@ -1479,10 +1465,10 @@
     },
     {
      "ticker": "HGLG11",
-     "comparados": 54,
-     "iguais": 4,
-     "ate_1pct": 39,
-     "razao_mediana": 0.9998,
+     "comparados": 55,
+     "iguais": 15,
+     "ate_1pct": 42,
+     "razao_mediana": 1.0,
      "classe": "FII"
     },
     {
@@ -1495,10 +1481,10 @@
     },
     {
      "ticker": "KNCR11",
-     "comparados": 54,
+     "comparados": 55,
      "iguais": 1,
-     "ate_1pct": 51,
-     "razao_mediana": 1.0045,
+     "ate_1pct": 53,
+     "razao_mediana": 1.0044,
      "classe": "FII"
     },
     {
@@ -1511,10 +1497,10 @@
     },
     {
      "ticker": "MXRF11",
-     "comparados": 53,
-     "iguais": 3,
-     "ate_1pct": 8,
-     "razao_mediana": 0.9924,
+     "comparados": 54,
+     "iguais": 13,
+     "ate_1pct": 17,
+     "razao_mediana": 1.0008,
      "classe": "FII"
     },
     {
@@ -1567,21 +1553,24 @@
     },
     {
      "ticker": "XPML11",
-     "comparados": 54,
-     "iguais": 0,
-     "ate_1pct": 6,
-     "razao_mediana": 0.9999,
+     "comparados": 55,
+     "iguais": 10,
+     "ate_1pct": 16,
+     "razao_mediana": 1.0,
      "classe": "FII"
     }
    ],
-   "verificado_em": "2026-10-17T10:41:07Z"
+   "verificado_em": "2026-10-17T12:10:24Z",
+   "metricas": {
+    "acoes_ate_1pct_pct": 92.50645994832041
+   }
   },
   "eventos": {
    "titulo": "Desdobramentos, grupamentos e bonificações (100 ações mais negociadas)",
    "tabela": "findata_dev.gold.fct_cotacao_diaria",
    "sql": "WITH top AS (\n  SELECT ticker FROM findata_dev.gold.fct_cotacao_diaria\n   WHERE classe_ativo = 'Ação' AND data_pregao >= add_months(current_date(), -12)\n   GROUP BY ticker ORDER BY sum(volume) DESC LIMIT 100)\nSELECT c.ticker, c.data_pregao AS data_ex, c.fator_evento, c.retorno_dia, c.preco_fechamento,\n       lag(c.preco_fechamento) OVER (PARTITION BY c.ticker ORDER BY c.data_pregao) AS fecho_anterior\n  FROM findata_dev.gold.fct_cotacao_diaria c JOIN top USING (ticker)",
    "fonte": "Yahoo Finance (eventos 'split')",
-   "url": "https://query1.finance.yahoo.com/v8/finance/chart/ABEV3.SA?period1=1609804800&period2=1792232156&interval=1d&events=split",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/ABEV3.SA?period1=1609804800&period2=1792235926&interval=1d&events=split",
    "independente": true,
    "chave": [
     "ticker",
@@ -1684,8 +1673,12 @@
     }
    ],
    "so_yahoo_detalhe": [],
+   "bonificacoes_suspeitas": 0,
    "tickers": 100,
-   "verificado_em": "2026-10-17T10:16:36Z"
+   "verificado_em": "2026-10-17T11:18:43Z",
+   "metricas": {
+    "bonificacoes_suspeitas": 0
+   }
   },
   "indices": {
    "titulo": "Ibovespa (fecho diário)",
@@ -2507,5 +2500,7 @@
    "exemplos_so_fonte": [],
    "verificado_em": "2026-10-17T10:19:05Z"
   }
- }
+ },
+ "alertas": [],
+ "avaliado_em": "2026-10-17T12:10:35Z"
 }

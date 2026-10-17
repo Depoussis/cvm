@@ -67,7 +67,7 @@ ADLS Gen2 · Key Vault · Log Analytics / Azure Monitor · Bicep · GitHub Actio
 | Índices B3 e Tesouro Direto | 4 índices desde 2015; 177 mil preços/taxas desde 2004 |
 | Testes | 85 testes unitários (pytest) + 63 casos de integração documentados |
 | Validação externa | ~770 mil linhas comparadas com IBGE, Copom, Yahoo Finance e ficheiros originais ([relatório](docs/validacao_dados.md)) |
-| Modelo (37 meses fora da amostra) | AUC 0,556, IC 0,11 (t = 5,5); carteira top 10 +46,6 % vs universo +9,4 % |
+| Modelo (37 meses fora da amostra) | gradient boosting (em produção): AUC 0,556, IC 0,10 (t = 5,6), carteira top 10 +28,4 %; logística +50,2 %; universo +11,1 %, BOVA11 +47,9 % |
 | Custo | ~19 € em cargas iniciais; recorrente esperado 6–10 €/mês ([custos](docs/cost_estimation.md)) |
 
 ## Painel (Streamlit)
@@ -80,7 +80,8 @@ ADLS Gen2 · Key Vault · Log Analytics / Azure Monitor · Bicep · GitHub Actio
 | Simulador ▸ Um papel | compra numa data ao preço da época: eventos, proventos, IR na venda, total líquido |
 | Simulador ▸ Carteira com aportes | vários papéis e aportes mensais: TIR, ganho acima do IPCA, CDI, Tesouro, BOVA11, IBOV e IFIX com os mesmos aportes |
 | Fundos | fundos de investimento, FII e análise de um fundo contra a Selic |
-| Plataforma | execuções, qualidade, frescura e reconciliação |
+| Plataforma ▸ Operação e qualidade | execuções, qualidade, frescura e reconciliação |
+| Plataforma ▸ Validação externa | comparação semanal com IBGE, Copom, Yahoo Finance e ficheiros originais |
 
 ## Estado
 
@@ -99,7 +100,8 @@ ADLS Gen2 · Key Vault · Log Analytics / Azure Monitor · Bicep · GitHub Actio
 | 6b. Modelo preditivo | Ranking de ações: point-in-time, walk-forward, backtest, MLflow, acompanhamento ao vivo | experimental, ver [docs/modelo_preditivo.md](docs/modelo_preditivo.md) |
 | 6c. Simulador | Um papel e carteira com aportes: eventos, proventos, IR, TIR, IPCA, comparações | concluída, ver [docs/simulador.md](docs/simulador.md) |
 | 6d. Atualização automática | GitHub Action (OIDC) exporta o snapshot às 23:00 para o branch `painel-dados` | concluída, ver [docs/analytics.md](docs/analytics.md) |
-| 7. Produção | CI/CD, segurança, monitorização, custos, DR | em curso: CI/CD no Azure DevOps ([docs/cicd.md](docs/cicd.md)), custos ([docs/cost_estimation.md](docs/cost_estimation.md)) |
+| 6e. Validação externa | Comparação semanal com fontes externas, limites e alertas; 3 erros da B3 corrigidos | concluída, ver [docs/validacao_dados.md](docs/validacao_dados.md) |
+| 7. Produção | CI/CD, segurança, monitorização, custos, DR | em curso: CI/CD no GitHub Actions ([docs/cicd.md](docs/cicd.md)), custos ([docs/cost_estimation.md](docs/cost_estimation.md)) |
 
 Fases 1 a 6 concluídas entre 15 e 16/10/2026.
 

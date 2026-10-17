@@ -34,9 +34,10 @@ NOTAS = {
     "proventos": "Ações: ABEV3, B3SA3, ITUB4, SUZB3, VALE3 e WEGE3 batem a 100 %. RENT3 difere em 3,7 % constantes: a "
                  "plataforma ajusta à bonificação de 12/2025 publicada pela B3 e o Yahoo não. BBDC4 difere 0,17 % "
                  "(ajuste próprio do Yahoo). PETR4 em 22/11/2022: a plataforma tem R$ 3,35 por ação (dividendo de "
-                 "R$ 1,60 + R$ 1,16 + JCP), como anunciado pela Petrobras; o Yahoo só R$ 1,75. FII: a plataforma "
-                 "estima o rendimento pelo informe mensal da CVM (DY x cota patrimonial), por isso compara-se por mês "
-                 "e só se espera proximidade (mediana da razão 0,99 a 1,00), não igualdade.",
+                 "R$ 1,60 + R$ 1,16 + JCP), como anunciado pela Petrobras; o Yahoo só R$ 1,75. FII: desde 17/10/2026 "
+                 "a plataforma usa o valor exato da B3 nos últimos ~12 meses (iguais ao Yahoo); antes disso, a "
+                 "estimativa pelo informe mensal da CVM (DY x cota patrimonial), por isso compara-se por mês e só se "
+                 "espera proximidade.",
     "eventos": "Os 66 desdobramentos, grupamentos e bonificações das 100 ações mais negociadas desde 2021 têm o mesmo "
                "fator que no Yahoo, depois da correção de 17/10/2026 (17 bonificações que faltavam na API da B3). Os "
                "4 só da plataforma são eventos oficiais recentes da B3 (AXIA, CYRE3, RENT3) que o Yahoo não tem.",
@@ -141,7 +142,7 @@ VEREDITOS = {
     "ptax": "igual", "selic": "diferenças só em feriados; igual à API SGS", "ipca": "igual",
     "indices": "diferenças são erros do Yahoo (desempate BOVA11)",
     "cotacoes": "diferenças são erros do Yahoo (58/58 iguais ao ficheiro da B3)",
-    "eventos": "igual depois da correção de 17/10", "proventos": "ações iguais salvo convenções do Yahoo; FII estimados",
+    "eventos": "igual depois da correção de 17/10", "proventos": "ações iguais salvo convenções do Yahoo; FII exatos desde 10/2025",
     "fundos": "diferenças são revisões da CVM depois da carga", "tesouro": "igual",
 }
 

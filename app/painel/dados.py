@@ -58,6 +58,8 @@ def _sincronizar() -> Path:
         novo.mkdir(parents=True)
         for nome in meta_remoto["linhas"]:
             (novo / f"{nome}.parquet").write_bytes(_baixar(f"{REMOTO}/{nome}.parquet"))
+        for nome in meta_remoto.get("ficheiros", []):     # outros ficheiros do snapshot (ex.: validacao.json)
+            (novo / nome).write_bytes(_baixar(f"{REMOTO}/{nome}"))
         (novo / "_meta.json").write_text(json.dumps(meta_remoto), encoding="utf-8")   # por último: marca completo
         shutil.rmtree(CACHE, ignore_errors=True)
         novo.rename(CACHE)
@@ -104,6 +106,12 @@ def _ler_meta(caminho: str, versao: float) -> dict:
 
 def meta() -> dict:
     caminho = pasta() / "_meta.json"
+    return _ler_meta(str(caminho), _versao(caminho))
+
+
+def validacao() -> dict:
+    """Resultado da validação semanal contra fontes externas (vazio se o snapshot ainda não o tiver)."""
+    caminho = pasta() / "validacao.json"
     return _ler_meta(str(caminho), _versao(caminho))
 
 
