@@ -3,12 +3,13 @@
 # MAGIC # Gold · B3
 # MAGIC - Bloqueia a publicação se a execução tiver falhas de qualidade CRITICAL/HIGH.
 # MAGIC - `dim_ativo_b3`: papéis da silver com o emissor da CVM (ações pelo FCA, FII pelo ISIN do informe mensal).
-# MAGIC - `fct_cotacao_diaria`: incremental pelo **Change Data Feed** de duas tabelas silver (streams `availableNow`):
-# MAGIC   cotações (tickers com pregões novos ou corrigidos) e eventos oficiais da B3 (tickers com desdobramentos,
-# MAGIC   grupamentos ou bonificações novos). Só esses tickers são recalculados; `reprocess` reconstrói tudo.
-# MAGIC - Fator de evento: oficial da B3 nas ações cobertas; heurística (variação perto de um fator inteiro quando muda
-# MAGIC   a distribuição) em FII e ETF. Ver src/gold/cotacoes.py e docs/streaming.md. Dividendos não entram no preço
-# MAGIC   ajustado (estão em `fct_provento`).
+# MAGIC - `fct_evento_acao`: fator de evento por ticker e data ex (B3, complementares e heurística; src/gold/eventos.py),
+# MAGIC   recalculado de raiz em cada execução. Os tickers cujos eventos mudaram (por qualquer origem, incluindo o yaml
+# MAGIC   complementar) são recalculados na `fct_cotacao_diaria` desde o primeiro evento alterado.
+# MAGIC - `fct_cotacao_diaria`: incremental pelo **Change Data Feed** da silver de cotações (stream `availableNow`):
+# MAGIC   só os tickers com pregões novos ou corrigidos são recalculados; `reprocess` reconstrói tudo. O fator de evento
+# MAGIC   vem da `fct_evento_acao` (src/gold/cotacoes.py, docs/streaming.md). Dividendos não entram no preço ajustado
+# MAGIC   (estão em `fct_provento`).
 
 # COMMAND ----------
 
@@ -28,6 +29,7 @@ print(p)
 from src.audit import control
 from pyspark.sql import functions as F
 
+from src.gold import eventos
 from src.gold.cotacoes import calculo
 from src.quality import rules as dq
 
@@ -93,10 +95,9 @@ LEFT JOIN fii ON fii.codigo_isin = c.isin AND c.classe_ativo = 'FII'
 """
 
 SILVER = f"{k}.silver.b3_cotacao_diaria"
-EVENTOS = f"{k}.silver.b3_evento_acao"
+EVENTOS = f"{k}.{eventos.TABELA}"
 FCT = f"{k}.gold.fct_cotacao_diaria"
 CHECKPOINT = f"/Volumes/{k}/ops/checkpoints/gold_b3_fct_cotacao"
-CHECKPOINT_EVENTOS = f"/Volumes/{k}/ops/checkpoints/gold_b3_eventos_oficiais"
 
 
 def reconstruir() -> int:
@@ -145,13 +146,13 @@ def aplicar_cotacoes(lote, lote_id: int) -> None:
     recalcular(lote.sparkSession, lote_id)
 
 
-def aplicar_eventos(lote, lote_id: int) -> None:
-    """Lote do CDF dos eventos oficiais (carga semanal de proventos): recalcula o ticker desde a data com."""
-    lote.where("_change_type IN ('insert', 'update_postimage', 'delete')").createOrReplaceTempView("_cdf_eventos")
-    s = lote.sparkSession
-    s.sql(f"""SELECT a.ticker, min(e.data_com) AS d0 FROM _cdf_eventos e
-              JOIN {k}.gold.dim_ativo_b3 a ON a.isin = e.isin GROUP BY a.ticker""").createOrReplaceTempView("_cdf_afetados")
-    recalcular(s, lote_id)
+def atualizar_eventos() -> list:
+    """Recalcula a fct_evento_acao de raiz e devolve os tickers (com a primeira data ex) cujos eventos mudaram."""
+    # a vista só lê a silver e a configuração (não a própria tabela), por isso pode ser lida antes e depois
+    spark.sql(eventos.sql_eventos(k)).createOrReplaceTempView("_eventos_novos")
+    alterados = spark.sql(eventos.sql_alterados(k, "_eventos_novos")).collect()   # antes de reescrever a tabela
+    spark.sql(f"INSERT OVERWRITE {EVENTOS} SELECT * FROM _eventos_novos")
+    return alterados
 
 
 def versao(tabela: str) -> int:
@@ -188,17 +189,25 @@ try:
     contagens.inserted += n
     print(f"gold.dim_ativo_b3: {n} linhas")
 
+    primeira_vez = spark.table(EVENTOS).isEmpty()
+    alterados = atualizar_eventos()
+    print(f"gold.fct_evento_acao: {spark.table(EVENTOS).count()} eventos; {len(alterados)} tickers com eventos alterados")
+    contagens.updated += len(alterados)
+
     v0 = versao(FCT)
     ultima = p.run_mode == "reprocess"
     if ultima:
-        # reconstrói tudo e recomeça os dois streams: os checkpoints novos só leem alterações posteriores
+        # reconstrói tudo e recomeça o stream: o checkpoint novo só lê alterações posteriores
         dbutils.fs.rm(CHECKPOINT, True)
-        dbutils.fs.rm(CHECKPOINT_EVENTOS, True)
         print(f"gold.fct_cotacao_diaria: reconstruída, {reconstruir()} linhas")
     # Sem checkpoint, o CDF entrega a tabela inteira como inserts (equivale a reconstruir os tickers afetados);
     # depois, só as alterações desde a última execução.
     stream_cdf(SILVER, aplicar_cotacoes, CHECKPOINT, "gold_b3_fct_cotacao", ultima)
-    stream_cdf(EVENTOS, aplicar_eventos, CHECKPOINT_EVENTOS, "gold_b3_eventos_oficiais", ultima)
+    # eventos alterados (B3, yaml complementar ou heurística): recalcula esses tickers desde o primeiro evento mudado.
+    # Na primeira execução a tabela de eventos nasce igual ao que as cotações já tinham (verificado em 17/10/2026).
+    if alterados and not ultima and not primeira_vez:
+        spark.createDataFrame(alterados).createOrReplaceTempView("_cdf_afetados")
+        recalcular(spark, 0)
     fct_stats = estatisticas(v0)
     print(f"gold.fct_cotacao_diaria (Change Data Feed): {fct_stats}")
     contagens.inserted += fct_stats["inseridas"]
@@ -212,10 +221,13 @@ try:
                  f"SELECT count(*) FROM {fct}"),
         dq.Regra("dim_ativo_chave_unica", "Um registo por ticker", "CRITICAL", dim,
                  f"SELECT ticker, count(*) n FROM {dim} GROUP BY 1 HAVING n > 1", f"SELECT count(*) FROM {dim}"),
-        # Só para revisão: os eventos detetados pela heurística (desdobramentos e grupamentos)
-        dq.Regra("eventos_detetados", "Desdobramentos/grupamentos detetados (fator aplicado ao preço ajustado)", "INFO",
-                 fct, f"SELECT ticker, data_pregao, fator_evento FROM {fct} WHERE fator_evento <> 1 "
-                      f"ORDER BY data_pregao DESC", f"SELECT count(DISTINCT ticker) FROM {fct}"),
+        # Só para revisão: os eventos aplicados (origem B3, complementar ou heurística)
+        dq.Regra("eventos_detetados", "Desdobramentos/grupamentos/bonificações aplicados ao preço ajustado", "INFO",
+                 EVENTOS, f"SELECT ticker, data_ex, fator, origem, detalhe FROM {EVENTOS} WHERE abs(fator - 1) > 1e-9 "
+                          f"ORDER BY data_ex DESC", f"SELECT count(DISTINCT ticker) FROM {fct}"),
+        dq.Regra("evento_chave_unica", "Um evento por (ticker, data ex)", "CRITICAL", EVENTOS,
+                 f"SELECT ticker, data_ex, count(*) n FROM {EVENTOS} GROUP BY ALL HAVING n > 1",
+                 f"SELECT count(*) FROM {EVENTOS}"),
         dq.Regra("retorno_diario_extremo", "Retorno diário acima de ±50 % depois do ajuste (evento não detetado?)",
                  "INFO", fct, f"SELECT ticker, data_pregao, retorno_dia FROM {fct} WHERE abs(retorno_dia) > 0.5 "
                               f"ORDER BY data_pregao DESC", f"SELECT count(*) FROM {fct} WHERE retorno_dia IS NOT NULL"),

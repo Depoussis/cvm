@@ -1,68 +1,20 @@
-"""Cálculo da gold de cotações da B3 (retorno, eventos, preço ajustado), partilhado pelo notebook gold/b3 e pelos
-testes de integração (que comparam a carga incremental com uma reconstrução completa).
+"""Cálculo da gold de cotações da B3 (retorno, preço ajustado), partilhado pelo notebook gold/b3 e pelos testes de
+integração (que comparam a carga incremental com uma reconstrução completa).
 
-Fator de evento de cada pregão (preço depois = preço antes x fator, sem variação de mercado):
-- **Ações de emissores com eventos oficiais da B3** (`silver.b3_evento_acao`, ligados ao ticker pelo ISIN):
-  desdobramento f % → 1 / (1 + f/100); bonificação f % → 1 / (1 + f/100); grupamento f (fração) → 1 / f. Vários
-  eventos com a mesma data ex multiplicam-se (ex.: desdobramento 9900 % + grupamento 0,01 = 1). Data ex = primeiro
-  pregão do papel depois da data com.
-- **Bonificações em falta na API da B3** (config/datasets/b3_eventos_complementares.yaml) entram como eventos
-  oficiais de todas as ações do emissor.
-- **Restantes papéis (FII, ETF, ações sem dados oficiais):** heurística sobre a própria série (variação do fecho perto
-  de um fator inteiro no pregão em que muda o número de distribuição).
+O fator de evento de cada pregão vem de `gold.fct_evento_acao` (src/gold/eventos.py, o único sítio com as regras de
+desdobramentos, grupamentos e bonificações); aqui só se aplica: retorno do dia sem o efeito do evento e preço
+ajustado aos eventos posteriores.
 """
 from __future__ import annotations
 
-from src.common.config import carregar_yaml
+from src.gold.eventos import TABELA as TABELA_EVENTOS
 
 # tolerância relativa ao comparar preços ajustados calculados por caminhos diferentes (vírgula flutuante)
 TOLERANCIA = 1e-9
-EVENTOS_OFICIAIS = ("DESDOBRAMENTO", "GRUPAMENTO", "BONIFICACAO")
-
-
-def bonificacoes_complementares() -> list[dict]:
-    """Bonificações que a B3 não publica na API (config/datasets/b3_eventos_complementares.yaml)."""
-    linhas = carregar_yaml("datasets/b3_eventos_complementares.yaml").get("bonificacoes") or []
-    for b in linhas:
-        if not (len(str(b["emissor"])) == 4 and float(b["percentual"]) > 0):
-            raise ValueError(f"bonificação complementar inválida: {b}")
-    return linhas
-
-
-def sql_fator_oficial(k: str) -> str:
-    """Fator de preço de cada evento oficial (B3 mais as bonificações complementares), por ticker e data com."""
-    tipos = ", ".join(f"'{t}'" for t in EVENTOS_OFICIAIS)
-    valores = ", ".join(f"('{b['emissor']}', DATE'{b['data_com']}', {float(b['percentual'])})"
-                        for b in bonificacoes_complementares()) or "(NULL, NULL, NULL)"
-    b3 = f"""
-  SELECT a.ticker, o.data_com, o.tipo_evento, CAST(o.fator AS DOUBLE) AS fator
-  FROM {k}.silver.b3_evento_acao o
-  JOIN {k}.gold.dim_ativo_b3 a ON a.isin = o.isin
-  WHERE o.tipo_evento IN ({tipos}) AND o.fator > 0"""
-    return f"""
-SELECT ticker, data_com,
-       exp(sum(ln(CASE WHEN tipo_evento = 'GRUPAMENTO' THEN 1.0 / fator
-                       ELSE 1.0 / (1.0 + fator / 100.0) END))) AS fator_oficial
-FROM ({b3}
-  UNION ALL
-  -- complementares: todas as ações e units do emissor; ignoradas se a B3 já tiver evento nessa data com
-  SELECT a.ticker, c.data_com, 'BONIFICACAO' AS tipo_evento, CAST(c.percentual AS DOUBLE) AS fator
-  FROM (VALUES {valores}) AS c(emissor, data_com, percentual)
-  JOIN {k}.gold.dim_ativo_b3 a ON substr(a.ticker, 1, 4) = c.emissor AND a.classe_ativo = 'Ação'
-  LEFT ANTI JOIN ({b3}) o ON o.ticker = a.ticker AND o.data_com = c.data_com
-) eventos
-GROUP BY ticker, data_com"""
-
-
-def sql_cobertura_oficial(k: str) -> str:
-    """Tickers cujos eventos vêm da B3: ações de emissores presentes na carga de proventos."""
-    return f"""
-SELECT a.ticker FROM {k}.gold.dim_ativo_b3 a
-WHERE a.classe_ativo = 'Ação' AND substr(a.ticker, 1, 4) IN (SELECT emissor FROM {k}.silver.b3_empresa)"""
 
 
 def calculo(k: str, fonte: str, filtro_final: str) -> str:
-    """Retorno diário, fator de evento e preço ajustado sobre `fonte` (linhas da silver com a coluna d0).
+    """Retorno diário e preço ajustado (fator de `gold.fct_evento_acao`) sobre `fonte` (silver com a coluna d0).
 
     O preço ajustado desconta os fatores dos pregões seguintes dentro de `fonte`, por isso `fonte` tem de ir até ao
     último pregão de cada ticker. O primeiro pregão de `fonte` só serve de "fecho anterior" e é cortado por
@@ -70,41 +22,16 @@ def calculo(k: str, fonte: str, filtro_final: str) -> str:
     """
     return f"""
 WITH b AS (
-  SELECT s.*, lag(preco_fechamento) OVER w AS fecho_anterior, lag(distribuicao) OVER w AS distribuicao_anterior,
-         lag(data_pregao) OVER w AS pregao_anterior
+  SELECT s.*, lag(preco_fechamento) OVER w AS fecho_anterior
   FROM ({fonte}) s
   WHERE coalesce(especificacao, '') NOT LIKE 'IBO%'   -- IBOV11: cesta do Ibovespa, não é uma ação
   WINDOW w AS (PARTITION BY ticker ORDER BY data_pregao)
 ),
-oficial AS ({sql_fator_oficial(k)}),
-cobertura AS ({sql_cobertura_oficial(k)}),
-ex AS (           -- evento oficial → pregão em que entra (primeiro depois da data com)
-  SELECT b.ticker, b.data_pregao, exp(sum(ln(o.fator_oficial))) AS fator_oficial
-  FROM b JOIN oficial o ON o.ticker = b.ticker AND o.data_com >= b.pregao_anterior AND o.data_com < b.data_pregao
-  GROUP BY b.ticker, b.data_pregao
-),
-r AS (
-  SELECT b.*, ex.fator_oficial, cob.ticker IS NOT NULL AS tem_oficial,
+f AS (
+  SELECT b.*, coalesce(e.fator, 1.0) AS fator_evento,
          CASE WHEN fecho_anterior > 0 AND preco_fechamento > 0
               THEN CAST(preco_fechamento AS DOUBLE) / CAST(fecho_anterior AS DOUBLE) END AS razao
-  FROM b
-  LEFT JOIN ex ON ex.ticker = b.ticker AND ex.data_pregao = b.data_pregao
-  LEFT JOIN cobertura cob ON cob.ticker = b.ticker
-),
-cand AS (
-  -- heurística: fator inteiro mais próximo, 1/k para desdobramentos (preço cai k vezes), k para grupamentos
-  SELECT r.*, CASE WHEN razao < 0.6 THEN 1.0 / round(1.0 / razao)
-                   WHEN razao > 1.6 THEN round(razao) END AS candidato
-  FROM r
-),
-f AS (
-  SELECT cand.*,
-         CASE WHEN fator_oficial IS NOT NULL THEN fator_oficial
-              WHEN tem_oficial THEN 1.0
-              WHEN candidato BETWEEN 0.001 AND 1000 AND distribuicao <> distribuicao_anterior
-                   AND abs(razao / candidato - 1) <= 0.08 THEN CAST(candidato AS DOUBLE)
-              ELSE 1.0 END AS fator_evento
-  FROM cand
+  FROM b LEFT JOIN {k}.{TABELA_EVENTOS} e ON e.ticker = b.ticker AND e.data_ex = b.data_pregao
 ),
 g AS (
   SELECT ticker, data_pregao, CAST(date_format(data_pregao, 'yyyyMMdd') AS INT) AS data_key, classe_ativo,

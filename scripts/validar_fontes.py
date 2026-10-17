@@ -303,7 +303,13 @@ def v_eventos(q, k) -> dict:
            f"  FROM {k}.gold.fct_cotacao_diaria c JOIN top USING (ticker)")
     todos = q(sql)
     todos["data_ex"] = pd.to_datetime(todos["data_ex"])
-    nosso = todos[(todos["fator_evento"] - 1).abs() > 1e-9][["ticker", "data_ex", "fator_evento"]]
+    # os eventos vêm da tabela única de eventos (src/gold/eventos.py), com a origem de cada um
+    sql_ev = (f"SELECT ticker, data_ex, fator AS fator_evento, origem FROM {k}.gold.fct_evento_acao\n"
+              " WHERE abs(fator - 1) > 1e-9")
+    ev = q(sql_ev)
+    ev["data_ex"] = pd.to_datetime(ev["data_ex"])
+    ev = ev[ev["ticker"].isin(set(todos["ticker"]))]
+    nosso = ev[["ticker", "data_ex", "fator_evento"]]
     linhas, url = [], None
     for t in sorted(todos["ticker"].unique()):
         p1 = int(datetime(2021, 1, 5, tzinfo=timezone.utc).timestamp())
@@ -334,8 +340,9 @@ def v_eventos(q, k) -> dict:
                                          .to_json(orient="records", force_ascii=False))
     res["bonificacoes_suspeitas"] = int(so_y["suspeita"].sum())
     res["tickers"] = int(todos["ticker"].nunique())
+    res["por_origem"] = {o: int(n) for o, n in ev["origem"].value_counts().items()}
     return {"titulo": "Desdobramentos, grupamentos e bonificações (100 ações mais negociadas)",
-            "tabela": f"{k}.gold.fct_cotacao_diaria", "sql": sql, "fonte": "Yahoo Finance (eventos 'split')",
+            "tabela": f"{k}.gold.fct_evento_acao", "sql": sql_ev, "fonte": "Yahoo Finance (eventos 'split')",
             "url": url, "independente": True, "chave": ["ticker", "data_ex"], **res}
 
 

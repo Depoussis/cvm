@@ -62,18 +62,25 @@ execução são lidas depois:
 
 Ficam em `control.pipeline_execution.parameters`.
 
-### Segundo stream: eventos oficiais da B3
+### Eventos: tabela única em vez de um segundo stream (desde 17/10/2026)
 
-Desde a integração dos proventos ([fundamentos.md](fundamentos.md)), o fator de evento das ações vem de
-`silver.b3_evento_acao`, que é carregada semanalmente e também tem CDF. Um segundo stream na mesma tarefa
-(`aplicar_eventos`, checkpoint `ops/checkpoints/gold_b3_eventos_oficiais`) faz o seguinte:
-1. lê os eventos novos ou alterados;
-2. liga-os ao ticker pelo ISIN;
-3. recalcula esses tickers a partir da data com, com a mesma função `recalcular` do stream de cotações.
+O fator de evento tem um só dono: `src/gold/eventos.py`, que produz `gold.fct_evento_acao`. A tabela tem uma linha
+por ticker e data ex, com o fator, a origem (B3, complementar ou heurística) e o detalhe. Em cada execução da
+`gold_b3`, a tarefa faz quatro passos:
+1. calcula a tabela de raiz a partir da silver e de `config/datasets/b3_eventos_complementares.yaml` (cerca de 400
+   linhas);
+2. compara-a com a versão anterior (`sql_alterados`): os tickers com eventos novos, removidos ou alterados, por
+   qualquer origem, recebem a primeira data ex afetada;
+3. reescreve a tabela;
+4. recalcula esses tickers a partir dessa data, com a mesma função `recalcular` do stream de cotações.
 
-Assim, um desdobramento ou bonificação publicado na carga de domingo reajusta o histórico do papel na execução
-seguinte, sem reconstruir a tabela. Em `reprocess`, os dois checkpoints são apagados e recomeçam em
-`startingVersion = latest`, depois da reconstrução completa.
+Isto substituiu o antigo segundo stream sobre o CDF de `silver.b3_evento_acao`, que só via mudanças da B3. Uma
+mudança no yaml complementar obrigava a um `reprocess` à mão. As cotações limitam-se a ler o fator
+(`LEFT JOIN fct_evento_acao`). O mesmo fazem o `fator_posterior` dos proventos e a validação externa.
+
+Na migração, a tabela foi gerada e o cálculo novo foi comparado com a gold existente: deu zero diferenças nas 2,9 M
+linhas. O teste de integração repete essa comparação em cada deploy, mais seis casos reais (Itaú e Bradesco
+complementares, MGLU3, RENT3).
 
 ## Como foi verificado
 

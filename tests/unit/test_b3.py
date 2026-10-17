@@ -99,23 +99,28 @@ def test_calculo_gold_reutilizado_pela_carga_incremental_e_pela_verificacao():
     sql = calculo("cat", "SELECT * FROM s", "data_pregao >= d0")
     assert "FROM (SELECT * FROM s) s" in sql and sql.rstrip().endswith("WHERE data_pregao >= d0")
     assert "NOT LIKE 'IBO%'" in sql
-    # eventos oficiais da B3 têm prioridade sobre a heurística
-    assert "cat.silver.b3_evento_acao" in sql and "WHEN fator_oficial IS NOT NULL THEN fator_oficial" in sql
-    assert "1.0 / (1.0 + fator / 100.0)" in sql      # desdobramento/bonificação em %
-    assert "1.0 / fator" in sql                      # grupamento em fração
+    # o fator de evento só vem da tabela de eventos: as cotações não têm regras de eventos próprias
+    assert "LEFT JOIN cat.gold.fct_evento_acao e ON e.ticker = b.ticker AND e.data_ex = b.data_pregao" in sql
+    assert "b3_evento_acao" not in sql and "candidato" not in sql
     dif = sql_diferencas("cat")
     assert "FULL OUTER JOIN cat.gold.fct_cotacao_diaria" in dif and "FROM cat.silver.b3_cotacao_diaria" in dif
 
 
-def test_bonificacoes_complementares_entram_como_eventos_oficiais():
-    from src.gold.cotacoes import bonificacoes_complementares, sql_fator_oficial
+def test_eventos_juntam_b3_complementares_e_heuristica_num_so_sitio():
+    from src.gold.eventos import bonificacoes_complementares, sql_alterados, sql_eventos
     linhas = bonificacoes_complementares()
     # bonificação de 10 % do Itaú (data com 17/03/2025) que a API da B3 não lista
     assert {"emissor": "ITUB", "data_com": date(2025, 3, 17), "percentual": 10} in linhas
     assert len({(b["emissor"], b["data_com"]) for b in linhas}) == len(linhas)
-    sql = sql_fator_oficial("cat")
+    sql = sql_eventos("cat")
     assert "('ITUB', DATE'2025-03-17', 10.0)" in sql
-    assert "LEFT ANTI JOIN" in sql      # se a B3 publicar o mesmo evento, vale o oficial
+    assert "cat.silver.b3_evento_acao" in sql and "'complementar' AS origem" in sql and "'heurística' AS origem" in sql
+    assert "1.0 / (1.0 + fator / 100.0)" in sql and "1.0 / fator" in sql   # % (desdobr./bonif.) e fração (grup.)
+    # a heurística nunca corre em papéis com dados oficiais nem num pregão que já tem evento oficial
+    assert "FROM b LEFT ANTI JOIN cobertura c ON c.ticker = b.ticker" in sql
+    assert "LEFT ANTI JOIN oficial_ex o ON o.ticker = h.ticker AND o.data_ex = h.data_ex" in sql
+    alt = sql_alterados("cat", "_novos")
+    assert "FULL OUTER JOIN cat.gold.fct_evento_acao" in alt and "min(coalesce(n.data_ex, a.data_ex)) AS d0" in alt
 
 
 def test_proventos_urls_numeros_e_datas():

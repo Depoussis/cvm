@@ -134,6 +134,31 @@ if spark.catalog.tableExists(f"{k}.gold.fct_cotacao_diaria"):
     dif = spark.sql(sql_diferencas(k))
     verificar("gold B3 incremental (CDF) igual à reconstrução completa", dif.count(), 0)
 
+# Fator de evento (src/gold/eventos.py): a tabela tem de coincidir com um cálculo de raiz, e casos reais verificados
+# contra o fecho da B3 e o Yahoo Finance (docs/validacao_dados.md) têm de ter o fator e a origem certos.
+if spark.catalog.tableExists(f"{k}.gold.fct_evento_acao"):
+    from src.gold import eventos as ev
+    verificar("fct_evento_acao igual ao cálculo de raiz", spark.sql(ev.sql_diferencas(k)).count(), 0)
+    CASOS = [  # (ticker, data ex, fator, origem)
+        ("ITUB4", "2025-03-18", 1 / 1.1, "complementar"),   # bonificação 10 % que a API da B3 não lista
+        ("BBDC4", "2021-04-19", 1 / 1.1, "complementar"),
+        ("BBDC4", "2022-04-19", 1 / 1.1, "B3"),
+        ("ITUB4", "2025-12-26", 1 / 1.03, "B3"),
+        ("MGLU3", "2024-05-27", 10.0, "B3"),                # grupamento 10:1
+        ("RENT3", "2025-12-30", 1 / 1.0384609533429, "B3"),
+    ]
+    for ticker, data_ex, fator, origem in CASOS:
+        r = spark.sql(f"SELECT fator, origem FROM {k}.{ev.TABELA} WHERE ticker = '{ticker}' "
+                      f"AND data_ex = DATE'{data_ex}'").collect()
+        verificar(f"evento {ticker} {data_ex}", (round(r[0]["fator"], 6), r[0]["origem"]) if r else None,
+                  (round(fator, 6), origem))
+    # o fator das cotações é o da tabela de eventos (nenhum pregão com fator sem evento, nem evento sem pregão)
+    verificar("fator_evento das cotações = fct_evento_acao", spark.sql(f"""
+        SELECT count(*) FROM {k}.gold.fct_cotacao_diaria c FULL OUTER JOIN {k}.{ev.TABELA} e
+          ON e.ticker = c.ticker AND e.data_ex = c.data_pregao
+        WHERE (e.ticker IS NULL AND c.fator_evento <> 1) OR (e.ticker IS NOT NULL AND c.ticker IS NULL)
+           OR abs(coalesce(c.fator_evento, 1) - coalesce(e.fator, 1)) > 1e-12""").first()[0], 0)
+
 # COMMAND ----------
 
 falhas = [r for r in resultados if not r[1]]

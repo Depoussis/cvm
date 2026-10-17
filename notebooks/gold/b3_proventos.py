@@ -94,9 +94,10 @@ MERGE INTO {k}.gold.fct_provento t
 USING (
   SELECT f.ticker, f.tipo_provento, f.data_com, f.valor_por_acao,
          CAST(f.valor_por_acao AS DOUBLE) / nullif(CAST(f.fecho_data_com AS DOUBLE), 0) AS yield_evento,
-         coalesce(exp(sum(ln(c.fator_evento))), 1.0) AS fator_posterior
+         -- eventos depois da data com (src/gold/eventos.py): converte o valor para a base de ações de hoje
+         coalesce(exp(sum(ln(ev.fator))), 1.0) AS fator_posterior
   FROM {k}.gold.fct_provento f
-  LEFT JOIN {k}.gold.fct_cotacao_diaria c ON c.ticker = f.ticker AND c.data_pregao > f.data_com AND c.fator_evento <> 1
+  LEFT JOIN {k}.gold.fct_evento_acao ev ON ev.ticker = f.ticker AND ev.data_ex > f.data_com
   GROUP BY ALL
 ) s ON t.ticker = s.ticker AND t.tipo_provento = s.tipo_provento AND t.data_com = s.data_com
    AND t.valor_por_acao = s.valor_por_acao
@@ -126,17 +127,17 @@ try:
         dq.Regra("yield_evento_suspeito", "Yield de um evento acima de 30 % (valor ou preço errado?)", "INFO", fct,
                  f"SELECT ticker, data_com, valor_por_acao, fecho_data_com, yield_evento FROM {fct} "
                  f"WHERE yield_evento > 0.3", f"SELECT count(*) FROM {fct}"),
-        # Desdobramentos/grupamentos oficiais (B3) desde 2021 que a heurística da fct_cotacao_diaria não detetou
-        dq.Regra("evento_oficial_nao_detetado", "Desdobramento/grupamento oficial sem fator detetado nos 5 pregões "
+        # Desdobramentos/grupamentos oficiais (B3) desde 2021 sem linha na fct_evento_acao (ex.: ticker sem pregão)
+        dq.Regra("evento_oficial_nao_detetado", "Desdobramento/grupamento oficial sem evento aplicado nos 7 dias "
                  "seguintes à data com", "INFO", f"{k}.silver.b3_evento_acao",
                  f"""SELECT a.ticker, o.tipo_evento, o.data_com, o.fator
                      FROM {k}.silver.b3_evento_acao o
                      JOIN {k}.gold.dim_ativo_b3 a ON a.isin = o.isin
                      WHERE o.tipo_evento IN ('DESDOBRAMENTO', 'GRUPAMENTO') AND o.data_com >= DATE'2021-01-04'
                        AND o.data_com < (SELECT max(data_pregao) FROM {k}.gold.fct_cotacao_diaria)
-                       AND NOT EXISTS (SELECT 1 FROM {k}.gold.fct_cotacao_diaria c
-                                       WHERE c.ticker = a.ticker AND c.fator_evento <> 1
-                                         AND c.data_pregao > o.data_com AND c.data_pregao <= date_add(o.data_com, 7))""",
+                       AND NOT EXISTS (SELECT 1 FROM {k}.gold.fct_evento_acao ev
+                                       WHERE ev.ticker = a.ticker
+                                         AND ev.data_ex > o.data_com AND ev.data_ex <= date_add(o.data_com, 7))""",
                  f"""SELECT count(*) FROM {k}.silver.b3_evento_acao o JOIN {k}.gold.dim_ativo_b3 a ON a.isin = o.isin
                      WHERE o.tipo_evento IN ('DESDOBRAMENTO', 'GRUPAMENTO') AND o.data_com >= DATE'2021-01-04'"""),
     ]

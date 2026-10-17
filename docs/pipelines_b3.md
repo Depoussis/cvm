@@ -50,6 +50,10 @@ negócios esporádicos. Fica na silver e é excluída da gold, porque não é um
 
 ### Ajuste a desdobramentos e grupamentos
 
+> **Desde 17/10/2026** as regras abaixo vivem num só module, `src/gold/eventos.py`, que produz
+> `gold.fct_evento_acao` (ticker, data ex, fator, origem, detalhe). As cotações, os proventos e a validação leem essa
+> tabela. Ver [streaming.md](streaming.md).
+
 > **Atualização (16/10/2026):** nas ações, o fator passou a vir dos **eventos oficiais da B3**: desdobramentos,
 > grupamentos e também bonificações, que a heurística não tratava. A comparação mostrou que a heurística tinha
 > falhado 38 de 105 eventos desde 2021 e todas as bonificações. Em 17/10/2026 a validação externa mostrou que a
