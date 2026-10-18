@@ -5,7 +5,7 @@
    "tabela": "findata_dev.gold.fct_ptax_diario",
    "sql": "SELECT simbolo, data_cotacao, cotacao_compra, cotacao_venda\n  FROM findata_dev.gold.fct_ptax_diario\n WHERE simbolo IN ('USD', 'EUR') AND data_cotacao >= DATE'2015-01-01'",
    "fonte": "Banco Central, API Olinda (boletim de fechamento)",
-   "url": "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaPeriodo(moeda=@moeda,dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@moeda='USD'&@dataInicial='01-01-2015'&@dataFinalCotacao='10-17-2026'&$format=json&$filter=tipoBoletim%20eq%20'Fechamento'",
+   "url": "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaPeriodo(moeda=@moeda,dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@moeda='USD'&@dataInicial='01-01-2015'&@dataFinalCotacao='10-18-2026'&$format=json&$filter=tipoBoletim%20eq%20'Fechamento'",
    "independente": false,
    "chave": [
     "simbolo",
@@ -114,7 +114,7 @@
    "divergencias": [],
    "exemplos_so_nosso": [],
    "exemplos_so_fonte": [],
-   "verificado_em": "2026-10-17T10:14:17Z"
+   "verificado_em": "2026-10-18T13:46:59Z"
   },
   "selic": {
    "titulo": "Meta Selic (série SGS 432) contra as decisões do Copom",
@@ -355,7 +355,9 @@
      "nosso": 9.25
     }
    ],
-   "verificado_em": "2026-10-17T10:14:38Z"
+   "verificado_em": "2026-10-17T10:14:38Z",
+   "erro": "JSONDecodeError('Expecting value: line 1 column 1 (char 0)')",
+   "erro_em": "2026-10-18T13:47:19Z"
   },
   "ipca": {
    "titulo": "IPCA mensal (série SGS 433) contra o IBGE",
@@ -433,23 +435,23 @@
    "divergencias": [],
    "exemplos_so_nosso": [],
    "exemplos_so_fonte": [],
-   "verificado_em": "2026-10-17T10:14:40Z"
+   "verificado_em": "2026-10-18T13:47:48Z"
   },
   "cotacoes": {
    "titulo": "Cotações de 20 papéis (ações, FII e ETF)",
    "tabela": "findata_dev.gold.fct_cotacao_diaria",
    "sql": "SELECT ticker, data_pregao AS data, preco_fechamento, retorno_dia\n  FROM findata_dev.gold.fct_cotacao_diaria\n WHERE ticker IN ('PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'BBAS3', 'ABEV3', 'WEGE3', 'B3SA3', 'MGLU3', 'RENT3', 'SUZB3', 'PETR3', 'KNCR11', 'HGLG11', 'MXRF11', 'XPML11', 'BOVA11', 'IVVB11', 'SMAL11', 'HASH11')",
    "fonte": "Yahoo Finance (fecho diário; desdobramentos desfeitos para o fecho bruto)",
-   "url": "https://query1.finance.yahoo.com/v8/finance/chart/PETR4.SA?period1=1609718400&period2=1792232082&interval=1d&events=div%7Csplit",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/PETR4.SA?period1=1609718400&period2=1792331274&interval=1d&events=div%7Csplit",
    "independente": true,
    "chave": [
     "ticker",
     "data"
    ],
-   "comparados": 4941,
-   "iguais": 4883,
+   "comparados": 4956,
+   "iguais": 4898,
    "diferentes": 58,
-   "so_nosso": 19,
+   "so_nosso": 4,
    "so_fonte": 0,
    "colunas": {
     "preco_fechamento": {
@@ -626,18 +628,6 @@
    ],
    "exemplos_so_nosso": [
     {
-     "ticker": "B3SA3",
-     "data": "2026-08-10"
-    },
-    {
-     "ticker": "BBAS3",
-     "data": "2026-08-10"
-    },
-    {
-     "ticker": "BBDC4",
-     "data": "2026-08-10"
-    },
-    {
      "ticker": "BOVA11",
      "data": "2025-10-24"
     },
@@ -646,24 +636,12 @@
      "data": "2025-10-24"
     },
     {
-     "ticker": "HGLG11",
-     "data": "2026-08-10"
-    },
-    {
-     "ticker": "ITUB4",
-     "data": "2026-08-10"
-    },
-    {
      "ticker": "IVVB11",
      "data": "2025-10-24"
     },
     {
-     "ticker": "KNCR11",
-     "data": "2026-08-10"
-    },
-    {
-     "ticker": "MGLU3",
-     "data": "2026-08-10"
+     "ticker": "SMAL11",
+     "data": "2025-10-24"
     }
    ],
    "exemplos_so_fonte": [],
@@ -675,18 +653,18 @@
     },
     {
      "ticker": "B3SA3",
-     "comparados": 247,
-     "iguais": 245
+     "comparados": 248,
+     "iguais": 246
     },
     {
      "ticker": "BBAS3",
-     "comparados": 247,
-     "iguais": 245
+     "comparados": 248,
+     "iguais": 246
     },
     {
      "ticker": "BBDC4",
-     "comparados": 247,
-     "iguais": 239
+     "comparados": 248,
+     "iguais": 240
     },
     {
      "ticker": "BOVA11",
@@ -700,13 +678,13 @@
     },
     {
      "ticker": "HGLG11",
-     "comparados": 247,
-     "iguais": 246
+     "comparados": 248,
+     "iguais": 247
     },
     {
      "ticker": "ITUB4",
-     "comparados": 247,
-     "iguais": 246
+     "comparados": 248,
+     "iguais": 247
     },
     {
      "ticker": "IVVB11",
@@ -715,33 +693,33 @@
     },
     {
      "ticker": "KNCR11",
-     "comparados": 247,
-     "iguais": 240
+     "comparados": 248,
+     "iguais": 241
     },
     {
      "ticker": "MGLU3",
-     "comparados": 247,
-     "iguais": 246
+     "comparados": 248,
+     "iguais": 247
     },
     {
      "ticker": "MXRF11",
-     "comparados": 247,
-     "iguais": 242
+     "comparados": 248,
+     "iguais": 243
     },
     {
      "ticker": "PETR3",
-     "comparados": 247,
-     "iguais": 246
+     "comparados": 248,
+     "iguais": 247
     },
     {
      "ticker": "PETR4",
-     "comparados": 247,
-     "iguais": 242
+     "comparados": 248,
+     "iguais": 243
     },
     {
      "ticker": "RENT3",
-     "comparados": 247,
-     "iguais": 245
+     "comparados": 248,
+     "iguais": 246
     },
     {
      "ticker": "SMAL11",
@@ -750,23 +728,23 @@
     },
     {
      "ticker": "SUZB3",
-     "comparados": 247,
-     "iguais": 247
+     "comparados": 248,
+     "iguais": 248
     },
     {
      "ticker": "VALE3",
-     "comparados": 247,
-     "iguais": 243
+     "comparados": 248,
+     "iguais": 244
     },
     {
      "ticker": "WEGE3",
-     "comparados": 247,
-     "iguais": 245
+     "comparados": 248,
+     "iguais": 246
     },
     {
      "ticker": "XPML11",
-     "comparados": 247,
-     "iguais": 239
+     "comparados": 248,
+     "iguais": 240
     }
    ],
    "periodo": "16/10/2025 a 15/10/2026",
@@ -775,6 +753,13 @@
     "nosso_igual_ficheiro": 58,
     "yahoo_igual_ficheiro": 0,
     "exemplos": [
+     {
+      "ticker": "ITUB4",
+      "data": "2026-10-01",
+      "preco_fechamento_nosso": 44.15,
+      "preco_fechamento_fonte": 44.1399993896,
+      "b3_arquivo": 44.15
+     },
      {
       "ticker": "RENT3",
       "data": "2026-02-11",
@@ -790,32 +775,25 @@
       "b3_arquivo": 40.03
      },
      {
-      "ticker": "XPML11",
-      "data": "2026-01-22",
-      "preco_fechamento_nosso": 109.2,
-      "preco_fechamento_fonte": 109.1809921265,
-      "b3_arquivo": 109.2
-     },
-     {
-      "ticker": "XPML11",
-      "data": "2026-01-15",
-      "preco_fechamento_nosso": 110.51,
-      "preco_fechamento_fonte": 1.0690619946,
-      "b3_arquivo": 110.51
-     },
-     {
-      "ticker": "HGLG11",
+      "ticker": "BBAS3",
       "data": "2026-10-01",
-      "preco_fechamento_nosso": 146.99,
-      "preco_fechamento_fonte": 146.8000030518,
-      "b3_arquivo": 146.99
+      "preco_fechamento_nosso": 23.02,
+      "preco_fechamento_fonte": 23.0799999237,
+      "b3_arquivo": 23.02
      },
      {
-      "ticker": "XPML11",
-      "data": "2026-01-16",
-      "preco_fechamento_nosso": 110.0,
-      "preco_fechamento_fonte": 1.0641280413,
-      "b3_arquivo": 110.0
+      "ticker": "BBAS3",
+      "data": "2026-03-13",
+      "preco_fechamento_nosso": 23.81,
+      "preco_fechamento_fonte": 23.75,
+      "b3_arquivo": 23.81
+     },
+     {
+      "ticker": "B3SA3",
+      "data": "2026-06-24",
+      "preco_fechamento_nosso": 14.97,
+      "preco_fechamento_fonte": 15.029999733,
+      "b3_arquivo": 14.97
      },
      {
       "ticker": "B3SA3",
@@ -825,11 +803,18 @@
       "b3_arquivo": 18.51
      },
      {
-      "ticker": "XPML11",
-      "data": "2026-10-01",
-      "preco_fechamento_nosso": 101.35,
-      "preco_fechamento_fonte": 101.0500030518,
-      "b3_arquivo": 101.35
+      "ticker": "VALE3",
+      "data": "2026-02-19",
+      "preco_fechamento_nosso": 84.09,
+      "preco_fechamento_fonte": 83.4599990845,
+      "b3_arquivo": 84.09
+     },
+     {
+      "ticker": "VALE3",
+      "data": "2026-05-08",
+      "preco_fechamento_nosso": 81.49,
+      "preco_fechamento_fonte": 80.8000030518,
+      "b3_arquivo": 81.49
      },
      {
       "ticker": "XPML11",
@@ -847,13 +832,6 @@
      },
      {
       "ticker": "XPML11",
-      "data": "2026-01-20",
-      "preco_fechamento_nosso": 109.1,
-      "preco_fechamento_fonte": 109.0810089111,
-      "b3_arquivo": 109.1
-     },
-     {
-      "ticker": "XPML11",
       "data": "2026-01-14",
       "preco_fechamento_nosso": 110.4,
       "preco_fechamento_fonte": 1.0679980516,
@@ -862,16 +840,16 @@
     ]
    },
    "retorno": {
-    "comparados": 28746,
-    "iguais": 28324,
-    "diferentes": 422,
-    "so_nosso": 19,
+    "comparados": 28761,
+    "iguais": 28354,
+    "diferentes": 407,
+    "so_nosso": 4,
     "so_fonte": 0,
     "colunas": {
      "retorno_dia": {
       "max_dif": 101.98082811951346,
       "tolerancia": 0.0011,
-      "diferentes": 422
+      "diferentes": 407
      }
     },
     "rotulos": {},
@@ -1042,18 +1020,6 @@
     ],
     "exemplos_so_nosso": [
      {
-      "ticker": "B3SA3",
-      "data": "2026-08-10"
-     },
-     {
-      "ticker": "BBAS3",
-      "data": "2026-08-10"
-     },
-     {
-      "ticker": "BBDC4",
-      "data": "2026-08-10"
-     },
-     {
       "ticker": "BOVA11",
       "data": "2025-10-24"
      },
@@ -1062,24 +1028,12 @@
       "data": "2025-10-24"
      },
      {
-      "ticker": "HGLG11",
-      "data": "2026-08-10"
-     },
-     {
-      "ticker": "ITUB4",
-      "data": "2026-08-10"
-     },
-     {
       "ticker": "IVVB11",
       "data": "2025-10-24"
      },
      {
-      "ticker": "KNCR11",
-      "data": "2026-08-10"
-     },
-     {
-      "ticker": "MGLU3",
-      "data": "2026-08-10"
+      "ticker": "SMAL11",
+      "data": "2025-10-24"
      }
     ],
     "exemplos_so_fonte": [],
@@ -1091,18 +1045,18 @@
      },
      {
       "ticker": "B3SA3",
-      "comparados": 1441,
-      "iguais": 1418
+      "comparados": 1442,
+      "iguais": 1420
      },
      {
       "ticker": "BBAS3",
-      "comparados": 1441,
-      "iguais": 1412
+      "comparados": 1442,
+      "iguais": 1414
      },
      {
       "ticker": "BBDC4",
-      "comparados": 1441,
-      "iguais": 1408
+      "comparados": 1442,
+      "iguais": 1410
      },
      {
       "ticker": "BOVA11",
@@ -1116,13 +1070,13 @@
      },
      {
       "ticker": "HGLG11",
-      "comparados": 1441,
-      "iguais": 1430
+      "comparados": 1442,
+      "iguais": 1432
      },
      {
       "ticker": "ITUB4",
-      "comparados": 1441,
-      "iguais": 1426
+      "comparados": 1442,
+      "iguais": 1428
      },
      {
       "ticker": "IVVB11",
@@ -1131,33 +1085,33 @@
      },
      {
       "ticker": "KNCR11",
-      "comparados": 1441,
-      "iguais": 1431
+      "comparados": 1442,
+      "iguais": 1433
      },
      {
       "ticker": "MGLU3",
-      "comparados": 1441,
-      "iguais": 1423
+      "comparados": 1442,
+      "iguais": 1425
      },
      {
       "ticker": "MXRF11",
-      "comparados": 1441,
-      "iguais": 1434
+      "comparados": 1442,
+      "iguais": 1436
      },
      {
       "ticker": "PETR3",
-      "comparados": 1441,
-      "iguais": 1426
+      "comparados": 1442,
+      "iguais": 1428
      },
      {
       "ticker": "PETR4",
-      "comparados": 1441,
-      "iguais": 1394
+      "comparados": 1442,
+      "iguais": 1396
      },
      {
       "ticker": "RENT3",
-      "comparados": 1441,
-      "iguais": 1422
+      "comparados": 1442,
+      "iguais": 1424
      },
      {
       "ticker": "SMAL11",
@@ -1166,28 +1120,28 @@
      },
      {
       "ticker": "SUZB3",
-      "comparados": 1441,
-      "iguais": 1430
+      "comparados": 1442,
+      "iguais": 1432
      },
      {
       "ticker": "VALE3",
-      "comparados": 1441,
-      "iguais": 1404
+      "comparados": 1442,
+      "iguais": 1406
      },
      {
       "ticker": "WEGE3",
-      "comparados": 1441,
-      "iguais": 1416
+      "comparados": 1442,
+      "iguais": 1418
      },
      {
       "ticker": "XPML11",
-      "comparados": 1441,
-      "iguais": 1428
+      "comparados": 1442,
+      "iguais": 1430
      }
     ],
     "periodo": "04/01/2021 a 15/10/2026"
    },
-   "verificado_em": "2026-10-17T10:15:52Z",
+   "verificado_em": "2026-10-18T13:47:51Z",
    "metricas": {
     "plataforma_igual_b3_pct": 100.0
    }
@@ -1197,7 +1151,7 @@
    "tabela": "findata_dev.gold.fct_provento",
    "sql": "SELECT ticker, classe_ativo,\n       CASE WHEN classe_ativo = 'FII' THEN trunc(data_com, 'MM') ELSE data_ex END AS data_ex,\n       round(sum(valor_ajustado), 6) AS valor\n  FROM findata_dev.gold.fct_provento JOIN findata_dev.gold.dim_ativo_b3 USING (ticker)\n WHERE ticker IN ('PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'BBAS3', 'ABEV3', 'WEGE3', 'B3SA3', 'MGLU3', 'RENT3', 'SUZB3', 'PETR3', 'KNCR11', 'HGLG11', 'MXRF11', 'XPML11', 'BOVA11', 'IVVB11', 'SMAL11', 'HASH11') AND data_ex >= DATE'2021-01-05'\n GROUP BY ALL",
    "fonte": "Yahoo Finance (eventos de dividendos)",
-   "url": "https://query1.finance.yahoo.com/v8/finance/chart/PETR4.SA?period1=1609718400&period2=1792239027&interval=1d&events=div%7Csplit",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/PETR4.SA?period1=1609718400&period2=1792331274&interval=1d&events=div%7Csplit",
    "independente": true,
    "chave": [
     "ticker",
@@ -1560,17 +1514,17 @@
      "classe": "FII"
     }
    ],
-   "verificado_em": "2026-10-17T12:10:24Z",
+   "verificado_em": "2026-10-18T13:48:47Z",
    "metricas": {
     "acoes_ate_1pct_pct": 92.50645994832041
    }
   },
   "eventos": {
    "titulo": "Desdobramentos, grupamentos e bonificações (100 ações mais negociadas)",
-   "tabela": "findata_dev.gold.fct_cotacao_diaria",
-   "sql": "WITH top AS (\n  SELECT ticker FROM findata_dev.gold.fct_cotacao_diaria\n   WHERE classe_ativo = 'Ação' AND data_pregao >= add_months(current_date(), -12)\n   GROUP BY ticker ORDER BY sum(volume) DESC LIMIT 100)\nSELECT c.ticker, c.data_pregao AS data_ex, c.fator_evento, c.retorno_dia, c.preco_fechamento,\n       lag(c.preco_fechamento) OVER (PARTITION BY c.ticker ORDER BY c.data_pregao) AS fecho_anterior\n  FROM findata_dev.gold.fct_cotacao_diaria c JOIN top USING (ticker)",
+   "tabela": "findata_dev.gold.fct_evento_acao",
+   "sql": "SELECT ticker, data_ex, fator AS fator_evento, origem FROM findata_dev.gold.fct_evento_acao\n WHERE abs(fator - 1) > 1e-9",
    "fonte": "Yahoo Finance (eventos 'split')",
-   "url": "https://query1.finance.yahoo.com/v8/finance/chart/ABEV3.SA?period1=1609804800&period2=1792235926&interval=1d&events=split",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/ABEV3.SA?period1=1609804800&period2=1792331336&interval=1d&events=split",
    "independente": true,
    "chave": [
     "ticker",
@@ -1675,7 +1629,11 @@
    "so_yahoo_detalhe": [],
    "bonificacoes_suspeitas": 0,
    "tickers": 100,
-   "verificado_em": "2026-10-17T11:18:43Z",
+   "por_origem": {
+    "B3": 51,
+    "complementar": 19
+   },
+   "verificado_em": "2026-10-18T13:48:50Z",
    "metricas": {
     "bonificacoes_suspeitas": 0
    }
@@ -1685,7 +1643,7 @@
    "tabela": "findata_dev.gold.fct_indice_diario",
    "sql": "SELECT indice, data_pregao AS data, fechamento\n  FROM findata_dev.gold.fct_indice_diario\n WHERE indice = 'IBOV'",
    "fonte": "Yahoo Finance (^BVSP); desempate com o ETF BOVA11",
-   "url": "https://query1.finance.yahoo.com/v8/finance/chart/%5EBVSP?period1=1420156800&period2=1792232198&interval=1d&events=div%7Csplit",
+   "url": "https://query1.finance.yahoo.com/v8/finance/chart/%5EBVSP?period1=1420156800&period2=1792331360&interval=1d&events=div%7Csplit",
    "independente": true,
    "chave": [
     "indice",
@@ -1893,9 +1851,9 @@
     "yahoo_mais_perto": 42,
     "erro_medio_nosso_pp": 0.14540883256939457,
     "erro_medio_yahoo_pp": 0.2615228839267995,
-    "erro_medio_todos_os_dias_pp": 0.16260631814067572
+    "erro_medio_todos_os_dias_pp": 0.1625813054909153
    },
-   "verificado_em": "2026-10-17T10:16:39Z"
+   "verificado_em": "2026-10-18T13:49:18Z"
   },
   "fundos": {
    "titulo": "Informe diário de fundos, 09/2026 (todas as linhas)",
@@ -2315,7 +2273,7 @@
    "duplicadas_ficheiro": 0,
    "ficheiro_cvm_modificado": "Sat, 17 Oct 2026 03:53:08 GMT",
    "ultima_carga_plataforma": "2026-10-16 09:25:59.037631+00:00",
-   "verificado_em": "2026-10-17T10:16:50Z"
+   "verificado_em": "2026-10-18T13:49:21Z"
   },
   "tesouro": {
    "titulo": "Tesouro Direto: preços e taxas (todas as linhas)",
@@ -2498,9 +2456,11 @@
    "divergencias": [],
    "exemplos_so_nosso": [],
    "exemplos_so_fonte": [],
-   "verificado_em": "2026-10-17T10:19:05Z"
+   "verificado_em": "2026-10-18T13:49:41Z"
   }
  },
- "alertas": [],
- "avaliado_em": "2026-10-17T12:10:35Z"
+ "alertas": [
+  "selic: não correu (JSONDecodeError('Expecting value: line 1 column 1 (char 0)'))"
+ ],
+ "avaliado_em": "2026-10-18T13:51:34Z"
 }
